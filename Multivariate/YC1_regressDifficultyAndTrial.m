@@ -1,7 +1,8 @@
-function YC1_regressDifficultyAndTrial(subjs)
+function YC1_regressDifficultyAndTrial(subjs,saveDir)
 % function YC1_regressDifficultyAndTrial(subjs)
 %
-% Option input: cells array of subject strings, defaults to all subjects
+% Option inputs: cells array of subject strings, defaults to all subjects
+%                save directory
 %
 % For each encoding trial, at all timepoints and frequencies, perform a
 % regression of the following type:
@@ -18,12 +19,17 @@ function YC1_regressDifficultyAndTrial(subjs)
 %
 %      trialNum is trial number within the session
 %
-% This function saves the following files 
+% This function saves the following files to saveDir/subj
+%
+%       <subj>_regStatistics.mat
+%       <subj>_residuals.mat
 
     
 
 % save directory
-saveDir = '/data10/scratch/jfm2/YC1/multi/power/regress';
+if ~exist('saveDir','var') || isempty(saveDir)
+    saveDir = '/data10/scratch/jfm2/YC1/multi/power/regress';
+end
 if ~exist(saveDir,'dir')
     mkdir(saveDir);
 end
@@ -68,11 +74,10 @@ end
 
 function runRegress_subj(subj,bipol,params,allErrors,allObjectLocs,saveDir)
 
-% 
-% fname = fullfile(saveDir,[subj '_lasso.mat']);
-% if exist(fname,'file')
-%     return
-% end
+subjDir = fullfile(saveDir,subj);
+if ~exist(subjDir,'dir')
+    mkdir(subjDir)
+end
 
 % load tal structure
 tal = getBipolarSubjElecs(subj,bipol,1,1);
@@ -98,7 +103,6 @@ config.distributedParams.timeBins = [tStarts' tEnds'];
 % add the test error to the learning trials
 events = addErrorField(events);
 
-
 % convert to the session to an double from a string
 session = NaN(1,length(events));
 for e = 1:length(session)
@@ -118,7 +122,6 @@ timeBins = params.timeBins;
 
 % load power for all electrodes
 powerData = loadAllPower(tal,subj,events,freqBins,timeBins,config,eventsToUse);
-
 
 % reorder to be events x electrodes x time x freq.
 powerData = permute(powerData,[3 4 2 1]);
@@ -158,19 +161,13 @@ x = [avgDiff learningNum trialNumber];
 x = (x-repmat(mean(x),size(x,1),1)) ./ repmat(std(x),size(x,1),1);
 
 % Init beta matrices, elecs x times x freqs
-beta1 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
-beta2 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
-beta3 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
+[beta1,beta2,beta3] = deal(NaN(size(powerData,2),size(powerData,3),size(powerData,4)));
 
 % Init tstat matrices, elecs x times x freqs
-tstat1 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
-tstat2 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
-tstat3 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
+[tstat1,tstat2,tstat3] = deal(NaN(size(powerData,2),size(powerData,3),size(powerData,4)));
 
 % Init pval matrices, elecs x times x freqs
-pval1 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
-pval2 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
-pval3 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
+[pval1,pval2,pval3] = deal(NaN(size(powerData,2),size(powerData,3),size(powerData,4)));
 
 % Init residuals matrix, events x elecs x times x freqs. Same size as
 % original power matrix
@@ -215,7 +212,16 @@ for e = 1:size(powerData,2)
         end % frequency    
     end % time
 end % electrode
-keyboard
+
+% save all the betas,tstats,pvals to one file
+vars = {'beta1','beta2','beta3','tstat1','tstat2','tstat3','pval1','pval2','pval3','tal'};
+save(fullfile(subjDir,[subj '_regStatistics.mat']),vars{:});
+
+% save the residuals to another file
+resid = single(resid); %#ok<NASGU>
+save(fullfile(subjDir,[subj '_residuals.mat']),'resid');
+
+
 end
 
 function powerData = loadAllPower(tal,subj,events,freqBins,timeBins,config,eventsToUse)
@@ -248,8 +254,7 @@ for e = 1:nElecs
     [distOut] = RAM_dist_func(subj,[],elecNum,'RAM_YC1','events', 0, ...
         @doNothing, config.distributedFunctionLabel, config.distributedParams, 1, 1, events);
     
-    sessInds = distOut.sessInds;
-    subjMean = distOut.meanBasePow;
+    sessInds = distOut.sessInds;    
     subjStd = distOut.stdBasePow;
     subjPow = distOut.pow;
     
