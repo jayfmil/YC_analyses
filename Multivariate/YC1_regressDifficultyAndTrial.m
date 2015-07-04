@@ -160,26 +160,25 @@ x = [avgDiff learningNum trialNumber];
 % normalize?
 x = (x-repmat(mean(x),size(x,1),1)) ./ repmat(std(x),size(x,1),1);
 
-% Init beta matrices, elecs x times x freqs
-[beta1,beta2,beta3] = deal(NaN(size(powerData,2),size(powerData,3),size(powerData,4)));
-
-% Init tstat matrices, elecs x times x freqs
-[tstat1,tstat2,tstat3] = deal(NaN(size(powerData,2),size(powerData,3),size(powerData,4)));
-
-% Init pval matrices, elecs x times x freqs
-[pval1,pval2,pval3] = deal(NaN(size(powerData,2),size(powerData,3),size(powerData,4)));
-
-% Init residuals matrix, events x elecs x times x freqs. Same size as
-% original power matrix
-resid = NaN(size(powerData));
-
 % loop over electrode
 for e = 1:size(powerData,2)
     fprintf('%s: Electrode %d of %d.\n',subj,e,size(powerData,2))
-   
-    % time 
+    
+    % Init beta matrices, times x freqs
+    [beta1,beta2,beta3] = deal(NaN(size(powerData,3),size(powerData,4)));
+    
+    % Init tstat matrices, times x freqs
+    [tstat1,tstat2,tstat3] = deal(NaN(size(powerData,3),size(powerData,4)));
+    
+    % Init pval matrices, times x freqs
+    [pval1,pval2,pval3] = deal(NaN(size(powerData,3),size(powerData,4)));
+    
+    % Init residuals matrix, events times x freqs.
+    resid = NaN(size(powerData,1),size(powerData,3),size(powerData,4));
+    
+    % time
     for t = 1:size(powerData,3)
-       
+        
         % frequency
         for f = 1:size(powerData,4)
             
@@ -191,35 +190,36 @@ for e = 1:size(powerData,2)
             s = regstats(y,x,'linear',{'beta','yhat','r','mse','rsquare','tstat'});
             
             % save output beta
-            beta1(e,t,f) = s.beta(2);
-            beta2(e,t,f) = s.beta(3);
-            beta3(e,t,f) = s.beta(4);
+            beta1(t,f) = s.beta(2);
+            beta2(t,f) = s.beta(3);
+            beta3(t,f) = s.beta(4);
             
             % and tstats
-            tstat1(e,t,f) = s.tstat.t(2);
-            tstat2(e,t,f) = s.tstat.t(3);
-            tstat3(e,t,f) = s.tstat.t(4);   
+            tstat1(t,f) = s.tstat.t(2);
+            tstat2(t,f) = s.tstat.t(3);
+            tstat3(t,f) = s.tstat.t(4);   
             
             % and pvals
-            pval1(e,t,f) = s.tstat.pval(2);
-            pval2(e,t,f) = s.tstat.pval(3);
-            pval3(e,t,f) = s.tstat.pval(4);  
+            pval1(t,f) = s.tstat.pval(2);
+            pval2(t,f) = s.tstat.pval(3);
+            pval3(t,f) = s.tstat.pval(4);  
             
             % and finally the residuals, which will serve as corrected
             % power values for later analyses
-            resid(:,e,t,f) = s.r;
+            resid(:,t,f) = s.r;
             
-        end % frequency    
+        end % frequency
     end % time
+    keyboards
+    % save all the betas,tstats,pvals to one file
+    vars = {'beta1','beta2','beta3','tstat1','tstat2','tstat3','pval1','pval2','pval3','tal'};
+    save(fullfile(subjDir,[subj '_regStatistics.mat']),vars{:});
+    
+    % save the residuals to another file
+    resid = single(resid); %#ok<NASGU>
+    save(fullfile(subjDir,[subj '_residuals.mat']),'resid');
+    
 end % electrode
-
-% save all the betas,tstats,pvals to one file
-vars = {'beta1','beta2','beta3','tstat1','tstat2','tstat3','pval1','pval2','pval3','tal'};
-save(fullfile(subjDir,[subj '_regStatistics.mat']),vars{:});
-
-% save the residuals to another file
-resid = single(resid); %#ok<NASGU>
-save(fullfile(subjDir,[subj '_residuals.mat']),'resid');
 
 
 end
