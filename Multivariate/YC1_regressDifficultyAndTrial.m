@@ -1,6 +1,24 @@
-function [ output_args ] = YC1_regressDifficultyAndTrial(params,subjs)
-%UNTITLED Summary of this function goes here
-%   Detailed explanation goes here
+function YC1_regressDifficultyAndTrial(subjs)
+% function YC1_regressDifficultyAndTrial(subjs)
+%
+% Option input: cells array of subject strings, defaults to all subjects
+%
+% For each encoding trial, at all timepoints and frequencies, perform a
+% regression of the following type:
+%
+%      power = B0 + B1(difficulty) + B2(learningTrialNumber) + B3(trialNum)
+%
+% where:
+%      
+%      difficulty is the average performace factor score across all trials
+%      in the entire dataset within a 5 VR radius of the object location
+%
+%      learningTrialNumber indicates either the first or second learning
+%      trial
+%
+%      trialNum is trial number within the session
+%
+% This function saves the following files 
 
     
 
@@ -13,7 +31,7 @@ end
 % do bipolar
 bipol = 1;
 
-if ~exist('params','var') || isempty(params)
+if ~exist('params','var')
     params = multiParams();
     params.timeBins = [];
     params.freqBins = [];
@@ -112,15 +130,15 @@ powerData = permute(powerData,[3 4 2 1]);
 %     beta2 = learning trial 1 or learning trial 2
 %     beta3 = overall trial number, 1...n, n = trial number within session
 
-% get beta1 (avg difficulty). This is based on all average error of all
-% test trials within a certain number of VR units from the object location,
-% excluding the current trial.
+% get beta1 (avg difficulty). This is based on average error of all test
+% trials within a certain number of VR units from the object location,
+% excluding the current trial. CURRENTLY USING 5 VR-UNIT RADIUS
 avgDiff = NaN(sum(eventsToUse),1);
 objLocs = vertcat(events(eventsToUse).objLocs);
 for trial = 1:length(avgDiff)
     x = objLocs(trial,1);
     y = objLocs(trial,2);
-    near = sqrt((allObjectLocs(:,1) - x).^2 + (allObjectLocs(:,2) - y).^2) < 5;
+    near = sqrt((allObjectLocs(:,1) - x).^2 + (allObjectLocs(:,2) - y).^2) < 5;    
     current = ismember(allObjectLocs,objLocs(trial,:),'rows');
     avgDiff(trial) = mean(allErrors(near & ~current));
 end
@@ -139,17 +157,31 @@ x = [avgDiff learningNum trialNumber];
 % normalize?
 x = (x-repmat(mean(x),size(x,1),1)) ./ repmat(std(x),size(x,1),1);
 
+% Init beta matrices, elecs x times x freqs
 beta1 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
 beta2 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
 beta3 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
 
+% Init tstat matrices, elecs x times x freqs
+tstat1 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
+tstat2 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
+tstat3 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
+
+% Init pval matrices, elecs x times x freqs
+pval1 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
+pval2 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
+pval3 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
+
+% Init residuals matrix, events x elecs x times x freqs. Same size as
+% original power matrix
+resid = NaN(size(powerData));
+
 % loop over electrode
 for e = 1:size(powerData,2)
-    fprintf('Electrode %d of %d.\n',e,size(powerData,2))
+    fprintf('%s: Electrode %d of %d.\n',subj,e,size(powerData,2))
    
     % time 
     for t = 1:size(powerData,3)
-%         fprintf('Timepoint %d of %d.\n',t,size(powerData,3))
        
         % frequency
         for f = 1:size(powerData,4)
@@ -157,10 +189,28 @@ for e = 1:size(powerData,2)
             % observations = power for each event for the electrode at this
             % time and frequency
             y = powerData(:,e,t,f);
+            
+            % run regression
             s = regstats(y,x,'linear',{'beta','yhat','r','mse','rsquare','tstat'});
+            
+            % save output beta
             beta1(e,t,f) = s.beta(2);
             beta2(e,t,f) = s.beta(3);
             beta3(e,t,f) = s.beta(4);
+            
+            % and tstats
+            tstat1(e,t,f) = s.tstat.t(2);
+            tstat2(e,t,f) = s.tstat.t(3);
+            tstat3(e,t,f) = s.tstat.t(4);   
+            
+            % and pvals
+            pval1(e,t,f) = s.tstat.pval(2);
+            pval2(e,t,f) = s.tstat.pval(3);
+            pval3(e,t,f) = s.tstat.pval(4);  
+            
+            % and finally the residuals, which will serve as corrected
+            % power values for later analyses
+            resid(:,e,t,f) = s.r;
             
         end % frequency    
     end % time
@@ -206,7 +256,7 @@ for e = 1:nElecs
     % a couple sessions weren't zscored, so do it here. I should double
     % check that this is right
     if isempty(subjStd)
-        fprintf('power not zscored for %s\n',subj)
+        fprintf('Power not zscored for %s. Doing it now.\n',subj)
         
         sI = unique(sessInds);
         zpow = NaN(size(subjPow));
