@@ -135,21 +135,30 @@ trialNumber = [events(eventsToUse).itemno]'+1;
 x = [avgDiff learningNum trialNumber];
 
 % normalize?
-x =(x-repmat(mean(x),size(x,1),1)) ./ repmat(std(x),size(x,1),1);
+x = (x-repmat(mean(x),size(x,1),1)) ./ repmat(std(x),size(x,1),1);
 
+beta1 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
+beta2 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
+beta3 = NaN(size(powerData,2),size(powerData,3),size(powerData,4));
 
 % loop over electrode
 for e = 1:size(powerData,2)
+    fprintf('Electrode %d of %d.\n',e,size(powerData,2))
    
     % time 
     for t = 1:size(powerData,3)
+        fprintf('Timepoint %d of %d.\n',t,size(powerData,3))
        
+        % frequency
         for f = 1:size(powerData,4)
             
             % observations = power for each event for the electrode at this
             % time and frequency
             y = powerData(:,e,t,f);
-            keyboard
+            s = regstats(y,x,'linear',{'beta','yhat','r','mse','rsquare','tstat'});
+            beta1(e,t,f) = s.beta(2);
+            beta2(e,t,f) = s.beta(3);
+            beta3(e,t,f) = s.beta(4);
             
         end % frequency    
     end % time
