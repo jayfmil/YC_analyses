@@ -16,7 +16,7 @@ subjs = get_subs('RAM_YC1');
 errors = cell(1,length(subjs));
 objLocs = cell(1,length(subjs));
 disp('Loading all errors.')
-for s = 1:length(eventFiles);    
+for s = 1:length(subjs);    
     % process subject    
     [errors{s},objLocs{s}] = process_subj(subjs{s},recalcError);    
 end
