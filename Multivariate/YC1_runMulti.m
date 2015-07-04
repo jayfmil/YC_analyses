@@ -162,6 +162,20 @@ for t = 1:size(timeBins,1)
 end
 save(fname,'res','Y','objLocs','freqBins','timeBins');
 
+
+
+% do correct cross validation
+% no freq bins
+% uniform time bins. try different sizes. Try the whole
+% binary on something
+% elec x freq x time all at once
+% just single sessions?
+
+
+
+
+
+
 % set up the weights structure, w/info on class weights
 % Weights.MeanCV = mean(WeightMat,2); % mean
 % Weights.SECV = nanstd(WeightMat,[],2)/sqrt(size(WeightMat,2)-1);
