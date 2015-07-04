@@ -74,11 +74,6 @@ end
 
 function runRegress_subj(subj,bipol,params,allErrors,allObjectLocs,saveDir)
 
-subjDir = fullfile(saveDir,subj);
-if ~exist(subjDir,'dir')
-    mkdir(subjDir)
-end
-
 % load tal structure
 tal = getBipolarSubjElecs(subj,bipol,1,1);
 if ~isfield(tal,'locTag') || ~any(~cellfun('isempty',regexpi({tal.locTag},['HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc'])))
@@ -86,6 +81,11 @@ if ~isfield(tal,'locTag') || ~any(~cellfun('isempty',regexpi({tal.locTag},['HC|e
     return
 end
 nElecs = length(tal);
+
+subjDir = fullfile(saveDir,subj);
+if ~exist(subjDir,'dir')
+    mkdir(subjDir)
+end
 
 % load events so we can filter into our conditions of interest
 config = RAM_config('RAM_YC1');
@@ -210,14 +210,14 @@ for e = 1:size(powerData,2)
             
         end % frequency
     end % time
-    keyboards
+    
     % save all the betas,tstats,pvals to one file
     vars = {'beta1','beta2','beta3','tstat1','tstat2','tstat3','pval1','pval2','pval3','tal'};
-    save(fullfile(subjDir,[subj '_regStatistics.mat']),vars{:});
+    save(fullfile(subjDir,sprintf('%s_elec_%s_regStatistics.mat',subj,tal(e).eNames)),vars{:});
     
     % save the residuals to another file
     resid = single(resid); %#ok<NASGU>
-    save(fullfile(subjDir,[subj '_residuals.mat']),'resid');
+    save(fullfile(subjDir,sprintf('%s_elec_%s_residuals.mat',subj,tal(e).eNames)),'resid');
     
 end % electrode
 
