@@ -96,23 +96,29 @@ timeBins = params.timeBins;
 
 % load power for all electrodes
 powerData = loadAllPower(tal,subj,events,freqBins,timeBins,config,eventsToUse);
+keyboard
 powerData = permute(powerData,[3 1 2 4]);
-
+keyboard
 end
 
 function powerData = loadAllPower(tal,subj,events,freqBins,timeBins,config,eventsToUse)
 
+doFreqs = 0;
 if size(freqBins,1) > 0
     nFreqs = size(freqBins,1);
+    doFreqs = 1;
 else
     nFreqs = length(config.distributedParams.freQ);
 end
+
+doTimes = 0;
 if size(timeBins,1) > 0
     nTimes = size(timeBins,1);
+    doTimes = 1;
 else
-    nTimes = 4
+    nTimes = size(config.distributedParams.timeBins,1);
 end
-keyboard
+
 nEvents = sum(eventsToUse);
 nElecs = length(tal);
 powerData = NaN(nFreqs,nTimes,nEvents,nElecs);
@@ -150,7 +156,7 @@ for e = 1:nElecs
     subjPow = subjPow(:,:,eventsToUse);
     
     % average frequencies
-    if nFreqs > 0
+    if doFreqs
         tmpPower = NaN(nFreqs,size(subjPow,2),size(subjPow,3));
         for f = 1:nFreqs
             fInds = config.distributedParams.freQ >= freqBins(f,1) & config.distributedParams.freQ < freqBins(f,2);
@@ -160,7 +166,7 @@ for e = 1:nElecs
     end        
     
     % average times
-    if nTimes > 0
+    if doTimes
         tmpPower = NaN(nFreqs,nTimes,size(subjPow,3));
         for t = 1:nTimes
             tInds = config.distributedParams.timeBins(:,1) >= timeBins(t,1) & config.distributedParams.timeBins(:,2) < timeBins(t,2);
