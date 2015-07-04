@@ -24,12 +24,15 @@ if ~exist('subjs','var') || isempty(subjs)
     subjs = get_subs('RAM_YC1');
 end
 
+% load all errors
+[allErrors,allObjectLocs] = YC1_loadAllSubjErrors;
+
 if exist('pool','var')
     matlabpool(pool,length(subjs)+1)
     tic
     parfor s = 1:length(subjs)
         fprintf('Processing %s.\n',subjs{s})
-        runRegress_subj(subjs{s},bipol,params,saveDir);
+        runRegress_subj(subjs{s},bipol,params,allErrors,allObjectLocs,saveDir);
     end
     toc
     matlabpool close
@@ -37,7 +40,7 @@ if exist('pool','var')
 else
     for s = 1:length(subjs)
         fprintf('Processing %s.\n',subjs{s})
-        runRegress_subj(subjs{s},bipol,params,saveDir);
+        runRegress_subj(subjs{s},bipol,params,allErrors,allObjectLocs,saveDir);
         
     end
 end
@@ -45,7 +48,7 @@ end
 
 
 
-function runRegress_subj(subj,bipol,params,saveDir)
+function runRegress_subj(subj,bipol,params,allErrors,allObjectLocs,saveDir)
 
 % 
 % fname = fullfile(saveDir,[subj '_lasso.mat']);
@@ -96,7 +99,7 @@ timeBins = params.timeBins;
 
 % load power for all electrodes
 powerData = loadAllPower(tal,subj,events,freqBins,timeBins,config,eventsToUse);
-keyboard
+
 
 % reorder to be events x electrodes x time x freq.
 powerData = permute(powerData,[3 4 2 1]);
@@ -109,7 +112,7 @@ powerData = permute(powerData,[3 4 2 1]);
 %     beta3 = overall trial number, 1...n, n = trial number within session
 
 % get beta1 (avg difficulty). This is based on all subject averages
-
+keyboard
 % loop over electrode
 for e = 1:size(powerData,2)
    
