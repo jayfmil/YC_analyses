@@ -124,9 +124,20 @@ for trial = 1:length(avgDiff)
 end
     
 % get beta2 (learning trial 1 or 2 for each test trial)
+[~,IA,~] = unique(objLocs,'rows','stable');
+learningNum = ones(sum(eventsToUse),1);
+learningNum(IA+1) = 2;
+
+% get beta3 (overall trial number within session)
+trialNumber = [events(eventsToUse).itemno]'+1;
+
+% create data matrix
+x = [avgDiff learningNum trialNumber];
+
+% normalize?
+x =(x-repmat(mean(x),size(x,1),1)) ./ repmat(std(x),size(x,1),1);
 
 
-keyboard
 % loop over electrode
 for e = 1:size(powerData,2)
    
@@ -138,6 +149,7 @@ for e = 1:size(powerData,2)
             % observations = power for each event for the electrode at this
             % time and frequency
             y = powerData(:,e,t,f);
+            keyboard
             
         end % frequency    
     end % time
