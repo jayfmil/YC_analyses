@@ -97,7 +97,34 @@ timeBins = params.timeBins;
 % load power for all electrodes
 powerData = loadAllPower(tal,subj,events,freqBins,timeBins,config,eventsToUse);
 keyboard
-powerData = permute(powerData,[3 1 2 4]);
+
+% reorder to be events x electrodes x time x freq.
+powerData = permute(powerData,[3 4 2 1]);
+
+% for every electrode, will perform a separate regression at every time
+% point and frequency. Predictors will be:
+%
+%     beta1 = average difficulty of the target location
+%     beta2 = learning trial 1 or learning trial 2
+%     beta3 = overall trial number, 1...n, n = trial number within session
+
+% get beta1 (avg difficulty). This is based on all subject averages
+
+% loop over electrode
+for e = 1:size(powerData,2)
+   
+    % time 
+    for t = 1:size(powerData,3)
+       
+        for f = 1:size(powerData,4)
+            
+            % observations = power for each event for the electrode at this
+            % time and frequency
+            y = powerData(:,e,t,f);
+            
+        end % frequency    
+    end % time
+end % electrode
 keyboard
 end
 
