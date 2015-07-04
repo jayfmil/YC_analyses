@@ -80,6 +80,7 @@ config.distributedParams.timeBins = [tStarts' tEnds'];
 % add the test error to the learning trials
 events = addErrorField(events);
 
+
 % convert to the session to an double from a string
 session = NaN(1,length(events));
 for e = 1:length(session)
@@ -111,7 +112,20 @@ powerData = permute(powerData,[3 4 2 1]);
 %     beta2 = learning trial 1 or learning trial 2
 %     beta3 = overall trial number, 1...n, n = trial number within session
 
-% get beta1 (avg difficulty). This is based on all subject averages
+% get beta1 (avg difficulty). This is based on all average error of all
+% test trials within a certain number of VR units from the object location.
+avgDiff = NaN(sum(eventsToUse),1);
+objLocs = vertcat(events(eventsToUse).objLocs);
+for trial = 1:length(avgDiff)
+    x = objLocs(trial,1);
+    y = objLocs(trial,2);
+    near = sqrt((allObjectLocs(:,1) - x).^2 + (allObjectLocs(:,2) - y).^2) < 5;
+    avgDiff(trial) = mean(allErrors(near));
+end
+    
+% get beta2 (learning trial 1 or 2 for each test trial)
+
+
 keyboard
 % loop over electrode
 for e = 1:size(powerData,2)
