@@ -59,7 +59,7 @@ if doRecalc
         errors(e) = calc_YC_error(objLocs(e,:),respLocs(e,:));
     end
 else    
-    errors = [events.respPerformanceFactor];
+    errors = [events.respPerformanceFactor]';
 end
 
 
