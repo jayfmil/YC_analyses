@@ -40,7 +40,7 @@ end
 
 
 
-function [events,errors,objLocs] = process_subj(subj,doRecalc)
+function [errors,objLocs] = process_subj(subj,doRecalc)
 
 
 % load events and filter to test trials
