@@ -438,7 +438,7 @@ if ~exist(fullfile(subjPath,fname),'file')
     error('Residuals file %s not found.\n',fname)
 else
     elecData = load(fullfile(subjPath,fname));
-    pow = permute(elecData,[3 2 1]);
+    pow = permute(elecData.resid,[3 2 1]);
     if size(elecData.resid,1) ~= sum(eventsToUse)
         keyboard
     end
