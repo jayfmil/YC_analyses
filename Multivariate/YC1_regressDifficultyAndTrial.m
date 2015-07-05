@@ -75,7 +75,7 @@ end
 function runRegress_subj(subj,bipol,params,allErrors,allObjectLocs,saveDir)
 
 % load tal structure
-tal = getBipolarSubjElecs(subj,bipol,1,1);
+tal = getBipolarSubjElecs(subj,bipol,1);
 if ~isfield(tal,'locTag') || ~any(~cellfun('isempty',regexpi({tal.locTag},['HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc'])))
     fprintf('No MTL electrodes for %s.\n',subj)
     return

@@ -299,7 +299,7 @@ for roi = {'hipp'};%,'ec','mtl','frontal','parietal','temporal','occipital','lim
         if ~useResids
             pow  = loadPow_local(subj,elecNum,config,events);
         else
-            pow = loadResids_locs(subj,elecNum);
+            pow = loadResids_locs(subj,elecNum,events);
         end
        
         % use only time bins of interest
