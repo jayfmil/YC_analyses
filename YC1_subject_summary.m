@@ -135,7 +135,6 @@ for rec = 1:length(recEvents);
   err = recEvents(rec).respPerformanceFactor;
   ind = sessVec == session & trialVec == trial;
   [events(ind).testError] = deal(err);
-
 end
 
 % filter between good and bad
@@ -171,6 +170,7 @@ fIndHFA = fInd_start:fInd_end;
 % conditions of interest
 cond1 = ana_func(events, 1);
 cond2 = ana_func(events, 0);
+er = [events(cond1|cond2).testError];
 
 
 if sum(cond1) < 5
@@ -299,7 +299,7 @@ for roi = {'hipp'};%,'ec','mtl','frontal','parietal','temporal','occipital','lim
         if ~useResids
             pow  = loadPow_local(subj,elecNum,config,events);
         else
-            pow = loadResids_locs(subj,elecNum,cond1|cond2);
+            [pow,cond1,cond2] = loadResids_locs(subj,elecNum,events,cond1|cond2);
         end
         keyboard
        
@@ -307,8 +307,7 @@ for roi = {'hipp'};%,'ec','mtl','frontal','parietal','temporal','occipital','lim
         pow(:,~tInds,:) = NaN;
                 
         % corr for low theta
-        test_pow_LTA = nanmean(squeeze(nanmean(pow(fIndLTA,:,cond1|cond2),2)),1);
-        er = [events(cond1|cond2).testError];
+        test_pow_LTA = nanmean(squeeze(nanmean(pow(fIndLTA,:,cond1|cond2),2)),1);        
         bad = isnan(err) | isnan(test_pow_LTA);
         [rLTA(e),pLTA(e)] = corr(er(~bad)', test_pow_LTA(~bad)');
         powLTA(e,:) = test_pow_LTA;
@@ -425,7 +424,7 @@ end
 % replace time periods outside of each event with nans
 pow = subjPow;
 
-function pow = loadResids_locs(subj,elecNum,eventsToUse)
+function [pow,cond1,cond2] = loadResids_locs(subj,elecNum,events,eventsToUse)
 
 basePath  = '/data10/scratch/jfm2/YC1/multi/power/regress/';
 subjPath  = fullfile(basePath,subj);
@@ -438,7 +437,9 @@ else
     if size(elecData.resid,1) ~= sum(eventsToUse)
         keyboard
     end
-    pow = permute(elecData.resid,[3 2 1]);
+    pow = permute(elecData.resid,[3 2 1]);    
+    cond1 = ana_func(events(eventsToUse), 1);
+    cond2 = ana_func(events(eventsToUse), 0);
 end
 
 
