@@ -51,16 +51,15 @@ end
 % load all errors
 [allErrors,allObjectLocs] = YC1_loadAllSubjErrors;
 
-if exist('pool','var')
-    matlabpool(pool,length(subjs)+1)
+% see if this was submitted with an open pool
+poolobj = gcp('nocreate'); 
+if ~isempty(poolobj)
     tic
     parfor s = 1:length(subjs)
         fprintf('Processing %s.\n',subjs{s})
         runRegress_subj(subjs{s},bipol,params,allErrors,allObjectLocs,saveDir);
     end
-    toc
-    matlabpool close
-    toc
+    toc    
 else
     for s = 1:length(subjs)
         fprintf('Processing %s.\n',subjs{s})
