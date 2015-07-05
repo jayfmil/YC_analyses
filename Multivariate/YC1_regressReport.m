@@ -104,11 +104,15 @@ for roi = rois
     for elec = 1:length(region_tal)
                
         % load regression corrected data for current electrode
-        elecNum  = tal(elec).channel;
+        elecNum  = region_tal(elec).channel;
+        tag      = region_tal(elec).locTag;
         fname    = sprintf('%s_elec_%d-%d_regStatistics.mat',subj,elecNum(1),elecNum(2));
         eFile    = fullfile(dataDir,subj,fname);        
         elecData = load(eFile);
         figName  = sprintf('%s_elec_%d-%d_',subj,elecNum(1),elecNum(2));
+        
+        % will hold the figure file paths and info
+        figs(elec).loc = sprintf('%s: Channel %d-%d: %s',subj,elecNum(1),elecNum(2),tag);
         
         % will hold average data for all electrodes
         if elec == 1
@@ -156,10 +160,55 @@ for roi = rois
     end
     
     % compute average across all electrode in region
+    figName  = sprintf('%s_all_%s_elecs_',subj,roi{1});
+    indx = elec+1;
+    figs(indx).loc = sprintf('%s: All %s',subj,roi{1});
     
+    % plot predictor 1 (difficulty) pval    
+    h=plot_time_by_freq(squeeze(mean(pval1_all,1)),1,config,'Difficulty');
+    figs(indx).pval1 = fullfile(subjFigDir,[figName 'pval1']);
+    print(figs(indx).pval1,'-loose','-depsc2');
+    
+    % plot predictor 1 (difficulty) tstat    
+    h=plot_time_by_freq(squeeze(mean(tstat1_all,1)),0,config,'Difficulty');
+    figs(indx).tstat1 = fullfile(subjFigDir,[figName 'tstat1']);
+    print(figs(indx).tstat1,'-loose','-depsc2');
+    
+    % plot predictor 2 (learning trial 1 vs 2) pval    
+    h=plot_time_by_freq(squeeze(mean(pval2_all,1)),1,config,'Learning Trial');
+    figs(indx).pval2 = fullfile(subjFigDir,[figName 'pval2']);
+    print(figs(indx).pval2,'-loose','-depsc2');
+    
+    % plot predictor 2 (learning trial 1 vs 2) tstat    
+    h=plot_time_by_freq(squeeze(mean(tstat2_all,1)),0,config,'Learning Trial');
+    figs(indx).tstat2 = fullfile(subjFigDir,[figName 'tstat2']);
+    print(figs(indx).tstat2,'-loose','-depsc2');
+    
+    % plot predictor 3 (trial num) pval    
+    h=plot_time_by_freq(squeeze(mean(pval3_all,1)),1,config,'Trial Number');
+    figs(indx).pval3 = fullfile(subjFigDir,[figName 'pval3']);
+    print(figs(indx).pval3,'-loose','-depsc2');
+    
+    % plot predictor 3 (trial num) tstat    
+    h=plot_time_by_freq(squeeze(mean(tstat3_all,1)),0,config,'Trial Number');
+    figs(indx).tstat3 = fullfile(subjFigDir,[figName 'tstat3']);
+    print(figs(indx).tstat3,'-loose','-depsc2')
     keyboard
     
+    % put the average first
+    figs = figs([end 1:end-1]);
     
+    % then make the latex report    
+    texName = [subj '_' roi{1} '_report.tex'];
+    write_texfile(subjReportDir,texName,subj,figs)        
+    curr_dir = pwd;
+    cd(subjReportDir);
+    fprintf('Compiling pdf...\n');
+    unix(['pdflatex -shell-escape ' fullfile(subjReportDir, texName)]);
+    unix(['rm ' texName(1:end-3) 'aux']);
+    unix(['rm ' texName(1:end-3) 'log']);
+    fprintf('Done!\n');
+    cd(curr_dir);        
 end
 
 function h=plot_time_by_freq(data,isPval,config,titleStr)
@@ -197,105 +246,6 @@ xlabel('Time (s)','fontsize',16)
 
 h.FontSize = 16;
 title(titleStr,'fontsize',14);
-
-% 
-% 
-% figs = [];
-% nTimes = length(subjData.res);
-% for t = 1:nTimes
-%     
-%     % for each time bin, get timebin specific info
-%     time   = subjData.res(t).timeBin;
-%     yHat   = vertcat(subjData.res(t).yHat{:});
-%     mse    = vertcat(subjData.res(t).mse{:});
-%     lambda = subjData.res(t).lambda;
-%     df     = subjData.res(t).df;
-%     
-%     % mean yHat for each object position (bc two trials per object)
-%     yHat_meanByObj = grpstats(abs(abs(subjData.Y)-abs(yHat)),objGroups);
-%     
-%     % Make Figure
-%     close all
-%     figure('units','normalized','paperpositionmode','auto','position',[.2  .2  .5  .25]);
-%     titleStr = sprintf('%s: %s, Time = %d-%d, DF = %d, Lambda = %.4f',strrep(subj,'_',' '),ana_name,time(1),time(2),df,lambda);
-%     title(titleStr,'fontsize',14)
-%     axis off
-%         
-%     % Y x Prediction
-%     ax = axes('Position',[.08 .2 .25 .7]);
-%     h=scatter(ax,subjData.Y,yHat);
-%     ax.YLim = [0 1];
-%     ax.YTick = 0:.2:1;
-%     ax.XTick = 0:.2:1;
-%     grid on
-%     ax.GridLineStyle = ':';
-%     ax.GridColor = 'k';
-%     xlabel('Performance Factor','fontsize',22)
-%     ylabel('Prediction','fontsize',22) 
-%     ax.Clipping = 'off';
-%     ax.FontSize = 22;
-%     
-%     % Y x Residuals        
-%     ax = axes('Position',[.41 .2 .25 .7]);
-%     h = scatter(ax,subjData.Y,subjData.Y-yHat);
-%     ax.XTick = 0:.2:1;
-%     grid on
-%     ax.GridLineStyle = ':';
-%     ax.GridColor = 'k';
-%     xlabel('Performance Factor','fontsize',22)
-%     ylabel('Residual','fontsize',22) 
-%     ax.Clipping = 'off';
-%     ax.FontSize = 22;
-%     
-%     % 2D scatter prediction error
-%     ax = axes('Position',[.68 .56 .3 .4]);
-%     scatter(ax,uniqueObjPos(:,1),uniqueObjPos(:,2),100,yHat_meanByObj,'filled');
-%     ax.YLim = [-18 18];
-%     ax.XLim = [-32 32];   
-%     ax.XTick = [];
-%     ax.YTick = [];
-%     ax.Clipping = 'off';
-%     title('Pred. Error')
-%     h = colorbar;
-%     h.Location = 'northoutside';    
-%     box on
-%     
-%     % 2D scatter mse
-%     ax = axes('Position',[.68 .14 .3 .4]);
-%     scatter(ax,uniqueObjPos(:,1),uniqueObjPos(:,2),100,mse,'filled');
-%     ax.YLim = [-18 18];
-%     ax.XLim = [-32 32];    
-%     ax.XTick = [];
-%     ax.YTick = [];
-%     ax.Clipping = 'off';
-%     title('MSE')
-%     box on
-%     h = colorbar;
-%     h.Location = 'northoutside';
-%     
-%     figDir = fullfile(saveDir,strrep(ana_name,' ','_'));
-%     if ~exist(figDir,'dir')
-%         mkdir(figDir);
-%     end
-%     figName = sprintf('%s_timebin%d',subj,t);    
-%     figs(t).fname = fullfile(figDir,figName);
-%     print(figs(t).fname,'-depsc2','-loose')
-% end
-% 
-% 
-% texName = [subj '_' strrep(ana_name,' ','_') '_report.tex'];
-% write_texfile(figDir,texName,subj,figs)
-% 
-% 
-% curr_dir = pwd;
-% cd(figDir);
-% fprintf('Compiling pdf...\n');
-% unix(['pdflatex -shell-escape ' fullfile(figDir, texName)]);
-% unix(['rm ' texName(1:end-3) 'aux']);
-% unix(['rm ' texName(1:end-3) 'log']);
-% fprintf('Done!\n');
-% cd(curr_dir);
-
 
 % Start making the tex file
 function write_texfile(saveDir,texName, subj, figs)
@@ -336,10 +286,10 @@ fprintf(fid,'\\newcolumntype{C}[1]{>{\\centering\\let\\newline\\\\\\arraybacksla
 fprintf(fid,'\\usepackage{fancyhdr}\n');
 fprintf(fid,'\\pagestyle{fancy}\n');
 fprintf(fid,'\\fancyhf{}\n');
-fprintf(fid,'\\lhead{Report: %s }\n',strrep(subj,'_','\_'));
+fprintf(fid,'\\lhead{Regression Report: %s }\n',strrep(subj,'_','\_'));
 fprintf(fid,'\\rhead{Date created: %s}\n',date);
 
-fprintf(fid,'\\usepackage{hyperref}\n');
+% fprintf(fid,'\\usepackage{hyperref}\n');
 
 % Start the document
 fprintf(fid,'\\begin{document}\n\n\n');
@@ -348,27 +298,27 @@ fprintf(fid,'\\begin{document}\n\n\n');
 
 % This section writes the figures
 for f = 1:length(figs)
+    fprintf(fid,'\\begin{longtable}{cc}\n');
     
-    if f == 1
-        fprintf(fid,'\\begin{figure}[!h]\n');
-        fprintf(fid,'\\centering\n');
-    end
-    fprintf(fid,'\\includegraphics[width=0.99\\textwidth]{%s}\n',figs(f).fname);
-    fprintf(fid,'\\vspace{.2in}\n')
-    if f == length(figs)
-%         fprintf(fid,'\\caption{\\textbf{test}.}\n');
-        fprintf(fid,'\\end{figure}\n\n\n');
+    % beta1
+    fprintf(fid,'\\includegraphics[width=.45\\textwidth]{%s}&',figs(f).pval1);
+    fprintf(fid,'\\includegraphics[width=.45\\textwidth]{%s}\\\\\n',figs(f).tstat1);
     
-    end
+    % beta2
+    fprintf(fid,'\\includegraphics[width=.45\\textwidth]{%s}&',figs(f).pval2);
+    fprintf(fid,'\\includegraphics[width=.45\\textwidth]{%s}\\\\\n',figs(f).tstat2);    
+    
+    % beta3
+    fprintf(fid,'\\includegraphics[width=.45\\textwidth]{%s}&',figs(f).pval3);
+    fprintf(fid,'\\includegraphics[width=.45\\textwidth]{%s}\\\\\n',figs(f).tstat3);    
+    
+    fprintf(fid,'\\end{longtable}\n');
+
+    % fprintf(fid,'\\centering\n');
 end
 
 fprintf(fid,'\\end{document}\n\n\n');
-
-
-
-
-
-
+fclose(fid);
 
 
 
