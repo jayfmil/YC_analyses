@@ -299,8 +299,9 @@ for roi = {'hipp'};%,'ec','mtl','frontal','parietal','temporal','occipital','lim
         if ~useResids
             pow  = loadPow_local(subj,elecNum,config,events);
         else
-            pow = loadResids_locs(subj,elecNum,events);
+            pow = loadResids_locs(subj,elecNum,events,cond1|cond2);
         end
+        keyboard
        
         % use only time bins of interest
         pow(:,~tInds,:) = NaN;
@@ -424,10 +425,22 @@ end
 % replace time periods outside of each event with nans
 pow = subjPow;
 
-function pow = loadResids_locs(subj,elecNum,events)
+function pow = loadResids_locs(subj,elecNum,eventsToUse)
 
+basePath  = '/data10/scratch/jfm2/YC1/multi/power/regress/';
+subjPath  = fullfile(basePath,subj);
+fname     = sprintf('%s_elec_%d-%d_residuals.mat',subj,elecNum(1),elecNum(2));
 
-keyboard
+if ~exist(fullfile(subjPath,fname),'file')
+    error('Residuals file %s not found.\n',fname)
+else
+    elecData = load(fullfile(subjPath,fname));
+    if size(elecData.resid,1) ~= sum(eventsToUse)
+        keyboard
+    end
+    pow = permute(elecData.resid,[3 2 1]);
+end
+
 
 function doNothing(varargin)
 % GIVE ERROR. RAM_loadPow requires a power creation function. If this
