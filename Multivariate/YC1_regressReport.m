@@ -192,8 +192,7 @@ for roi = rois
     % plot predictor 3 (trial num) tstat    
     h=plot_time_by_freq(squeeze(mean(tstat3_all,1)),0,config,'Trial Number');
     figs(indx).tstat3 = fullfile(subjFigDir,[figName 'tstat3']);
-    print(figs(indx).tstat3,'-loose','-depsc2')
-    keyboard
+    print(figs(indx).tstat3,'-loose','-depsc2')    
     
     % put the average first
     figs = figs([end 1:end-1]);
@@ -217,7 +216,7 @@ if isPval
     imagesc(-log10(data)');axis xy;colormap jet;   
     h=colorbar;
     h.Label.String = '-log10(p)';
-    h.Label.FontSize = 14;
+    h.Label.FontSize = 18;
 else
     imagesc(data');axis xy;colormap jet;
     h = gca;
@@ -225,7 +224,7 @@ else
     h.CLim = [-max(abs(clim)) max(abs(clim))];    
     h=colorbar;
     h.Label.String = 'tstat';
-    h.Label.FontSize = 14;
+    h.Label.FontSize = 18;
 end
 
 % y info
@@ -233,7 +232,7 @@ freqs = config.distributedParams.freQ;
 h = gca;
 h.YTick      = 1:5:length(freqs);
 h.YTickLabel = round(freqs(1:5:end));
-ylabel('Frequency (Hz)','fontsize',16)
+ylabel('Frequency (Hz)','fontsize',20)
 
 % x info
 binsPerS = 1000/config.distributedParams.timeStep;
@@ -242,10 +241,10 @@ bins(1)  = 1;
 times    = [config.distributedParams.timeBins(bins(1:end-1)+1,1); config.distributedParams.timeBins(end)];
 h.XTick  = bins;
 h.XTickLabel = round(times/1000);
-xlabel('Time (s)','fontsize',16)
+xlabel('Time (s)','fontsize',20)
 
-h.FontSize = 16;
-title(titleStr,'fontsize',14);
+h.FontSize = 18;
+title(titleStr,'fontsize',18);
 
 % Start making the tex file
 function write_texfile(saveDir,texName, subj, figs)
@@ -312,7 +311,9 @@ for f = 1:length(figs)
     fprintf(fid,'\\includegraphics[width=.45\\textwidth]{%s}&',figs(f).pval3);
     fprintf(fid,'\\includegraphics[width=.45\\textwidth]{%s}\\\\\n',figs(f).tstat3);    
     
-    fprintf(fid,'\\end{longtable}\n');
+    fprintf(fid,'\\caption{%s}\n',figs(f).loc);
+    fprintf(fid,'\\end{longtable}\n');    
+    fprintf(fid,'\\clearpage\n');
 
     % fprintf(fid,'\\centering\n');
 end
