@@ -426,6 +426,9 @@ pow = subjPow;
 
 function pow = loadResids_locs(subj,elecNum,events)
 
+
+keyboard
+
 function doNothing(varargin)
 % GIVE ERROR. RAM_loadPow requires a power creation function. If this
 % code is executed, it is because the power for the subject/session hasn't
