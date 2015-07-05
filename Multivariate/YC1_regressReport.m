@@ -152,9 +152,12 @@ for roi = rois
         h=plot_time_by_freq(elecData.tstat3,0,config,'Trial Number');
         figs(elec).tstat3 = fullfile(subjFigDir,[figName 'tstat3']);
         print(figs(elec).tstat3,'-loose','-depsc2')        
-        
-        keyboard
+                
     end
+    
+    % compute average across all electrode in region
+    
+    keyboard
     
     
 end
@@ -163,6 +166,7 @@ function h=plot_time_by_freq(data,isPval,config,titleStr)
 clf
 if isPval
     imagesc(-log10(data)');axis xy;colormap jet;
+    gca.CLim = [-max(abs(h.CLim)) max(abs(h.CLim))];
     h=colorbar;
     h.Label.String = '-log10(p)';
     h.Label.FontSize = 14;
@@ -191,6 +195,7 @@ xlabel('Time (s)','fontsize',16)
 
 h.FontSize = 16;
 title(titleStr,'fontsize',14);
+
 % 
 % 
 % figs = [];
