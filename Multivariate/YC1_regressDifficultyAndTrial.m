@@ -83,7 +83,7 @@ end
     
 if ~isfield(tal,'locTag') || ~any(~cellfun('isempty',regexpi({tal.locTag},['HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc'])))
     fprintf('No MTL electrodes for %s.\n',subj)
-    return
+%     return
 end
 nElecs = length(tal);
 

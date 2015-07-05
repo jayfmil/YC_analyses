@@ -5,7 +5,7 @@ function YC1_all_subject_region_report()
 % -----------------
 
 % contrast to do
-anas = {'correct_incorrect'};
+anas = {'correct_incorrect_resids'};
 ana_names = {'Correct - Incorrect'};
 
 % limit to just correct trials?
@@ -19,7 +19,7 @@ prefix = '';
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 for anNum = 1:length(anas)
-    saveDirs{anNum} = fullfile(prefix,'/Users/jmiller/Desktop/YC1/group',anas{anNum});
+    saveDirs{anNum} = fullfile(prefix,'/data10/scratch/jfm2/YC1/group',anas{anNum});
     if ~exist(saveDirs{anNum},'dir')
         error('Invalid analysis: %s',anas{anNum})
     elseif ~exist(fullfile(saveDirs{anNum},'figs'),'dir')
@@ -118,7 +118,7 @@ for anNum = 1:length(anas)
                 regionData.er = er;
                 
                 if isempty(all_subjs)
-                    fnames = {'powCond1ByElec','powCond2ByElec','peakCond1','peakCond2',...
+                    fnames = {'powCond1ByElec','powCond2ByElec',...
                         'statsG','statsHFA','statsLTA','statsHTA',...
                         'rLTA','pLTA','rHTA','pHTA','powLTA',...
                         'powHTA','er','rG','pG','rHFA','pHFA','powHFA'};

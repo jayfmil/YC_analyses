@@ -9,7 +9,7 @@ if ~exist('anas','var') || isempty(anas)
     anas = {};
     ana_funcs = {};
     
-    anas{end+1} = 'correct_incorrect_resids';
+    anas{end+1} = 'correct_incorrect';
     ana_funcs{end+1} = @correctFilter;
     
 else
@@ -39,11 +39,12 @@ for a = 1:length(ana_funcs)
     bipol = 1;
     
     % use residuals from regression
-    useResids = 1;
+    useResids = 0;
     
     % get list of YC subjects
     if ~exist('subjs','var') || isempty(subjs)
         subjs = get_subs('RAM_YC1');
+        subjs = subjs(~strcmp(subjs,'R1025P'));
     end
 
     ana_func = ana_funcs{a};
