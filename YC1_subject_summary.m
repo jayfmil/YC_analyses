@@ -170,7 +170,7 @@ fIndHFA = fInd_start:fInd_end;
 % conditions of interest
 cond1 = ana_func(events, 1);
 cond2 = ana_func(events, 0);
-er = [events(cond1|cond2).testError];
+err = [events(cond1|cond2).testError];
 
 
 if sum(cond1) < 5
