@@ -10,6 +10,14 @@ if ~exist('dataDir','var') || isempty(dataDir)
     dataDir = params.regressDir;
 end
 
+if ~exist('saveDir','var') || isempty(saveDir)
+    saveDir = fullfile(dataDir,'reports');    
+end
+
+if ~exist('saveDir','dir')
+    mkdir(saveDir);
+end
+
 % process each subject
 for s = 1:length(subjs);
     fprintf('Processing %s.\n',subjs{s});
@@ -36,6 +44,17 @@ end
 if ~isfield(tal,'locTag') || ~any(~cellfun('isempty',regexpi({tal.locTag},['HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc'])))
     fprintf('No MTL electrodes for %s.\n',subj)
     return
+end
+
+% make sure all the save directories exist
+subjReportDir = fullfile(saveDir,subj);
+if ~exist('subjReportDir','dir')
+    mkdir(subjReportDir);
+end
+
+subjFigDir = fullfile(subjReportDir,'figs');
+if ~exist('subjFigDir','dir')
+    mkdir(subjFigDir);
 end
 
 % load config for freqs and time bins
@@ -81,23 +100,66 @@ for roi = rois
             end
     end
     
+    figs = [];
     for elec = 1:length(region_tal)
-       
+               
         % load regression corrected data for current electrode
         elecNum  = tal(elec).channel;
         fname    = sprintf('%s_elec_%d-%d_regStatistics.mat',subj,elecNum(1),elecNum(2));
         eFile    = fullfile(dataDir,subj,fname);        
         elecData = load(eFile);
+        figName  = sprintf('%s_elec_%d-%d_',subj,elecNum(1),elecNum(2));
         
-        % plot predictor 1 (difficulty)
-        h=plot_time_by_freq(elecData.pval1,1,config);
+        % will hold average data for all electrodes
+        if elec == 1
+            [pval1_all,pval2_all,pval3_all,...
+             tstat1_all,tstat2_all,tstat3_all] ...
+             = deal(NaN(length(region_tal),size(elecData.pval1,1),size(elecData.pval1,2)));
+        end        
+        
+        % plot predictor 1 (difficulty) pval
+        pval1_all(elec,:,:) = elecData.pval1;
+        h=plot_time_by_freq(elecData.pval1,1,config,'Difficulty');
+        figs(elec).pval1 = fullfile(subjFigDir,[figName 'pval1']);
+        print(figs(elec).pval1,'-loose','-depsc2');
+        
+        % plot predictor 1 (difficulty) tstat
+        tstat1_all(elec,:,:) = elecData.tstat1;
+        h=plot_time_by_freq(elecData.tstat1,0,config,'Difficulty');
+        figs(elec).tstat1 = fullfile(subjFigDir,[figName 'tstat1']);
+        print(figs(elec).tstat1,'-loose','-depsc2');
+        
+        % plot predictor 2 (learning trial 1 vs 2) pval
+        pval2_all(elec,:,:) = elecData.pval2;
+        h=plot_time_by_freq(elecData.pval2,1,config,'Learning Trial');
+        figs(elec).pval2 = fullfile(subjFigDir,[figName 'pval2']);
+        print(figs(elec).pval2,'-loose','-depsc2');
+        
+        % plot predictor 2 (learning trial 1 vs 2) tstat
+        tstat2_all(elec,:,:) = elecData.tstat2;
+        h=plot_time_by_freq(elecData.tstat2,0,config,'Learning Trial');
+        figs(elec).tstat2 = fullfile(subjFigDir,[figName 'tstat2']);
+        print(figs(elec).tstat2,'-loose','-depsc2');        
+        
+        % plot predictor 3 (trial num) pval
+        pval3_all(elec,:,:) = elecData.pval3;
+        h=plot_time_by_freq(elecData.pval3,1,config,'Trial Number');
+        figs(elec).pval3 = fullfile(subjFigDir,[figName 'pval3']);
+        print(figs(elec).pval3,'-loose','-depsc2');
+        
+        % plot predictor 3 (trial num) tstat
+        tstat3_all(elec,:,:) = elecData.tstat3;
+        h=plot_time_by_freq(elecData.tstat3,0,config,'Trial Number');
+        figs(elec).tstat3 = fullfile(subjFigDir,[figName 'tstat3']);
+        print(figs(elec).tstat3,'-loose','-depsc2')        
+        
         keyboard
     end
     
     
 end
 
-function h=plot_time_by_freq(data,isPval,config)
+function h=plot_time_by_freq(data,isPval,config,titleStr)
 clf
 if isPval
     imagesc(-log10(data)');axis xy;colormap jet;
@@ -128,7 +190,7 @@ h.XTickLabel = round(times/1000);
 xlabel('Time (s)','fontsize',16)
 
 h.FontSize = 16;
-
+title(titleStr,'fontsize',14);
 % 
 % 
 % figs = [];
