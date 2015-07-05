@@ -7,7 +7,7 @@ end
 
 if ~exist('dataDir','var') || isempty(dataDir)
     params = multiParams();
-    dataDir = params.dataDir;
+    dataDir = params.regressDir;
 end
 
 % process each subject
