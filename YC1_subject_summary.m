@@ -9,7 +9,7 @@ if ~exist('anas','var') || isempty(anas)
     anas = {};
     ana_funcs = {};
     
-    anas{end+1} = 'correct_incorrect';
+    anas{end+1} = 'correct_incorrect_resids';
     ana_funcs{end+1} = @correctFilter;
     
 else
@@ -38,6 +38,9 @@ for a = 1:length(ana_funcs)
     % do bipolar
     bipol = 1;
     
+    % use residuals from regression
+    useResids = 1;
+    
     % get list of YC subjects
     if ~exist('subjs','var') || isempty(subjs)
         subjs = get_subs('RAM_YC1');
@@ -50,7 +53,7 @@ for a = 1:length(ana_funcs)
         tic
         parfor s = 1:length(subjs)
             fprintf('Processing %s.\n',subjs{s})
-            save_pow_in_region(subjs{s},bipol,ana_func,saveDir);
+            save_pow_in_region(subjs{s},bipol,useResids,ana_func,saveDir);
         end
         toc
         matlabpool close
@@ -58,13 +61,13 @@ for a = 1:length(ana_funcs)
     else
         for s = 1:length(subjs)
             fprintf('Processing %s.\n',subjs{s})
-            save_pow_in_region(subjs{s},bipol,ana_func,saveDir);
+            save_pow_in_region(subjs{s},bipol,useResids,ana_func,saveDir);
 
         end
     end
 end
 
-function save_pow_in_region(subj,bipol,ana_func,saveDir)
+function save_pow_in_region(subj,bipol,useResids,ana_func,saveDir)
 
 % load tal structure
 tal = getBipolarSubjElecs(subj,bipol,1);
@@ -293,43 +296,13 @@ for roi = {'hipp'};%,'ec','mtl','frontal','parietal','temporal','occipital','lim
 
         % load power for all sessions. Power should aleady have been
         % created or else error
-        [distOut] = RAM_dist_func(subj,[],elecNum,'RAM_YC1','events', 0, ...
-            @doNothing, config.distributedFunctionLabel, config.distributedParams, 1, 1, events);
-        
-        sessInds = distOut.sessInds;
-        subjMean = distOut.meanBasePow;
-        subjStd = distOut.stdBasePow;
-        subjPow = distOut.pow;
-
-        % a couple sessions weren't zscored, so do it here. I should double
-        % check that this is right
-        if isempty(subjStd)
-          fprintf('power not zscored for %s\n',subj)
-          
-          sI = unique(sessInds);          
-          zpow = NaN(size(subjPow));
-          for s = 1:length(sI)
-            inds = sessInds == sI(s);
-            subjMean = nanmean(squeeze(nanmean(subjPow(:,:,inds), ...
-                                               2)),2);
-            subjMean = repmat(subjMean,[1 size(subjPow,2), size(subjPow,3)]);
-
-            subjStd = nanstd(squeeze(nanmean(subjPow(:,:,inds), ...
-                                               2)),[],2);            
-            subjStd = repmat(subjStd,[1 size(subjPow,2), size(subjPow,3)]);
-            zpow(:,:,inds) = (subjPow(:,:,inds) - subjMean).*subjStd;
-
-          end
-          subjPow = zpow;
+        if ~useResids
+            pow  = loadPow_local(subj,elecNum,config,events);
+        else
+            pow = loadResids_locs(subj,elecNum);
         end
-
-        % if this happens, the events and power do not correspond
-        if size(subjPow,3) ~= length(events)
-            keyboard
-        end
-        
-        % replace time periods outside of each event with nans
-        pow = subjPow;
+       
+        % use only time bins of interest
         pow(:,~tInds,:) = NaN;
                 
         % corr for low theta
@@ -351,7 +324,7 @@ for roi = {'hipp'};%,'ec','mtl','frontal','parietal','temporal','occipital','lim
         [rG(e),pG(e)] = corr(er(~bad)', test_pow_G(~bad)');
         powG(e,:) = test_pow_G;
 
-        % orr for HFA
+        % corr for HFA
         test_pow_HFA = nanmean(squeeze(nanmean(pow(fIndHFA,:,cond1|cond2),2)),1);
         bad = isnan(err) | isnan(test_pow_HFA);
         [rHFA(e),pHFA(e)] = corr(er(~bad)', test_pow_HFA(~bad)');
@@ -412,6 +385,46 @@ for roi = {'hipp'};%,'ec','mtl','frontal','parietal','temporal','occipital','lim
     
 end
 
+function pow = loadPow_local(subj,elecNum,config,events)
+[distOut] = RAM_dist_func(subj,[],elecNum,'RAM_YC1','events', 0, ...
+    @doNothing, config.distributedFunctionLabel, config.distributedParams, 1, 1, events);
+
+sessInds = distOut.sessInds;
+subjMean = distOut.meanBasePow;
+subjStd = distOut.stdBasePow;
+subjPow = distOut.pow;
+
+% a couple sessions weren't zscored, so do it here. I should double
+% check that this is right
+if isempty(subjStd)
+    fprintf('power not zscored for %s\n',subj)
+    
+    sI = unique(sessInds);
+    zpow = NaN(size(subjPow));
+    for s = 1:length(sI)
+        inds = sessInds == sI(s);
+        subjMean = nanmean(squeeze(nanmean(subjPow(:,:,inds), ...
+            2)),2);
+        subjMean = repmat(subjMean,[1 size(subjPow,2), size(subjPow,3)]);
+        
+        subjStd = nanstd(squeeze(nanmean(subjPow(:,:,inds), ...
+            2)),[],2);
+        subjStd = repmat(subjStd,[1 size(subjPow,2), size(subjPow,3)]);
+        zpow(:,:,inds) = (subjPow(:,:,inds) - subjMean).*subjStd;
+        
+    end
+    subjPow = zpow;
+end
+
+% if this happens, the events and power do not correspond
+if size(subjPow,3) ~= length(events)
+    keyboard
+end
+
+% replace time periods outside of each event with nans
+pow = subjPow;
+
+function pow = loadResids_locs(subj,elecNum,events)
 
 function doNothing(varargin)
 % GIVE ERROR. RAM_loadPow requires a power creation function. If this
@@ -419,7 +432,6 @@ function doNothing(varargin)
 % been computed yet. I don't want to compute power here.
 
 error('POWER NOT COMPUTED YET')
-
 
 
 function eventsMask = correctFilter(events, isCorrect)     
