@@ -299,10 +299,13 @@ for roi = {'hipp'};%,'ec','mtl','frontal','parietal','temporal','occipital','lim
         if ~useResids
             pow  = loadPow_local(subj,elecNum,config,events);
         else
-            [pow,cond1,cond2] = loadResids_locs(subj,elecNum,events,cond1|cond2,ana_func);
+            if e == 1                
+                cond1 = ana_func(events(eventsToUse), 1);
+                cond2 = ana_func(events(eventsToUse), 0);                            
+            end
+            pow = loadResids_locs(subj,elecNum,cond1|cond2);
         end
-        
-       
+              
         % use only time bins of interest
         pow(:,~tInds,:) = NaN;
                 
@@ -424,7 +427,7 @@ end
 % replace time periods outside of each event with nans
 pow = subjPow;
 
-function [pow,cond1,cond2] = loadResids_locs(subj,elecNum,events,eventsToUse,ana_func)
+function [pow] = loadResids_locs(subj,elecNum,eventsToUse)
 
 basePath  = '/data10/scratch/jfm2/YC1/multi/power/regress/';
 subjPath  = fullfile(basePath,subj);
@@ -437,9 +440,6 @@ else
     if size(elecData.resid,1) ~= sum(eventsToUse)
         keyboard
     end
-    pow = permute(elecData.resid,[3 2 1]);    
-    cond1 = ana_func(events(eventsToUse), 1);
-    cond2 = ana_func(events(eventsToUse), 0);
 end
 
 
