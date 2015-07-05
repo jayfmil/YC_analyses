@@ -99,6 +99,10 @@ ec_elecs = vertcat(ec_tal.channel);
 mtl_tal = locs(~cellfun('isempty',regexpi({locs.tag},['HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc'])));
 mtl_elecs = vertcat(mtl_tal.channel);
 
+if isempty(mtl_elecs)
+    return
+end
+
 % also do lobes
 % surface_elecs = tal(~strcmp({tal.eType},'D'));
 other_elecs = tal(~ismember(vertcat(tal.channel),[hipp_elecs; ec_elecs; mtl_elecs],'rows'));
