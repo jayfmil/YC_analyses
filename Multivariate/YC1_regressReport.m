@@ -166,7 +166,7 @@ function h=plot_time_by_freq(data,isPval,config,titleStr)
 clf
 if isPval
     imagesc(-log10(data)');axis xy;colormap jet;
-    gca.CLim = [-max(abs(h.CLim)) max(abs(h.CLim))];
+    gca.CLim = [-max(abs(gca.CLim)) max(abs(gca.CLim))];
     h=colorbar;
     h.Label.String = '-log10(p)';
     h.Label.FontSize = 14;
