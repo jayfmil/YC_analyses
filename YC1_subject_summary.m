@@ -309,25 +309,25 @@ for roi = {'hipp'};%,'ec','mtl','frontal','parietal','temporal','occipital','lim
         % corr for low theta
         test_pow_LTA = nanmean(squeeze(nanmean(pow(fIndLTA,:,cond1|cond2),2)),1);        
         bad = isnan(errs) | isnan(test_pow_LTA);
-        [rLTA(e),pLTA(e)] = corr(er(~bad)', test_pow_LTA(~bad)');
+        [rLTA(e),pLTA(e)] = corr(errs(~bad)', test_pow_LTA(~bad)');
         powLTA(e,:) = test_pow_LTA;
 
         % corr for high theta
         test_pow_HTA = nanmean(squeeze(nanmean(pow(fIndHTA,:,cond1|cond2),2)),1);
         bad = isnan(errs) | isnan(test_pow_HTA);
-        [rHTA(e),pHTA(e)] = corr(er(~bad)', test_pow_HTA(~bad)');
+        [rHTA(e),pHTA(e)] = corr(errs(~bad)', test_pow_HTA(~bad)');
         powHTA(e,:) = test_pow_HTA;
 
         % corr for gamma
         test_pow_G = nanmean(squeeze(nanmean(pow(fIndG,:,cond1|cond2),2)),1);
         bad = isnan(errs) | isnan(test_pow_G);
-        [rG(e),pG(e)] = corr(er(~bad)', test_pow_G(~bad)');
+        [rG(e),pG(e)] = corr(errs(~bad)', test_pow_G(~bad)');
         powG(e,:) = test_pow_G;
 
         % corr for HFA
         test_pow_HFA = nanmean(squeeze(nanmean(pow(fIndHFA,:,cond1|cond2),2)),1);
         bad = isnan(errs) | isnan(test_pow_HFA);
-        [rHFA(e),pHFA(e)] = corr(er(~bad)', test_pow_HFA(~bad)');
+        [rHFA(e),pHFA(e)] = corr(errs(~bad)', test_pow_HFA(~bad)');
         powHFA(e,:) = test_pow_HFA;
 
         % average across time
