@@ -192,26 +192,30 @@ for e = 1:size(powerData,2)
             y = powerData(:,e,t,f);
             
             % run regression
-            s = regstats(y,x,'linear',{'beta','yhat','r','mse','rsquare','tstat'});
-            
-            % save output beta
-            beta1(t,f) = s.beta(2);
-            beta2(t,f) = s.beta(3);
-            beta3(t,f) = s.beta(4);
-            
-            % and tstats
-            tstat1(t,f) = s.tstat.t(2);
-            tstat2(t,f) = s.tstat.t(3);
-            tstat3(t,f) = s.tstat.t(4);   
-            
-            % and pvals
-            pval1(t,f) = s.tstat.pval(2);
-            pval2(t,f) = s.tstat.pval(3);
-            pval3(t,f) = s.tstat.pval(4);  
-            
-            % and finally the residuals, which will serve as corrected
-            % power values for later analyses
-            resid(:,t,f) = s.r;
+            try
+                s = regstats(y,x,'linear',{'beta','yhat','r','mse','rsquare','tstat'});
+                
+                % save output beta
+                beta1(t,f) = s.beta(2);
+                beta2(t,f) = s.beta(3);
+                beta3(t,f) = s.beta(4);
+                
+                % and tstats
+                tstat1(t,f) = s.tstat.t(2);
+                tstat2(t,f) = s.tstat.t(3);
+                tstat3(t,f) = s.tstat.t(4);
+                
+                % and pvals
+                pval1(t,f) = s.tstat.pval(2);
+                pval2(t,f) = s.tstat.pval(3);
+                pval3(t,f) = s.tstat.pval(4);
+                
+                % and finally the residuals, which will serve as corrected
+                % power values for later analyses
+                resid(:,t,f) = s.r;
+            catch
+                fprintf('REGRESSION ERROR: %s, e = %d, t = %d, f = %d.\n',subj,e,t,f)
+            end            
             
         end % frequency
     end % time
