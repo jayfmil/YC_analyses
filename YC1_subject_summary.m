@@ -299,9 +299,10 @@ for roi = {'hipp'};%,'ec','mtl','frontal','parietal','temporal','occipital','lim
         if ~useResids
             pow  = loadPow_local(subj,elecNum,config,events);
         else
-            if e == 1                
-                cond1 = ana_func(events(cond1|cond2), 1);
-                cond2 = ana_func(events(cond1|cond2), 0);                            
+            if e == 1     
+                eventsToUse = cond1|cond2;
+                cond1 = ana_func(events(eventsToUse), 1);
+                cond2 = ana_func(events(eventsToUse), 0);                            
             end
             pow = loadResids_locs(subj,elecNum,cond1|cond2);
         end
