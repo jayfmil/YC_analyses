@@ -299,7 +299,7 @@ for roi = {'hipp'};%,'ec','mtl','frontal','parietal','temporal','occipital','lim
         if ~useResids
             pow  = loadPow_local(subj,elecNum,config,events);
         else
-            [pow,cond1,cond2] = loadResids_locs(subj,elecNum,events,cond1|cond2);
+            [pow,cond1,cond2] = loadResids_locs(subj,elecNum,events,cond1|cond2,ana_func);
         end
         keyboard
        
@@ -424,7 +424,7 @@ end
 % replace time periods outside of each event with nans
 pow = subjPow;
 
-function [pow,cond1,cond2] = loadResids_locs(subj,elecNum,events,eventsToUse)
+function [pow,cond1,cond2] = loadResids_locs(subj,elecNum,events,eventsToUse,ana_func)
 
 basePath  = '/data10/scratch/jfm2/YC1/multi/power/regress/';
 subjPath  = fullfile(basePath,subj);
