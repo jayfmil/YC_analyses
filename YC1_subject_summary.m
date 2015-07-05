@@ -170,7 +170,7 @@ fIndHFA = fInd_start:fInd_end;
 % conditions of interest
 cond1 = ana_func(events, 1);
 cond2 = ana_func(events, 0);
-err = [events(cond1|cond2).testError];
+errs = [events(cond1|cond2).testError];
 
 
 if sum(cond1) < 5
@@ -301,32 +301,32 @@ for roi = {'hipp'};%,'ec','mtl','frontal','parietal','temporal','occipital','lim
         else
             [pow,cond1,cond2] = loadResids_locs(subj,elecNum,events,cond1|cond2,ana_func);
         end
-        keyboard
+        
        
         % use only time bins of interest
         pow(:,~tInds,:) = NaN;
                 
         % corr for low theta
         test_pow_LTA = nanmean(squeeze(nanmean(pow(fIndLTA,:,cond1|cond2),2)),1);        
-        bad = isnan(err) | isnan(test_pow_LTA);
+        bad = isnan(errs) | isnan(test_pow_LTA);
         [rLTA(e),pLTA(e)] = corr(er(~bad)', test_pow_LTA(~bad)');
         powLTA(e,:) = test_pow_LTA;
 
         % corr for high theta
         test_pow_HTA = nanmean(squeeze(nanmean(pow(fIndHTA,:,cond1|cond2),2)),1);
-        bad = isnan(err) | isnan(test_pow_HTA);
+        bad = isnan(errs) | isnan(test_pow_HTA);
         [rHTA(e),pHTA(e)] = corr(er(~bad)', test_pow_HTA(~bad)');
         powHTA(e,:) = test_pow_HTA;
 
         % corr for gamma
         test_pow_G = nanmean(squeeze(nanmean(pow(fIndG,:,cond1|cond2),2)),1);
-        bad = isnan(err) | isnan(test_pow_G);
+        bad = isnan(errs) | isnan(test_pow_G);
         [rG(e),pG(e)] = corr(er(~bad)', test_pow_G(~bad)');
         powG(e,:) = test_pow_G;
 
         % corr for HFA
         test_pow_HFA = nanmean(squeeze(nanmean(pow(fIndHFA,:,cond1|cond2),2)),1);
-        bad = isnan(err) | isnan(test_pow_HFA);
+        bad = isnan(errs) | isnan(test_pow_HFA);
         [rHFA(e),pHFA(e)] = corr(er(~bad)', test_pow_HFA(~bad)');
         powHFA(e,:) = test_pow_HFA;
 
@@ -374,7 +374,7 @@ for roi = {'hipp'};%,'ec','mtl','frontal','parietal','temporal','occipital','lim
         % mean power spect for electrode
         powCond1ByElec(:,e) = nanmean(pow(:,cond1),2);
         powCond2ByElec(:,e) = nanmean(pow(:,cond2),2);
-        
+        keyboard
     end
     
     % save it to file
