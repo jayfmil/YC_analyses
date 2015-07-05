@@ -2,8 +2,6 @@ function params = multiParams()
 
 % frequency bins to use
 params.freqBins = [1 3;3 9;40 70;70 200];
-% params.freqBins = [1 4;70 200];
-
 
 % time bins to use (this depends on the RAM auto computed power time window)
 params.timeBins = [-999 0;1 1000;1001 4000;4001 5000];
@@ -14,6 +12,9 @@ params.eventFilter = @(events)allEncodingEvents(events);
 
 % save out binned power to mat file?
 params.savePower = 1;
+
+params.regressDir = '/data10/scratch/jfm2/YC1/multi/power/regress';
+params.lassDir    = '/data10/scratch/jfm2/YC1/multi';
 
 function eventMask = allEncodingEvents(events)
 eventMask = (strcmp({events.type},'NAV_LEARN') | strcmp({events.type},'NAV_LEARN_HARD'));
