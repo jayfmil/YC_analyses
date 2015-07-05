@@ -378,7 +378,6 @@ for roi = {'hipp'};%,'ec','mtl','frontal','parietal','temporal','occipital','lim
         % mean power spect for electrode
         powCond1ByElec(:,e) = nanmean(pow(:,cond1),2);
         powCond2ByElec(:,e) = nanmean(pow(:,cond2),2);
-        keyboard
     end
     
     % save it to file
