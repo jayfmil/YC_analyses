@@ -38,6 +38,16 @@ if ~isfield(tal,'locTag') || ~any(~cellfun('isempty',regexpi({tal.locTag},['HC|e
     return
 end
 
+% load config for freqs and time bins
+config = RAM_config('RAM_YC1');
+
+% Setting time bins for convenience:
+tEnds = (config.distributedParams.timeWin:...
+    config.distributedParams.timeStep:...
+    config.postMS+config.priorMS)-config.priorMS;
+tStarts = tEnds - config.distributedParams.timeWin + 1;
+config.distributedParams.timeBins = [tStarts' tEnds'];
+
 % hipp electrodes
 hipp_tal = tal(~cellfun('isempty',regexpi({tal.locTag},['CA1|CA3|DG|sub'])));
 
@@ -75,16 +85,49 @@ for roi = rois
        
         % load regression corrected data for current electrode
         elecNum  = tal(elec).channel;
-        fname    = sprintf('%s_elec_%d-%d_residuals.mat',subj,elecNum(1),elecNum(2));
+        fname    = sprintf('%s_elec_%d-%d_regStatistics.mat',subj,elecNum(1),elecNum(2));
         eFile    = fullfile(dataDir,subj,fname);        
         elecData = load(eFile);
+        
+        % plot predictor 1 (difficulty)
+        h=plot_time_by_freq(elecData.pval1,1,config);
         keyboard
     end
     
     
 end
 
+function h=plot_time_by_freq(data,isPval,config)
+clf
+if isPval
+    imagesc(-log10(data)');axis xy;colormap jet;
+    h=colorbar;
+    h.Label.String = '-log10(p)';
+    h.Label.FontSize = 14;
+else
+    imagesc(data');axis xy;colormap jet;
+    h=colorbar;
+    h.Label.String = 'tstat';
+    h.Label.FontSize = 14;
+end
 
+% y info
+freqs = config.distributedParams.freQ;
+h = gca;
+h.YTick      = 1:5:length(freqs);
+h.YTickLabel = round(freqs(1:5:end));
+ylabel('Frequency (Hz)','fontsize',16)
+
+% x info
+binsPerS = 1000/config.distributedParams.timeStep;
+bins     = 0:binsPerS:size(data,1);
+bins(1)  = 1;
+times    = [config.distributedParams.timeBins(bins(1:end-1)+1,1); config.distributedParams.timeBins(end)];
+h.XTick  = bins;
+h.XTickLabel = round(times/1000);
+xlabel('Time (s)','fontsize',16)
+
+h.FontSize = 16;
 
 % 
 % 
