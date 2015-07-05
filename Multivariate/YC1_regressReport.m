@@ -26,7 +26,7 @@ end
 
 % load tal structure
 try
-    tal = getBipolarSubjElecs(subj,bipol,1);
+    tal = getBipolarSubjElecs(subj,1,1);
 catch
     fprintf('Could not load electrode locations for %s. Aborting.\n',subj)
     return
