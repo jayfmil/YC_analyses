@@ -93,6 +93,7 @@ for roi = rois
                 fprintf('No ec electrodes for %s.\n',subj)
                 continue
             end
+        case 'mtl'
             region_tal = mtl_tal;
             if isempty(region_tal)
                 fprintf('No mtl electrodes for %s.\n',subj)
