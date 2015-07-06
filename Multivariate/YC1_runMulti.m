@@ -8,7 +8,7 @@ if ~exist('anas','var') || isempty(anas)
     anas = {};
     ana_funcs = {};
     
-    anas{end+1} = 'lassoReg_allEncoding';
+    anas{end+1} = 'lassoReg_allEncoding_binary';
     ana_funcs{end+1} = @lassoReg;    
 else
     ana_funcs = {str2func(ana_func)};
@@ -26,29 +26,26 @@ for a = 1:length(ana_funcs)
     saveDir = fullfile('/data10/scratch/jfm2/YC1/multi',anas{a});
     if ~exist(saveDir,'dir')
         mkdir(saveDir);
-    end            
+    end
     
     % get list of YC subjects
     if ~exist('subjs','var') || isempty(subjs)
         subjs = get_subs('RAM_YC1');
     end
-
+    
     ana_func = ana_funcs{a};
-    if exist('pool','var')
-        matlabpool(pool,length(subjs)+1)        
-        tic
+    % see if this was submitted with an open pool
+    poolobj = gcp('nocreate');
+    if ~isempty(poolobj)
         parfor s = 1:length(subjs)
             fprintf('Processing %s.\n',subjs{s})
             runMulti_subj(subjs{s},ana_func,params,saveDir);
         end
-        toc
-        matlabpool close
-        toc
     else
         for s = 1:length(subjs)
             fprintf('Processing %s.\n',subjs{s})
             runMulti_subj(subjs{s},ana_func,params,saveDir);
-
+            
         end
     end
 end
@@ -115,7 +112,7 @@ if params.savePower
         mkdir(powDir);
     end
     powFile = fullfile(powDir,[subj '_binnedPower.mat']);
-%     save(powFile,'powerData','params')
+    save(powFile,'powerData','params')
 end
 
 % determine the cross validation folds. each fold leaves out one trial
@@ -131,7 +128,6 @@ end
 Y       = [events(eventsToUse).testError]';
 YBool   = Y < median(Y);
 objLocs = vertcat(events(eventsToUse).objLocs); 
-keyboard
 
 % TO DO: add in regions of env
 res = [];
