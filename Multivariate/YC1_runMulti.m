@@ -134,7 +134,7 @@ res = [];
 if params.modelEachTime
     for t = 1:size(timeBins,1)
         
-        [res(t).yPred,res(t).yTest,res(t).A,res(t).intercept,res(t).mse] = deal(cell(nFolds,1));
+        [res(t).yPred,res(t).yTest,res(t).A,res(t).intercept,res(t).err] = deal(cell(nFolds,1));
         for iFold = 1:nFolds
             
             fprintf('Subject %s: Time %d of %d, Fold %d of %d.\n',subj,t,size(timeBins,1),iFold,nFolds)
@@ -143,7 +143,7 @@ if params.modelEachTime
                 res(t).yTest{iFold},...
                 res(t).A{iFold},...
                 res(t).intercept{iFold},...
-                res(t).mse{iFold}] = ana_func(X,Y,YBool,folds(iFold,:));
+                res(t).err{iFold}] = ana_func(X,Y,YBool,folds(iFold,:));
             
         end
     end
@@ -151,12 +151,12 @@ else
     X = reshape(squeeze(powerData),size(powerData,1),size(powerData,2)*size(powerData,3)*nElecs);
     for iFold = 1:nFolds
         fprintf('Subject %s: Fold %d of %d.\n',subj,iFold,nFolds)
-        [res.yPred,res.yTest,res.A,res.intercept,res.mse] = deal(cell(nFolds,1));
+        [res.yPred,res.yTest,res.A,res.intercept,res.err] = deal(cell(nFolds,1));
         [res.yPred{iFold},...
             res.yTest{iFold},...
             res.A{iFold},...
             res.intercept{iFold},...
-            res.mse{iFold}] = ana_func(X,Y,YBool,folds(iFold,:));
+            res.err{iFold}] = ana_func(X,Y,YBool,folds(iFold,:));
     end
     keyboard
 end
@@ -224,7 +224,7 @@ end
 % 
 % 
 % keyboard
-function [yPred,yTest,A,intercept,mse] = lassoReg(X,Y,YBool,trainInds)
+function [yPred,yTest,A,intercept,err] = lassoReg(X,Y,YBool,trainInds)
 
 % Under sample larger class?
 yTrainBool = YBool(trainInds);
@@ -258,7 +258,7 @@ poolobj = gcp('nocreate');
 if ~isempty(poolobj)
     opt = statset('UseParallel',true);
 end
-[A_lasso, stats] = lassoglm(xTrain',yTrainBool,'binomial','CV', 5, 'NumLambda', 25,'Options',opt);
+[A_lasso, stats] = lassoglm(xTrain',yTrainBool,'binomial','CV', 10, 'NumLambda', 25,'Options',opt);
 
 % testing set
 xTest = X(~trainInds,:)';
@@ -268,11 +268,11 @@ A = A_lasso(:,stats.IndexMinDeviance);
 intercept = stats.Intercept(stats.IndexMinDeviance);
 B1 = [intercept;A];
 yPred = glmval(B1,xTest','logit');
-mse = mean(round(yPred) == YBool(~trainInds));
+err = mean(round(yPred) == YBool(~trainInds));
 % yPred = (xTest - xHat*ones(1,sum(~trainInds)))' * A + intercept;
 
 % mse = mean((yPred-yTest).^2);
-keyboard
+
 
 %     % create model
 %     [B,FitInfo] = lasso(xTrain,yTrain,'lambda',lambda);
