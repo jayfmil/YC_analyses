@@ -312,7 +312,7 @@ for f = 1:length(figs)
     fprintf(fid,'\\includegraphics[width=.45\\textwidth]{%s}&',figs(f).pval3);
     fprintf(fid,'\\includegraphics[width=.45\\textwidth]{%s}\\\\\n',figs(f).tstat3);    
     
-    fprintf(fid,'\\caption{%s}\n',figs(f).loc);
+    fprintf(fid,'\\caption{%s}\n',strrep(figs(f).loc,'_',' '));
     fprintf(fid,'\\end{longtable}\n');    
     fprintf(fid,'\\clearpage\n');
 
