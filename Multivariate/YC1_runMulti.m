@@ -253,7 +253,12 @@ yTrainBool(toRemove) = [];
 
 % compute model
 % [A_lasso, stats] = lasso(xTrain', yTrain, 'CV', 5, 'NumLambda', 50);
-[A_lasso, stats] = lassoglm(xTrain',yTrainBool,'binomial','CV', 5, 'NumLambda', 50);
+opt = statset('UseParallel',false);
+poolobj = gcp('nocreate');
+if ~isempty(poolobj)
+    opt = statset('UseParallel',true);
+end
+[A_lasso, stats] = lassoglm(xTrain',yTrainBool,'binomial','CV', 5, 'NumLambda', 50,'Options',opt);
 
 % testing set
 xTest = X(~trainInds,:)';
