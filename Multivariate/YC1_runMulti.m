@@ -258,7 +258,7 @@ poolobj = gcp('nocreate');
 if ~isempty(poolobj)
     opt = statset('UseParallel',true);
 end
-[A_lasso, stats] = lassoglm(xTrain',yTrainBool,'binomial','CV', 5, 'NumLambda', 50,'Options',opt);
+[A_lasso, stats] = lassoglm(xTrain',yTrainBool,'binomial','CV', 5, 'NumLambda', 25,'Options',opt);
 
 % testing set
 xTest = X(~trainInds,:)';
