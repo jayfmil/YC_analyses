@@ -1,6 +1,6 @@
 function YC1_runMulti(subjs,anas,ana_func,params,pool)
 
- 
+
 % analysis settings
 % -----------------
 
@@ -9,7 +9,7 @@ if ~exist('anas','var') || isempty(anas)
     ana_funcs = {};
     
     anas{end+1} = 'lassoReg_allEncoding_binary';
-    ana_funcs{end+1} = @lassoReg;    
+    ana_funcs{end+1} = @lassoReg;
 else
     ana_funcs = {str2func(ana_func)};
 end
@@ -55,135 +55,138 @@ end
 
 function runMulti_subj(subj,ana_func,params,saveDir)
 
-% 
-fname = fullfile(saveDir,[subj '_lasso.mat']);
-% if exist(fname,'file')
-%     return
-% end
-
-% load tal structure
-tal = getBipolarSubjElecs(subj,1,1,1);
-if ~isfield(tal,'locTag') || ~any(~cellfun('isempty',regexpi({tal.locTag},['HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc'])))
-    fprintf('No MTL electrodes for %s.\n',subj)
-    return
-end
-nElecs = length(tal);
-
-% load events so we can filter into our conditions of interest
-config = RAM_config('RAM_YC1');
-
-% Setting time bins for convenience:
-tEnds = (config.distributedParams.timeWin:...
-    config.distributedParams.timeStep:...
-    config.postMS+config.priorMS)-config.priorMS;
-tStarts = tEnds - config.distributedParams.timeWin + 1;
-config.distributedParams.timeBins = [tStarts' tEnds'];
-
-% load events
-[events] = RAM_loadEvents(subj,[],'RAM_YC1','events', config);
-
-% add the test error to the learning trials
-events = addErrorField(events);
-
-% convert to the session to an double from a string
-session = NaN(1,length(events));
-for e = 1:length(session)
-    session(e) = str2double(events(e).session);
-end
-
-% filter to events of interest
-eventsToUse = params.eventFilter(events);
-if sum(eventsToUse) < 10
-    fprintf('Not enough events for %s.\n',subj)
-    return
-end
-
-% get time and freq settings
-freqBins = params.freqBins;
-timeBins = params.timeBins;
-
-% load power for all electrodes
-% powerData = loadAllPower(tal,subj,events,freqBins,timeBins,config,eventsToUse);
-powerData = loadResids_locs(tal,subj,freqBins,timeBins,config,eventsToUse);
-powerData = permute(powerData,[3 1 2 4]);
-if params.savePower
-    powDir = fullfile(saveDir,'power');
-    if ~exist(powDir,'dir')
-        mkdir(powDir);
+try
+    fname = fullfile(saveDir,[subj '_lasso.mat']);
+    % if exist(fname,'file')
+    %     return
+    % end
+    
+    % load tal structure
+    tal = getBipolarSubjElecs(subj,1,1,1);
+    if ~isfield(tal,'locTag') || ~any(~cellfun('isempty',regexpi({tal.locTag},['HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc'])))
+        fprintf('No MTL electrodes for %s.\n',subj)
+        return
     end
-    powFile = fullfile(powDir,[subj '_binnedPower.mat']);
-    save(powFile,'powerData','params')
-end
-
-% determine the cross validation folds. each fold leaves out one trial
-[trials,~,trialInds] = unique([session(eventsToUse)' [events(eventsToUse).blocknum]'],'rows');
-nFolds = size(trials,1);
-folds = false(nFolds,size(trialInds,1));
-for iFold = 1:nFolds
-    folds(iFold,:) = trialInds ~= iFold;
-end
-
-% perform lasso regression on entire data in order to identify best lambda
-% value
-Y       = [events(eventsToUse).testError]';
-YBool   = Y < median(Y);
-objLocs = vertcat(events(eventsToUse).objLocs); 
-
-% TO DO: add in regions of env
-res = [];
-if params.modelEachTime
-    for t = 1:size(timeBins,1)
-        
-        [res(t).yPred,res(t).yTest,res(t).A,res(t).intercept,res(t).err] = deal(cell(nFolds,1));
+    nElecs = length(tal);
+    
+    % load events so we can filter into our conditions of interest
+    config = RAM_config('RAM_YC1');
+    
+    % Setting time bins for convenience:
+    tEnds = (config.distributedParams.timeWin:...
+        config.distributedParams.timeStep:...
+        config.postMS+config.priorMS)-config.priorMS;
+    tStarts = tEnds - config.distributedParams.timeWin + 1;
+    config.distributedParams.timeBins = [tStarts' tEnds'];
+    
+    % load events
+    [events] = RAM_loadEvents(subj,[],'RAM_YC1','events', config);
+    
+    % add the test error to the learning trials
+    events = addErrorField(events);
+    
+    % convert to the session to an double from a string
+    session = NaN(1,length(events));
+    for e = 1:length(session)
+        session(e) = str2double(events(e).session);
+    end
+    
+    % filter to events of interest
+    eventsToUse = params.eventFilter(events);
+    if sum(eventsToUse) < 10
+        fprintf('Not enough events for %s.\n',subj)
+        return
+    end
+    
+    % get time and freq settings
+    freqBins = params.freqBins;
+    timeBins = params.timeBins;
+    
+    % load power for all electrodes
+    % powerData = loadAllPower(tal,subj,events,freqBins,timeBins,config,eventsToUse);
+    powerData = loadResids_locs(tal,subj,freqBins,timeBins,config,eventsToUse);
+    powerData = permute(powerData,[3 1 2 4]);
+    if params.savePower
+        powDir = fullfile(saveDir,'power');
+        if ~exist(powDir,'dir')
+            mkdir(powDir);
+        end
+        powFile = fullfile(powDir,[subj '_binnedPower.mat']);
+        save(powFile,'powerData','params')
+    end
+    
+    % determine the cross validation folds. each fold leaves out one trial
+    [trials,~,trialInds] = unique([session(eventsToUse)' [events(eventsToUse).blocknum]'],'rows');
+    nFolds = size(trials,1);
+    folds = false(nFolds,size(trialInds,1));
+    for iFold = 1:nFolds
+        folds(iFold,:) = trialInds ~= iFold;
+    end
+    
+    % perform lasso regression on entire data in order to identify best lambda
+    % value
+    Y       = [events(eventsToUse).testError]';
+    YBool   = Y < median(Y);
+    objLocs = vertcat(events(eventsToUse).objLocs);
+    
+    % TO DO: add in regions of env
+    res = [];
+    if params.modelEachTime
+        for t = 1:size(timeBins,1)
+            
+            [res(t).yPred,res(t).yTest,res(t).A,res(t).intercept,res(t).err] = deal(cell(nFolds,1));
+            for iFold = 1:nFolds
+                
+                fprintf('Subject %s: Time %d of %d, Fold %d of %d.\n',subj,t,size(timeBins,1),iFold,nFolds)
+                X = reshape(squeeze(powerData(:,:,t,:)),size(powerData,1),size(powerData,2)*nElecs);
+                [res(t).yPred{iFold},...
+                    res(t).yTest{iFold},...
+                    res(t).A{iFold},...
+                    res(t).intercept{iFold},...
+                    res(t).err{iFold}] = ana_func(X,Y,YBool,folds(iFold,:));
+                
+            end
+        end
+    else
+        X = reshape(squeeze(powerData),size(powerData,1),size(powerData,2)*size(powerData,3)*nElecs);
+        [res.yPred,res.yTest,res.A,res.intercept,res.err] = deal(cell(nFolds,1));
         for iFold = 1:nFolds
-            
-            fprintf('Subject %s: Time %d of %d, Fold %d of %d.\n',subj,t,size(timeBins,1),iFold,nFolds)
-            X = reshape(squeeze(powerData(:,:,t,:)),size(powerData,1),size(powerData,2)*nElecs);
-            [res(t).yPred{iFold},...
-                res(t).yTest{iFold},...
-                res(t).A{iFold},...
-                res(t).intercept{iFold},...
-                res(t).err{iFold}] = ana_func(X,Y,YBool,folds(iFold,:));
-            
+            fprintf('Subject %s: Fold %d of %d.\n',subj,iFold,nFolds)
+            [res.yPred{iFold},...
+                res.yTest{iFold},...
+                res.A{iFold},...
+                res.intercept{iFold},...
+                res.err{iFold}] = ana_func(X,Y,YBool,folds(iFold,:));
         end
     end
-else
-    X = reshape(squeeze(powerData),size(powerData,1),size(powerData,2)*size(powerData,3)*nElecs);
-    [res.yPred,res.yTest,res.A,res.intercept,res.err] = deal(cell(nFolds,1));
-    for iFold = 1:nFolds
-        fprintf('Subject %s: Fold %d of %d.\n',subj,iFold,nFolds)        
-        [res.yPred{iFold},...
-            res.yTest{iFold},...
-            res.A{iFold},...
-            res.intercept{iFold},...
-            res.err{iFold}] = ana_func(X,Y,YBool,folds(iFold,:));
-    end    
+    save(fname,'res','Y','YBool','objLocs','params');
+catch e
+    fname = fullfile(saveDir,[subj 'error_lasso.mat']);
+    save(fname,e)
 end
-save(fname,'res','Y','YBool','objLocs','params');
-
 % % loop over each time bin
 % res = [];
 % for t = 1:size(timeBins,1)
 %     res(t).timeBin = timeBins(t,:);
-%     
-%     X = reshape(squeeze(powerData(:,:,t,:)),size(powerData,1),size(powerData,2)*nElecs);    
+%
+%     X = reshape(squeeze(powerData(:,:,t,:)),size(powerData,1),size(powerData,2)*nElecs);
 %     fprintf('Calculating best Lambda parameter for timebin %d.\n',t)
-%     opt = statset('UseParallel',true);       
+%     opt = statset('UseParallel',true);
 %     [B,FitInfo] = lasso(X,Y,'NumLambda',100,'LambdaRatio',.001,'CV',10);
-%     lambda = FitInfo.LambdaMinMSE;    
-%     
+%     lambda = FitInfo.LambdaMinMSE;
+%
 %     res(t).df = FitInfo.DF(FitInfo.IndexMinMSE);
 %     res(t).lambda = lambda;
 %     res(t).mse  = cell(nFolds,1);
 %     res(t).yHat = cell(nFolds,1);
 %     res(t).incp = cell(nFolds,1);
 %     res(t).beta = cell(nFolds,1);
-%     
+%
 %     fprintf('Applying..\n')
 %     for iFold = 1:nFolds
 %         fprintf('Fold %d of %d.\n',iFold,nFolds)
 %         [res(t).mse{iFold},res(t).yHat{iFold},res(t).incp{iFold},res(t).beta{iFold}] = ana_func(X,Y,lambda,folds(iFold,:));
-%     end       
+%     end
 % end
 % save(fname,'res','Y','objLocs','freqBins','timeBins');
 
@@ -219,10 +222,10 @@ save(fname,'res','Y','YBool','objLocs','params');
 %         AUC(t) = trapz(FA(t,:),HR(t,:));
 %     end
 % end
-% 
-% 
-% 
-% 
+%
+%
+%
+%
 % keyboard
 function [yPred,yTest,A,intercept,err] = lassoReg(X,Y,YBool,trainInds)
 
@@ -232,7 +235,7 @@ yTrainBool = YBool(trainInds);
 % more recalled than not recalls
 numToRemove = sum(yTrainBool) - sum(~yTrainBool);
 toRemove = [];
-if numToRemove > 0    
+if numToRemove > 0
     toRemove = randsample(find(yTrainBool),abs(numToRemove));
 elseif numToRemove < 0
     toRemove = randsample(find(~yTrainBool),abs(numToRemove));
@@ -329,7 +332,7 @@ for e = 1:nElecs
             subjStd = repmat(subjStd,[1 size(subjPow,2), size(subjPow,3)]);
             zpow(:,:,inds) = (subjPow(:,:,inds) - subjMean).*subjStd;
         end
-        subjPow = zpow;                
+        subjPow = zpow;
     end
     subjPow = subjPow(:,:,eventsToUse);
     
@@ -346,8 +349,8 @@ for e = 1:nElecs
     for t = 1:nTimes
         tInds = config.distributedParams.timeBins(:,1) >= timeBins(t,1) & config.distributedParams.timeBins(:,2) < timeBins(t,2);
         tmpPower(:,t,:) = nanmean(subjPow(:,tInds,:),2);
-    end  
-    powerData(:,:,:,e) = tmpPower;        
+    end
+    powerData(:,:,:,e) = tmpPower;
 end
 
 function [powerData] = loadResids_locs(tal,subj,freqBins,timeBins,config,eventsToUse)
@@ -368,7 +371,7 @@ for e = 1:nElecs
     if ~exist(fullfile(subjPath,fname),'file')
         error('Residuals file %s not found.\n',fname)
     else
-        elecData = load(fullfile(subjPath,fname)); 
+        elecData = load(fullfile(subjPath,fname));
         resids   = elecData.resid;
         resids   = permute(resids,[3 2 1]);
         if size(resids,3) ~= sum(eventsToUse)
@@ -399,7 +402,7 @@ end
 % reshape into number of observations (events) x number of features
 % powerData = permute(powerData,[3 1 2 4]);
 % powerData = reshape(powerData,size(powerData,1),nFreqs*nTimes*nElecs);
-   
+
 
 function events = addErrorField(events)
 % add testError field
@@ -413,12 +416,12 @@ recEvents = events(testInd);
 sessVec = [events.session];
 trialVec = [events.blocknum];
 for rec = 1:length(recEvents);
-  session = recEvents(rec).session;  
-  trial = recEvents(rec).blocknum;
-  err = recEvents(rec).respPerformanceFactor;
-  ind = sessVec == session & trialVec == trial;
-  [events(ind).testError] = deal(err);
-  [events(ind).inner] = deal(abs(recEvents(rec).objLocs(1)) < 568/30 && abs(recEvents(rec).objLocs(2)) < 7);
+    session = recEvents(rec).session;
+    trial = recEvents(rec).blocknum;
+    err = recEvents(rec).respPerformanceFactor;
+    ind = sessVec == session & trialVec == trial;
+    [events(ind).testError] = deal(err);
+    [events(ind).inner] = deal(abs(recEvents(rec).objLocs(1)) < 568/30 && abs(recEvents(rec).objLocs(2)) < 7);
 end
 
 
