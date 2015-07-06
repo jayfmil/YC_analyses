@@ -161,10 +161,9 @@ try
         end
     end
     save(fname,'res','Y','YBool','objLocs','params');
-catch e
-    disp(subj)
+catch e    
     fname = fullfile(saveDir,[subj '_error_lasso.mat']);
-    save(fname,e)
+    save(fname,'e')
 end
 % % loop over each time bin
 % res = [];
