@@ -157,9 +157,9 @@ else
             res.A{iFold},...
             res.intercept{iFold},...
             res.err{iFold}] = ana_func(X,Y,YBool,folds(iFold,:));
-    end
-    keyboard
+    end    
 end
+save(fname,'res','Y','YBool','objLocs','params');
 
 % % loop over each time bin
 % res = [];
@@ -254,10 +254,12 @@ yTrainBool(toRemove) = [];
 % compute model
 % [A_lasso, stats] = lasso(xTrain', yTrain, 'CV', 5, 'NumLambda', 50);
 opt = statset('UseParallel',false);
-poolobj = gcp('nocreate');
-if ~isempty(poolobj)
-    opt = statset('UseParallel',true);
-end
+
+% using parallel isn't working for some reason
+% poolobj = gcp('nocreate');
+% if ~isempty(poolobj)
+%    opt = statset('UseParallel',true);
+%end
 [A_lasso, stats] = lassoglm(xTrain',yTrainBool,'binomial','CV', 10, 'NumLambda', 25,'Options',opt);
 
 % testing set
