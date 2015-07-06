@@ -55,6 +55,7 @@ end
 
 function runMulti_subj(subj,ana_func,params,saveDir)
 
+% 
 try
     fname = fullfile(saveDir,[subj '_lasso.mat']);
     % if exist(fname,'file')
@@ -161,7 +162,7 @@ try
     end
     save(fname,'res','Y','YBool','objLocs','params');
 catch e
-    fname = fullfile(saveDir,[subj 'error_lasso.mat']);
+    fname = fullfile(saveDir,[subj '_error_lasso.mat']);
     save(fname,e)
 end
 % % loop over each time bin
