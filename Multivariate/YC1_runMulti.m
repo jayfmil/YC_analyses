@@ -149,9 +149,9 @@ if params.modelEachTime
     end
 else
     X = reshape(squeeze(powerData),size(powerData,1),size(powerData,2)*size(powerData,3)*nElecs);
+    [res.yPred,res.yTest,res.A,res.intercept,res.err] = deal(cell(nFolds,1));
     for iFold = 1:nFolds
-        fprintf('Subject %s: Fold %d of %d.\n',subj,iFold,nFolds)
-        [res.yPred,res.yTest,res.A,res.intercept,res.err] = deal(cell(nFolds,1));
+        fprintf('Subject %s: Fold %d of %d.\n',subj,iFold,nFolds)        
         [res.yPred{iFold},...
             res.yTest{iFold},...
             res.A{iFold},...
