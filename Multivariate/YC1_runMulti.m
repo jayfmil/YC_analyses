@@ -162,6 +162,7 @@ try
     end
     save(fname,'res','Y','YBool','objLocs','params');
 catch e
+    disp(subj)
     fname = fullfile(saveDir,[subj '_error_lasso.mat']);
     save(fname,e)
 end
