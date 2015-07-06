@@ -234,7 +234,7 @@ numToRemove = sum(yTrainBool) - sum(~yTrainBool);
 toRemove = [];
 if numToRemove > 0    
     toRemove = randsample(find(yTrainBool),abs(numToRemove));
-elseif numToRemove > 0
+elseif numToRemove < 0
     toRemove = randsample(find(~yTrainBool),abs(numToRemove));
 end
 
@@ -268,7 +268,7 @@ A = A_lasso(:,stats.IndexMinDeviance);
 intercept = stats.Intercept(stats.IndexMinDeviance);
 B1 = [intercept;A];
 yPred = glmval(B1,xTest','logit');
-mse = mean(round(yPred));
+mse = mean(round(yPred) == YBool(~trainInds));
 % yPred = (xTest - xHat*ones(1,sum(~trainInds)))' * A + intercept;
 
 % mse = mean((yPred-yTest).^2);
