@@ -73,8 +73,8 @@ hipp_tal = tal(~cellfun('isempty',regexpi({tal.locTag},['CA1|CA3|DG|sub'])));
 % EC electrodes
 ec_tal = tal(~cellfun('isempty',regexpi({tal.locTag},['EC'])));
 
-% combined
-mtl_tal = [hipp_tal ec_tal];
+% combined mtl
+mtl_tal = tal(~cellfun('isempty',regexpi({tal.locTag},['HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc'])));
 
 rois = {'hipp','ec','mtl'};
 for roi = rois
