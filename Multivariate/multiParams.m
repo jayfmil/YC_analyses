@@ -5,7 +5,7 @@ params.freqBins = [1 3;3 9;40 70;70 200];
 
 % time bins to use (this depends on the RAM auto computed power time window)
 % params.timeBins = [-999 0;1 1000;1001 4000;4001 5000];
-timeStep = 200;
+timeStep = 1000;
 params.timeBins = [[-999:timeStep:5000]' [(-999+timeStep-1):timeStep:5000]'];
 
 % individual model for each time bin, or all in one model
