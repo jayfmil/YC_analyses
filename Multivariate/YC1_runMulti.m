@@ -128,7 +128,7 @@ try
     % value
     Y       = [events(eventsToUse).testError]';
     YBool   = Y < median(Y);
-    YBool   = [events.inner] == 1;
+    YBool   = [events.inner]' == 1;
     objLocs = vertcat(events(eventsToUse).objLocs);
     
     % TO DO: add in regions of env
