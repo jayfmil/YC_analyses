@@ -265,6 +265,7 @@ opt = statset('UseParallel',false);
 % if ~isempty(poolobj)
 %    opt = statset('UseParallel',true);
 %end
+keyboard
 [A_lasso, stats] = lassoglm(xTrain',yTrainBool,'binomial','CV', 10, 'NumLambda', 25,'Options',opt);
 
 % testing set
