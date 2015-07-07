@@ -128,7 +128,7 @@ try
     % value
     Y       = [events(eventsToUse).testError]';
     YBool   = Y < median(Y);
-    YBool   = [events.inner]' == 1;
+    YBool   = [events(eventsToUse).inner]' == 1;
     objLocs = vertcat(events(eventsToUse).objLocs);
     
     % TO DO: add in regions of env
@@ -265,7 +265,6 @@ opt = statset('UseParallel',false);
 % if ~isempty(poolobj)
 %    opt = statset('UseParallel',true);
 %end
-keyboard
 [A_lasso, stats] = lassoglm(xTrain',yTrainBool,'binomial','CV', 10, 'NumLambda', 25,'Options',opt);
 
 % testing set
