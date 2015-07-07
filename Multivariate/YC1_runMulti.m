@@ -8,7 +8,7 @@ if ~exist('anas','var') || isempty(anas)
     anas = {};
     ana_funcs = {};
     
-    anas{end+1} = 'lassoReg_allEncoding_binary';
+    anas{end+1} = 'lassoReg_allEncoding_binary_inner';
     ana_funcs{end+1} = @lassoReg;
 else
     ana_funcs = {str2func(ana_func)};
@@ -128,6 +128,7 @@ try
     % value
     Y       = [events(eventsToUse).testError]';
     YBool   = Y < median(Y);
+    YBool   = [events.inner] == 1;
     objLocs = vertcat(events(eventsToUse).objLocs);
     
     % TO DO: add in regions of env
