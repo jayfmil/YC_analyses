@@ -55,14 +55,10 @@ end
 
 function runMulti_subj(subj,ana_func,params,saveDir)
 
-% 
+%
 try
-    fname = fullfile(saveDir,[subj '_lasso.mat']);
-    % if exist(fname,'file')
-    %     return
-    % end
     
-    % load tal structure
+    
     tal = getBipolarSubjElecs(subj,1,1,1);
     if ~isfield(tal,'locTag') || ~any(~cellfun('isempty',regexpi({tal.locTag},['HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc'])))
         fprintf('No MTL electrodes for %s.\n',subj)
@@ -128,15 +124,20 @@ try
     % value
     Y       = [events(eventsToUse).testError]';
     YBool   = Y < median(Y);
-    YBool   = [events(eventsToUse).inner]' == 1;
+%     YBool   = [events(eventsToUse).inner]' == 1;
     objLocs = vertcat(events(eventsToUse).objLocs);
     
-    % TO DO: add in regions of env
+    
     res = [];
+    
+    % if doing a different model for every time bin
     if params.modelEachTime
         for t = 1:size(timeBins,1)
             
+            % will hold results from each fold
             [res(t).yPred,res(t).yTest,res(t).A,res(t).intercept,res(t).err] = deal(cell(nFolds,1));
+            
+            % loop over each fold
             for iFold = 1:nFolds
                 
                 fprintf('Subject %s: Time %d of %d, Fold %d of %d.\n',subj,t,size(timeBins,1),iFold,nFolds)
@@ -146,9 +147,10 @@ try
                     res(t).A{iFold},...
                     res(t).intercept{iFold},...
                     res(t).err{iFold}] = ana_func(X,Y,YBool,folds(iFold,:));
-                
             end
         end
+        
+    % if using all time points in one model
     else
         X = reshape(squeeze(powerData),size(powerData,1),size(powerData,2)*size(powerData,3)*nElecs);
         [res.yPred,res.yTest,res.A,res.intercept,res.err] = deal(cell(nFolds,1));
@@ -161,74 +163,13 @@ try
                 res.err{iFold}] = ana_func(X,Y,YBool,folds(iFold,:));
         end
     end
+    fname = fullfile(saveDir,[subj '_lasso.mat']);
     save(fname,'res','Y','YBool','objLocs','params');
-catch e    
+catch e
     fname = fullfile(saveDir,[subj '_error_lasso.mat']);
     save(fname,'e')
 end
-% % loop over each time bin
-% res = [];
-% for t = 1:size(timeBins,1)
-%     res(t).timeBin = timeBins(t,:);
-%
-%     X = reshape(squeeze(powerData(:,:,t,:)),size(powerData,1),size(powerData,2)*nElecs);
-%     fprintf('Calculating best Lambda parameter for timebin %d.\n',t)
-%     opt = statset('UseParallel',true);
-%     [B,FitInfo] = lasso(X,Y,'NumLambda',100,'LambdaRatio',.001,'CV',10);
-%     lambda = FitInfo.LambdaMinMSE;
-%
-%     res(t).df = FitInfo.DF(FitInfo.IndexMinMSE);
-%     res(t).lambda = lambda;
-%     res(t).mse  = cell(nFolds,1);
-%     res(t).yHat = cell(nFolds,1);
-%     res(t).incp = cell(nFolds,1);
-%     res(t).beta = cell(nFolds,1);
-%
-%     fprintf('Applying..\n')
-%     for iFold = 1:nFolds
-%         fprintf('Fold %d of %d.\n',iFold,nFolds)
-%         [res(t).mse{iFold},res(t).yHat{iFold},res(t).incp{iFold},res(t).beta{iFold}] = ana_func(X,Y,lambda,folds(iFold,:));
-%     end
-% end
-% save(fname,'res','Y','objLocs','freqBins','timeBins');
 
-
-
-% do correct cross validation
-% no freq bins
-% uniform time bins. try different sizes. Try the whole
-% binary on something
-% elec x freq x time all at once
-% just single sessions?
-
-
-
-
-
-
-% set up the weights structure, w/info on class weights
-% Weights.MeanCV = mean(WeightMat,2); % mean
-% Weights.SECV = nanstd(WeightMat,[],2)/sqrt(size(WeightMat,2)-1);
-% Weights.MeanIntercept = mean(W0,2)';
-
-% yHat=vertcat(yHat{:})
-% corrThresh = 0:.05:1;
-% predThresh = 0:.01:1;
-% FA = zeros(length(corrThresh),length(predThresh));
-% HR = zeros(length(corrThresh),length(predThresh));
-% AUC = zeroes(1,length(corrThresh));
-% for t = 1:length(corrThresh)
-%     for i = 1:length(predThresh)
-%         FA(t,i) = sum((yHat<predThresh(i) & Y > corrThresh(t)))/sum(Y>corrThresh(t));
-%         HR(t,i) = sum((yHat<predThresh(i) & Y < corrThresh(t)))/sum(Y<corrThresh(t));
-%         AUC(t) = trapz(FA(t,:),HR(t,:));
-%     end
-% end
-%
-%
-%
-%
-% keyboard
 function [yPred,yTest,A,intercept,err] = lassoReg(X,Y,YBool,trainInds)
 
 % Under sample larger class?
@@ -276,25 +217,6 @@ intercept = stats.Intercept(stats.IndexMinDeviance);
 B1 = [intercept;A];
 yPred = glmval(B1,xTest','logit');
 err = mean(round(yPred) == YBool(~trainInds));
-% yPred = (xTest - xHat*ones(1,sum(~trainInds)))' * A + intercept;
-
-% mse = mean((yPred-yTest).^2);
-
-
-%     % create model
-%     [B,FitInfo] = lasso(xTrain,yTrain,'lambda',lambda);
-%     intercept = FitInfo.Intercept;
-%     betas = B;
-%
-%     % testing set
-%     xTest = X(~trainInds,:);
-%     yTest = Y(~trainInds);
-%
-%     % predict
-%     yHat = intercept + xTest*betas;
-%
-%     % compute mse
-%     mse = mean((yHat-yTest).^2);
 
 
 
