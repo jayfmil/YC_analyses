@@ -11,7 +11,7 @@ end
 % save directory
 f = @(x,y) y{double(x)+1};
 y = {'OrigPower','CorrectedPower'};
-saveDir = fullfile(params.baseBath,f(params.useCorrectedPower,y));
+saveDir = fullfile(params.basePath,f(params.useCorrectedPower,y));
 if ~exist(saveDir,'dir')
     mkdir(saveDir);
 end
