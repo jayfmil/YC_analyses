@@ -3,7 +3,7 @@ function YC1_createChanceDists(subjs,params)
 
 % analysis settings
 % -----------------
-numIters = 100;
+numIters = 1000;
 
 if ~exist('params','var') || isempty(params)
     params = multiParams();
@@ -32,7 +32,8 @@ if ~isempty(poolobj)
         errorFile  = fullfile(saveDir,[subjs{s} '_error_lasso.mat']);        
         if exist(lassoFile,'file') && ~exist(errorFile,'file')
             
-            % use the same parameters as the real data
+            % use the same parameters as the real data, but set it to
+            % permute the responses
             subjData = load(lassoFile);
             params = subjData.params;
             params.doPermute = 1;
