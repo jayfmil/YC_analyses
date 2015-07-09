@@ -8,11 +8,10 @@ if ~exist('params','var') || isempty(params)
     params = multiParams();
 end
 
-keyboard
-
 % save directory
 f = @(x,y) y{double(x)+1};
-saveDir = fullfile('/data10/scratch/jfm2/YC1/multi',ana_name);
+y = {'OrigPower','CorrectedPower'};
+saveDir = fullfile('/data10/scratch/jfm2/YC1/multi',f(params.useCorrectedPower,y));
 if ~exist(saveDir,'dir')
     mkdir(saveDir);
 end
@@ -21,7 +20,6 @@ end
 if ~exist('subjs','var') || isempty(subjs)
     subjs = get_subs('RAM_YC1');
 end
-
 
 % see if this was submitted with an open pool
 poolobj = gcp('nocreate');

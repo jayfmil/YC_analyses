@@ -1,18 +1,21 @@
-function YC1_createChanceDists(subjs,ana_name)
+function YC1_createChanceDists(subjs,params)
 
 
 % analysis settings
 % -----------------
-
-if ~exist('ana_name','var') || isempty(ana_name) 
-    ana_name = 'lassoReg_allEncoding_binary';
-end
-
-
 numIters = 100;
 
+if ~exist('params','var') || isempty(params)
+    params = multiParams();
+end
+
 % save directory
-saveDir = fullfile('/data10/scratch/jfm2/YC1/multi',ana_name);
+f = @(x,y) y{double(x)+1};
+y = {'OrigPower','CorrectedPower'};
+saveDir = fullfile('/data10/scratch/jfm2/YC1/multi',f(params.useCorrectedPower,y));
+if ~exist(saveDir,'dir')
+    mkdir(saveDir);
+end
 
 % get list of YC subjects
 if ~exist('subjs','var') || isempty(subjs)
@@ -33,7 +36,7 @@ if ~isempty(poolobj)
             subjData = load(lassoFile);
             params = subjData.params;
             params.doPermute = 1;
-            params.saveOutput = 0;
+            params.saveOutput = 0;            
             
             fname = sprintf('%s_chance_perf_dist.mat',subjs{s});
             fname = fullfile(saveDir,fname);

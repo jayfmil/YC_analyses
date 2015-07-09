@@ -49,10 +49,6 @@ try
     saveOutput    = params.saveOutput;
     doPermute     = params.doPermute;
     
-    % see if we are passing in a lambda value. If so, will not compute
-    % optimal one unless params.crossValStrictness is true
-    if isfi
-    
     % load power for all electrodes
     if ~params.useCorrectedPower
         powerData = loadAllPower(tal,subj,events,freqBins,timeBins,config,eventsToUse);
@@ -179,7 +175,7 @@ try
         save(fname,'res','Y','objLocs','params','perf');
     end
 catch e
-    fname = fullfile(saveDir,[subj '_error_lasso.mat']);
+    fname = fullfile(saveDir,[subj '_lasso_error.mat']);
     save(fname,'e')
 end
 
