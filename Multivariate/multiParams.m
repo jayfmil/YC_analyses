@@ -35,6 +35,7 @@ params.lassDir    = '/data10/scratch/jfm2/YC1/multi';
 %       be more correct because then the test data is totall removed from
 %       the train data. This takes a lot longer.
 params.crossValStrictness = 0;
+params.lambda = [];
 
 % save the output to a file? Might not want to in some casesm for example
 % creating a chance distribution
