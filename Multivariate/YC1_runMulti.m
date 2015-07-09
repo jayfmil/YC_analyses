@@ -1,16 +1,14 @@
-function YC1_runMulti(subjs,ana_name,params)
+function YC1_runMulti(subjs,params)
 
 
 % analysis settings
 % -----------------
 
-if ~exist('ana_name','var') || isempty(ana_name) 
-    ana_name = 'lassoReg_allEncoding_binary_fourFreqs_expBins_origPowwer';
-end
-
 if ~exist('params','var') || isempty(params)
     params = multiParams();
 end
+
+keyboard
 
 % save directory
 f = @(x,y) y{double(x)+1};

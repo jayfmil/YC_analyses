@@ -15,7 +15,7 @@ params.modelEachTime = 0;
 
 % filter to events of interest
 params.eventFilter = @(events)allEncodingEvents(events);
-% params.eventFilter = @(events)UpperLowerThird_EncodingEvents(events);
+params.basePath    = '/data10/scratch/jfm2/YC1/multi/lassoReg_allEncoding_binary';
 
 % save out binned power to mat file?
 params.savePower = 1;

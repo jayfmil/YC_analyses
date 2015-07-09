@@ -5,7 +5,7 @@ function YC1_createChanceDists(subjs,ana_name)
 % -----------------
 
 if ~exist('ana_name','var') || isempty(ana_name) 
-    ana_name = 'lassoReg_allEncoding_binary_fourFreqs_expBins_origPowwer';
+    ana_name = 'lassoReg_allEncoding_binary';
 end
 
 

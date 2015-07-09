@@ -1,4 +1,4 @@
-function [perf,subject] = YC1_runMulti_subj(subj,params,saveDir)
+function [perf,subject,params] = YC1_runMulti_subj(subj,params,saveDir)
 
 perf = [];
 subject = [];
@@ -48,6 +48,10 @@ try
     doBinary      = params.doBinary;
     saveOutput    = params.saveOutput;
     doPermute     = params.doPermute;
+    
+    % see if we are passing in a lambda value. If so, will not compute
+    % optimal one unless params.crossValStrictness is true
+    if isfi
     
     % load power for all electrodes
     if ~params.useCorrectedPower
@@ -116,7 +120,11 @@ try
             % see if we are precomputing lambda based on all the data
             lambda = [];
             if params.crossValStrictness == 0
-                [stats,lambda] = calcLambda(X,Y,doBinary);
+                if ~isempty(params.lambda)
+                    lambda = params.lambda;
+                else
+                    [stats,lambda] = calcLambda(X,Y,doBinary);
+                end
             end
             
             % will hold results from each fold
@@ -143,8 +151,12 @@ try
         % see if we are precomputing lambda based on all the data
         lambda = [];
         if params.crossValStrictness == 0
-            fprintf('Subject %s: Computing optimal lambda.\n',subj)
-            [stats,lambda] = calcLambda(X,Y,doBinary);
+            if ~isempty(params.lambda)
+                lambda = params.lambda;
+            else
+                fprintf('Subject %s: Computing optimal lambda.\n',subj)
+                [stats,lambda] = calcLambda(X,Y,doBinary);
+            end
         end
         
         % run for each fold
@@ -160,7 +172,8 @@ try
         perf = mean(vertcat(res.err{:}));
     end
       
-    subject = subj;
+    subject       = subj;
+    params.lambda = lambda;
     if saveOutput
         fname = fullfile(saveDir,[subj '_lasso.mat']);
         save(fname,'res','Y','objLocs','params','perf');
@@ -186,7 +199,7 @@ else
     yCentered = round(Y - intercept,14);
     
     % compute optimal lamda
-    [~, stats] = lasso(xCentered', yCentered, 'CV', 10, 'NumLambda', 25);
+    [~, stats] = lasso(xCentered', yCentered, 'CV', round(length(Y)/2), 'NumLambda', 50);
     lambda     = stats.LambdaMinMSE;
 end
 
