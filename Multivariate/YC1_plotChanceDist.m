@@ -159,8 +159,7 @@ for s = 1:length(figs)
     fprintf(fid,'\\includegraphics[width=0.45\\textwidth]{%s}\n',figs(s).Original_Power);
     fprintf(fid,'\\includegraphics[width=0.45\\textwidth]{%s}\n',figs(s).Corrected_Power);   
     fprintf(fid,'\\caption{%s}\n\n',strrep(figs(s).subj,'_',' '));
-    fprintf(fid,'\\end{figure}\n\n\n');
-    fprintf(fid,'\\end{figure}\n\n\n');
+    fprintf(fid,'\\end{figure}\n\n\n');    
     if mod(s,2) == 0
         fprintf(fid,'\\clearpage\n\n\n');
     end
