@@ -5,8 +5,8 @@ function YC1_plotChanceDist(subjs,ana_dirs)
 % -----------------
 
 if ~exist('ana_name','var') || isempty(ana_dirs)
-    ana_dirs = {'lassoReg_allEncoding_binary_fourFreqs_expBins'};
-    ana_dirs{2} = 'lassoReg_allEncoding_binary_fourFreqs_expBins_origPowwer';
+    ana_dirs = {'CorrectedPower'};
+    ana_dirs{2} = 'OrigPower';
     
     ana_names = {'Corrected Power'};
     ana_names{2} = 'Original Power';
@@ -40,7 +40,7 @@ for s = 1:length(subjs)
         
         figs_subj.(strrep(ana_names{a},' ','_')) = [];
         
-        dataDir = fullfile('/data10/scratch/jfm2/YC1/multi',ana_dirs{a});
+        dataDir = fullfile('/data10/scratch/jfm2/YC1/multi/lassoReg_allEncoding_binary',ana_dirs{a});
         chanceFile = fullfile(dataDir,[subj '_chance_perf_dist.mat']);
         lassoFile  = fullfile(dataDir,[subj '_lasso.mat']);
         
