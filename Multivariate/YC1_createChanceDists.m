@@ -38,6 +38,7 @@ if ~isempty(poolobj)
             params = subjData.params;
             params.doPermute = 1;
             params.saveOutput = 0;            
+            params.loadPower = 1;
             
             fname = sprintf('%s_chance_perf_dist.mat',subjs{s});
             fname = fullfile(saveDir,fname);
@@ -65,6 +66,7 @@ else
             params = subjData.params;
             params.doPermute = 1;     
             params.saveOutput = 0;
+            params.loadPower = 1;
             
             fname = sprintf('%s_chance_perf_dist.mat',subjs{s});
             fname = fullfile(saveDir,fname);

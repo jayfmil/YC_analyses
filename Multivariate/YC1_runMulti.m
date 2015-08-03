@@ -21,6 +21,7 @@ if ~exist('subjs','var') || isempty(subjs)
     subjs = get_subs('RAM_YC1');
 end
 
+%subjs = subjs(~strcmp(subjs,'R1025P'))
 % see if this was submitted with an open pool
 poolobj = gcp('nocreate');
 if ~isempty(poolobj)
@@ -39,8 +40,6 @@ else
     end
 end
 
-
-keyboard
 
 
 

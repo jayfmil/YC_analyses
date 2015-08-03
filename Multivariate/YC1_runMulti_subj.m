@@ -108,6 +108,7 @@ try
     res = [];
     if modelEachTime
         perf = NaN(1,nTimes);
+        lambdas = NaN(1,nTimes);
         for t = 1:nTimes
             
             % reshape into # trials x # features    
@@ -117,10 +118,11 @@ try
             lambda = [];
             if params.crossValStrictness == 0
                 if ~isempty(params.lambda)
-                    lambda = params.lambda;
+                    lambda = params.lambda(t);
                 else
                     [stats,lambda] = calcLambda(X,Y,doBinary);
                 end
+                lambdas(t) = lambda;
             end
             
             % will hold results from each fold
@@ -137,6 +139,7 @@ try
             end  
             perf(t) = mean(vertcat(res(t).err{:}));
         end
+        lambda = lambdas;
         
     % if using all time points in one model, current what it is set to do
     else
@@ -239,7 +242,7 @@ if doBinary
     
     % compute model
     if isempty(lambda)
-        [A_lasso, stats] = lassoglm(xTrain',yTrainBool,'binomial','CV', 5, 'NumLambda', 10);
+        [A_lasso, stats] = lassoglm(xTrain',yTrainBool,'binomial','CV', round(length(yTrainBool)/2), 'NumLambda', 50);
         
         % get the best cooefficients and intercept
         A = A_lasso(:,stats.IndexMinDeviance);

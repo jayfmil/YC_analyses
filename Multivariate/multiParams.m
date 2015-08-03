@@ -2,20 +2,24 @@ function params = multiParams()
 
 % frequency bins to use
 params.freqBins = [1 3;3 9;40 70;70 200];
-% params.freqBins = [1 9;40 200];
 
 % time bins to use (this depends on the RAM auto computed power time window)
 % params.timeBins = [-999 0;1 1000;1001 4000;4001 5000];
 timeStep = 1000;
-params.timeBins = [[-999:timeStep:5000]' [(-999+timeStep-1):timeStep:5000]'];
-params.timeBins = [1 1000;1001 4000;4001 5000];
+params.timeBins = [[-999:timeStep:6000]' [(-999+timeStep-1):timeStep:6000]'];
+%params.timeBins = [1 1000;1001 4000;4001 5000];
+
+% regions. If empty, use all electrodes. Choices right now are:
+%          'mtl', 'hipp', 'ec'
+params.region = '';
+
 
 % individual model for each time bin, or all in one model
-params.modelEachTime = 0;
+params.modelEachTime = 1;
 
 % filter to events of interest
 params.eventFilter = @(events)allEncodingEvents(events);
-params.basePath    = '/data10/scratch/jfm2/YC1/multi/lassoReg_allEncoding_binary';
+params.basePath    = '/data10/scratch/jfm2/YC1/multi/lassoReg_allEncoding_binary_1s_bins_all_elecs';
 
 % save out binned power to mat file?
 params.savePower = 1;
@@ -24,7 +28,7 @@ params.savePower = 1;
 params.doBinary = 1;
 
 % use original power (0) data or use regression corrected (1)
-params.useCorrectedPower = 1;
+params.useCorrectedPower = 0;
 params.regressDir = '/data10/scratch/jfm2/YC1/multi/power/regress';
 params.lassDir    = '/data10/scratch/jfm2/YC1/multi';
 
@@ -40,6 +44,9 @@ params.lambda = [];
 % save the output to a file? Might not want to in some casesm for example
 % creating a chance distribution
 params.saveOutput = 1;
+
+% load prebinned power
+params.loadPower = 0;
 
 % permute the Y, usually in the process of creating a chance distribution
 params.doPermute = 0;
