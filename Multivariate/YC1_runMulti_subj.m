@@ -7,10 +7,35 @@ try
     
     % load subject electrode locations
     tal = getBipolarSubjElecs(subj,1,1,1);
-    if ~isfield(tal,'locTag') || ~any(~cellfun('isempty',regexpi({tal.locTag},['HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc'])))
-        fprintf('No MTL electrodes for %s.\n',subj)
-%         return
-    end    
+    if ~isfield(tal,'locTag')
+        fprintf('No loc tag information for %s.\n',subj)
+    else
+        if strcmpi(params.region,'hipp')
+            if any(~cellfun('isempty',regexpi({tal.locTag},['CA1|CA3|DG|sub'])))
+                fprintf('Using only hippocampal electrodes for %s.\n',subj)
+            else
+                fprintf('Using only hippocampal electrodes for %s...NONE FOUND.\n',subj)
+            end
+            keyboard
+        end
+        if strcmpi(params.region,'ec')
+            if any(~cellfun('isempty',regexpi({tal.locTag},['ec|erc'])))
+                fprintf('Using only ec electrodes for %s.\n',subj)
+            else
+                fprintf('Using only ec electrodes for %s...NONE FOUND.\n',subj)
+            end
+            keyboard
+        end
+        if strcmpi(params.region,'mtl')
+            if any(~cellfun('isempty',regexpi({tal.locTag},['HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc'])))
+                fprintf('Using only mtl electrodes for %s.\n',subj)
+            else
+                fprintf('Using only mtl electrodes for %s...NONE FOUND.\n',subj)
+            end
+            keyboard
+        end
+        
+    end
     
     % load events so we can filter into our conditions of interest
     config = RAM_config('RAM_YC1');
