@@ -9,32 +9,38 @@ try
     tal = getBipolarSubjElecs(subj,1,1,1);
     if ~isfield(tal,'locTag')
         fprintf('No loc tag information for %s.\n',subj)
+        if ~isempty(params.regions)
+            fprintf('Regional analysis requested by no localizations found, skipping %s.\n',subj)
+            return
+        end
     else
         if strcmpi(params.region,'hipp')
             if any(~cellfun('isempty',regexpi({tal.locTag},['CA1|CA3|DG|sub'])))
                 fprintf('Using only hippocampal electrodes for %s.\n',subj)
+                tal = tal(~cellfun('isempty',regexpi({tal.locTag},['CA1|CA3|DG|sub'])));
             else
                 fprintf('Using only hippocampal electrodes for %s...NONE FOUND.\n',subj)
-            end
-            keyboard
+                return
+            end           
         end
         if strcmpi(params.region,'ec')
             if any(~cellfun('isempty',regexpi({tal.locTag},['ec|erc'])))
                 fprintf('Using only ec electrodes for %s.\n',subj)
+                tal = tal(~cellfun('isempty',regexpi({tal.locTag},['ec|erc'])));
             else
                 fprintf('Using only ec electrodes for %s...NONE FOUND.\n',subj)
-            end
-            keyboard
+                return
+            end            
         end
         if strcmpi(params.region,'mtl')
             if any(~cellfun('isempty',regexpi({tal.locTag},['HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc'])))
                 fprintf('Using only mtl electrodes for %s.\n',subj)
+                tal = tal(~cellfun('isempty',regexpi({tal.locTag},['HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc'])));
             else
                 fprintf('Using only mtl electrodes for %s...NONE FOUND.\n',subj)
-            end
-            keyboard
-        end
-        
+                return
+            end            
+        end        
     end
     
     % load events so we can filter into our conditions of interest
