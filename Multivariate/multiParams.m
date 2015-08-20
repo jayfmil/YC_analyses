@@ -13,6 +13,13 @@ timeStep = 1000;
 % params.timeBins = [-999 0;1 1000;1001 4000;4001 5000;5001 6000;1 5000];
 params.timeBins = [[-999:timeStep:6000]' [(-999+timeStep-1):timeStep:6000]';1 5000];
 
+% for the reporting functions (makeSubjectReports and weightsByRegion),
+% timeBinLabels is used to make label specific timepoints. If you don't
+% want the labels, make it ''. If not empty, must be the same size as
+% params.timeBins.
+params.timeBinLabels = {'Pre','Spin','Drive1','Drive2','Drive3','Wait','Post','Enc'};
+
+
 % regions. If empty, use all electrodes. Choices right now are:
 %          'mtl', 'hipp', 'ec'
 params.region = '';

@@ -1,10 +1,40 @@
-function YC1_makeSubjectReports(subjs,params)
+function YC1_makeSubjectReports(subjs,params,overwrite)
+% function YC1_makeSubjectReports(subjs,params,overwrite)
+%
+% Inputs:
+%
+%      subjs - cell array of subject strings (default get_subs('RAM_YC1'))
+%     params - params structure (default is returned by multiParams)
+%  overwrite - boolean. if true, overwrite existing figures
+%
+% Make a report of the classifier performance for each subject in YC1 that
+% has classification and chance clasification data. Also make a group
+% average report.
+%
+% For each subject, figures are:
+%
+%   - Classifier performance over time for % correct and for AUC
+%   - Recall change as a function of classifier output for the best
+%     performing  time bin
+%   - Histogram of the patient's behavioral perfomance
+%
+%
+% For the group report, figures are quartile plots for each time bin,
+% accuracy historograms on the subject level for each time bin, and AUC
+% histograms on the subject level for each time bin.
+%
+%  Reports are saved to <location of subject
+%  data>/reports/lassoChance_report.pdf and group_lassoChance_report.pdf
 
+% if not given, use default params
 if ~exist('params','var') || isempty(params)
     params = multiParams();
 end
 
-overwrite = true
+% overwrite exisiting figures?
+if ~exist('overwrite','var') || isempty(overwrite)
+    overwrite = true;
+end
 
 % tex directory
 f = @(x,y) y{double(x)+1};
@@ -103,8 +133,9 @@ for s = 1:length(subjs)
         plot(lassoData.(fields{i}),'k.','markersize',30,'linewidth',2.5)
         hold on
         
-        % plot any significant time points as red
-        
+        % plot any significant time points as red. Bigger red dot indicates
+        % the timepoint survived bonferroni correction. Small red dot is p
+        % < .05        
         p = ps(i,:);
         thresh = .05/length(lassoData.(fields{i}));
         h=plot(find(p < .05),lassoData.(fields{i})(p < .05),'r.','markersize',30);
@@ -131,17 +162,8 @@ for s = 1:length(subjs)
         set(h,'linestyle','none');
         
         % label each time point with the behavior
-        labels = {'Pre','Spin','Drive','Wait','Post'};
-        if length(lassoData.(fields{i})) == 1
-            labels = {'Encoding'};
-        end
-        if length(lassoData.(fields{i})) == 6
-            labels = {'Pre','Spin','Drive','Wait','Post','Enc'};
-        end
-        if size(params.timeBins,1) == 8
-            labels = {'Pre','Spin','Drive','Drive','Drive','Wait','Post','Enc'};
-        end   
-        
+        labels = params.timeBinLabels;
+        if isempty(labels);labels=repmat({''},1,size(params.timeBins,1));end
         for t = 1:length(lassoData.(fields{i}))
             start = t - .25;
             stop  = t + .25;
@@ -250,17 +272,10 @@ figs_group.N = nSubj(:,1);
 quarts_err   = nanstd((quarts_all - meanRec_subj)./meanRec_subj,[],3)./sqrt(nSubj-1);
 quarts_group = nanmean((quarts_all - meanRec_subj)./meanRec_subj,3);
 
-labels = {'Pre','Spin','Drive','Wait','Post'};
-if length(lassoData.(fields{i})) == 1
-    labels = {'Encoding'};
-end
-if length(lassoData.(fields{i})) == 6
-    labels = {'Pre','Spin','Drive','Wait','Post','Enc'};
-end
-if size(params.timeBins,1) == 8
-    labels = {'Pre','Spin','Drive1','Drive2','Drive3','Wait','Post','Enc'};
-end
-keyboard
+% labels for plotting
+labels = params.timeBinLabels;
+if isempty(labels);labels=repmat({''},1,size(quarts_group,1));end
+
 % plot each time bin separately
 for t = 1:size(quarts_group,1)
     
@@ -354,10 +369,6 @@ for t = 1:size(quarts_group,1)
     end        
 end
 
-keyboard
-
-
-
 good = ~cellfun('isempty',{figs.subj});
 figs = figs(good);
 texName = 'lassoChance_report.tex';
@@ -376,7 +387,6 @@ cd(curr_dir);
 % compile group report
 texName = 'group_lassoChance_report.tex';
 write_texfile_group(saveDir,texName,figs_group)
-
 
 curr_dir = pwd;
 cd(saveDir);

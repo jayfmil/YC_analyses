@@ -1,5 +1,20 @@
 function YC1_createChanceDists(subjs,params)
-
+% function YC1_createChanceDists(subjs,params)
+% Inputs:
+%
+%      subjs - cell array of subject strings (default get_subs('RAM_YC1'))
+%     params - params structure (default is returned by multiParams)
+%
+% Wrapper to YC1_runMulti_subj, but unlike YC1_runMulti, the parameter to
+% permute the predicted variable is set to true and this is repeated 1000
+% times. The goal is to create a null distribution of classifier accuracy
+% to which we can compare the true accuracy.
+%
+% If params.useCorrectedPower is false (default), output is saved in
+% params.basePath/OrigPower/<subject>_chance_perf_dist.mat
+%
+% Note: in order to run either YC1_makeSubjectReports and
+% YC1_weightsByRegion, the chance distributions must exist.
 
 % analysis settings
 % -----------------
@@ -23,8 +38,9 @@ if ~exist('subjs','var') || isempty(subjs)
 end
 
 
-% see if this was submitted with an open pool 
-poolobj = gcp('nocreate')
+% see if this was submitted with an open pool. If so, parallel on the level
+% of subjects. Otherwise, will loop over subjects one by one.
+poolobj = gcp('nocreate');
 if ~isempty(poolobj)
     parfor s = 1:length(subjs)
         
@@ -47,8 +63,8 @@ if ~isempty(poolobj)
             for i = 1:numIters
                 fprintf('Processing %s iteration %d of %d.\n',subjs{s},i,numIters)
                 [perf,auc] = YC1_runMulti_subj(subjs{s},params,saveDir);
-                perf_all = [perf_all;perf]
-                auc_all = [auc_all;auc]
+                perf_all = [perf_all;perf];
+                auc_all = [auc_all;auc];
                 if ~isempty(perf_all)
                     parsave(fname,perf_all,auc_all)
                 end
@@ -77,8 +93,8 @@ else
             for i = 1:numIters
                 fprintf('Processing %s iteration %d of %d.\n',subjs{s},i,numIters)
                 [perf,auc] = YC1_runMulti_subj(subjs{s},params,saveDir);
-                perf_all = [perf_all;perf]
-                auc_all = [auc_all;auc]
+                perf_all = [perf_all;perf];
+                auc_all = [auc_all;auc];
                 if ~isempty(perf_all)
                     save(fname,'perf_all','auc_all')
                 end

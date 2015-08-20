@@ -1,6 +1,12 @@
 function [perf,AUC,subject,params] = YC1_runMulti_subj(subj,params,saveDir)
 % function [perf,AUC,subject,params] = YC1_runMulti_subj_ROC(subj,params,saveDir)
 %
+% Inputs:
+%
+%       subj - subject string
+%     params - params structure
+%    savedir - string of path to save directory
+%
 % Runs lasso regression or classification for one subject using the
 % parameters in params. See multiParams for description of parameters.
 %

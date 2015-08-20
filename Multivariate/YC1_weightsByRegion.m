@@ -1,10 +1,44 @@
-function YC1_weightsByRegion(subjs,params)
+function YC1_weightsByRegion(subjs,params,overwrite)
+% function YC1_weightsByRegion(subjs,params,overwrite)
+%
+% Inputs:
+%
+%      subjs - cell array of subject strings (default get_subs('RAM_YC1'))
+%     params - params structure (default is returned by multiParams)
+%  overwrite - boolean. if true, overwrite existing figures
+%
+% Make a report of the classifier weights for each subject in YC1 that has
+% classification and chance clasification data. Also make a group average
+% report.
+%
+% For each subject, figures are:
+%
+%   - Classifier weights for each electrode and frequency, averaged over
+%     time
+%   - Classifier weights for each electrode and time, averaged over
+%     frequencies
+%   - Classifier weights for for time and frequency, averaged over
+%     electrodes
+%   - A series of figures with the weights broken down by specific brain
+%     region
+%
+%
+% For the group report, there is time x frequency spectrogram, as well as
+% averaged over time and over frequency. Also includes brain region average
+% weights
+%
+%  Reports are saved to <location of subject
+%  data>/reports/lassoWeights_report.pdf and group_lassoWeights_report.pdf
 
+% if not given, use default params
 if ~exist('params','var') || isempty(params)
     params = multiParams();
 end
 
-overwrite = true
+% overwrite exisiting figures?
+if ~exist('overwrite','var') || isempty(overwrite)
+    overwrite = true;
+end
 
 % save directory
 f = @(x,y) y{double(x)+1};
@@ -31,10 +65,6 @@ if ~exist('subjs','var') || isempty(subjs)
     subjs = get_subs('RAM_YC1');
 end
 
-subjs = subjs(~strcmp(subjs,'R1006P'));
-subjs = subjs(~strcmp(subjs,'R1059J_1'));
-subjs = subjs(~strcmp(subjs,'R1061T'));
-keyboard
 
 nTimes = size(params.timeBins,1);
 nFreqs = size(params.freqBins,1);
@@ -56,7 +86,7 @@ for s = 1:length(subjs)
     if ~isempty(out)        
         figs_subj.subj = subj;
         figs_subj.Region_Bar = {};
-        movementClass{s} = out.movementClass;
+%         movementClass{s} = out.movementClass;
         
         % for each subject, we will plot:
         %    elec x freq spectrogram
@@ -89,8 +119,7 @@ for s = 1:length(subjs)
             set(gca,'XTickLabelRotation',270)
             xlabel('Electrodes','fontsize',20)
             ylabel('Frequency','fontsize',20)
-            print('-dpng','-loose',fname);
-            
+            print('-dpng','-loose',fname);            
         end
         
         
@@ -148,23 +177,16 @@ for s = 1:length(subjs)
         end
         
         %% FIGURE 4 - mean absolute weights by region for each time        
-        labels = {'Pre','Spin','Drive','Wait','Post'};
-        if size(params.timeBins,1) == 1
-            labels = {'Encoding'};
-        end
-        if size(params.timeBins,1) == 6
-            labels = {'Pre','Spin','Drive','Wait','Post','Enc'};
-        end
-        if size(params.timeBins,1) == 8
-            labels = {'Pre','Spin','Drive','Drive','Drive','Wait','Post','Enc'};
-        end        
+        labels = params.timeBinLabels;
+        if isempty(labels);labels=repmat({''},1,size(params.timeBins,1));end      
         regions     = {'H','EC','MTL','TC','FC','OC','PC','X'};
         fieldsToUse = {'meanWeightsPerTimeHipp','meanWeightsPerTimeEC',...
             'meanWeightsPerTimeMTL','meanWeightsPerTimeTC',...
             'meanWeightsPerTimeFC','meanWeightsPerTimeOC',...
             'meanWeightsPerTimePC','meanWeightsPerTimeOth'};
         
-        % this is stupid         
+        % this is stupid. I'm basically doing this twice so that I can find
+        % out what the axis ranges will be and set them all the same
         ylims = [0 0];
         for t = 1:size(params.timeBins,1)
             regionData        = NaN(1,length(fieldsToUse));
@@ -313,7 +335,7 @@ end
 %% FIGURE - mean absolute weights for times avg acros freqs
 fname = fullfile(figDir,['group_region_bar.eps']);
 figs_group.group_region_bar = fname;
-% if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
+if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
     figure(3)
     clf
     
@@ -332,15 +354,14 @@ figs_group.group_region_bar = fname;
     %             set(gca,'ylim',[0 ylims(panel)])
     grid on
     set(gca,'gridlinestyle',':');
-%     h=title([labels{t} ' Period'],'fontsize',20);
-%     set(h,'fontweight','normal');
+
     print('-depsc2','-loose',fname);    
-% end
+end
 
 %% FIGURE - mean absolute weights for times avg acros freqs
 fname = fullfile(figDir,['group_regionNonZero_bar.eps']);
 figs_group.group_regionNonZero_bar = fname;
-% if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
+if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
     figure(3)
     clf
     
@@ -359,10 +380,8 @@ figs_group.group_regionNonZero_bar = fname;
     %             set(gca,'ylim',[0 ylims(panel)])
     grid on
     set(gca,'gridlinestyle',':');
-%     h=title([labels{t} ' Period'],'fontsize',20);
-%     set(h,'fontweight','normal');
     print('-depsc2','-loose',fname);    
-% end
+end
 
 %% FIGURE - mean absolute weights by region for each time
 for t = 1:size(params.timeBins,1)
@@ -403,7 +422,7 @@ for t = 1:size(params.timeBins,1)
 end
 %%%%%%%%%%%%%%%%%
 
-keyboard
+
 
 good = ~cellfun('isempty',{figs.subj});
 figs = figs(good);
@@ -493,22 +512,22 @@ thresh = p < .05;
 sigTimes = p < thresh;
 out.sigTimes = sigTimes;
 
-% make this part of the params in the future
-params.timeIsMovement = [false true true true true false false false];
+% % make this part of the params in the future
+% params.timeIsMovement = [false true true true true false false false];
+% 
+% if any(sigTimes(1:end-1)) && ~any(params.timeIsMovement(sigTimes(1:end-1))==0) && sum(sigTimes(1:end-1))>=2
+%     out.movementClass = 'mover';
+% elseif any(sigTimes(1:end-1)) && ~any(params.timeIsMovement(sigTimes(1:end-1))) && sum(sigTimes(1:end-1))>=2
+%     out.movementClass = 'nonMover';
+% elseif any(sigTimes(1:end-1)) && sum(sigTimes(1:end-1)) > 3
+%     out.movementClass = 'both';
+% else
+%     out.movementClass = 'neither';
+% end
 
-if any(sigTimes(1:end-1)) && ~any(params.timeIsMovement(sigTimes(1:end-1))==0) && sum(sigTimes(1:end-1))>=2
-    out.movementClass = 'mover';
-elseif any(sigTimes(1:end-1)) && ~any(params.timeIsMovement(sigTimes(1:end-1))) && sum(sigTimes(1:end-1))>=2
-    out.movementClass = 'nonMover';
-elseif any(sigTimes(1:end-1)) && sum(sigTimes(1:end-1)) > 3
-    out.movementClass = 'both';
-else
-    out.movementClass = 'neither';
-end
 
-
-out.meanAccNonmove = mean(lassoData.perf(params.timeIsMovement));
-out.meanAccMove = mean(lassoData.perf(~params.timeIsMovement));
+% out.meanAccNonmove = mean(lassoData.perf(params.timeIsMovement));
+% out.meanAccMove = mean(lassoData.perf(~params.timeIsMovement));
 
 % average across all folds and reshape into freq x elec x time
 meanWeightsPerTime = NaN(nFreqs,nElecs,nTimes);
@@ -529,7 +548,7 @@ out.meanWeightsPerTimePC   = meanWeightsPerTime(:,par_elecs,:);
 out.meanWeightsPerTimeTC   = meanWeightsPerTime(:,temp_elecs,:);
 out.meanWeightsPerTimeOth  = meanWeightsPerTime(:,other_elecs,:);
 
-% [
+
 elec_order = [find(hipp_elecs) find(ec_elecs) find(mtl_elecs) ...
               find(temp_elecs) find(frontal_elecs) find(occ_elecs) ...
               find(par_elecs) find(other_elecs)];
@@ -545,17 +564,6 @@ noElecs     = regionCount == 0;
 out.regionCutoffs = cumsum(regionCount(~noElecs));
 out.regions       = regions(~noElecs);
 
-
-% out.regionCutoffs = cumsum(sum([hipp_elecs' ec_elecs' ...
-%     mtl_elecs' temp_elecs' frontal_elecs'...
-%     occ_elecs' par_elecs' other_elecs']));
-
-
-
-           
-% for r = 1:length(regions)
-%     fprintf('%s: %.4f, %.4f percent\n',regions{r},out.wRegions(r),out.pRegions(r)*100)
-% end
 
 
 
