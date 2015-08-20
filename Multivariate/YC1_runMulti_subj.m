@@ -1,15 +1,30 @@
-function [perf,subject,params] = YC1_runMulti_subj(subj,params,saveDir)
+function [perf,AUC,subject,params] = YC1_runMulti_subj(subj,params,saveDir)
+% function [perf,AUC,subject,params] = YC1_runMulti_subj_ROC(subj,params,saveDir)
+%
+% Runs lasso regression or classification for one subject using the
+% parameters in params. See multiParams for description of parameters.
+%
+% Saves results to saveDir/<subj>_lasso.mat
+%
+% Outputs:
+%    
+%      AUC: area under the ROC curve
+%     perf: percent classifier accuracy
+%  subject: current subject
+%    
 
-perf = [];
+perf    = [];
 subject = [];
+AUC     = [];
 
 try
     
-    % load subject electrode locations
+    % load subject electrode locations and filter to specific regions if
+    % desired.
     tal = getBipolarSubjElecs(subj,1,1,1);
     if ~isfield(tal,'locTag')
         fprintf('No loc tag information for %s.\n',subj)
-        if ~isempty(params.regions)
+        if ~isempty(params.region)
             fprintf('Regional analysis requested by no localizations found, skipping %s.\n',subj)
             return
         end
@@ -43,27 +58,20 @@ try
         end        
     end
     
-    % load events so we can filter into our conditions of interest
-    config = RAM_config('RAM_YC1');
+    % load power parameters    
+    powParams = load(fullfile(params.powerPath,'params.mat'));
     
     % Setting time bins for convenience:
-    tEnds = (config.distributedParams.timeWin:...
-        config.distributedParams.timeStep:...
-        config.postMS+config.priorMS)-config.priorMS;
-    tStarts = tEnds - config.distributedParams.timeWin + 1;
-    config.distributedParams.timeBins = [tStarts' tEnds'];
+    tEnds     = (powParams.params.pow.timeWin:powParams.params.pow.timeStep:powParams.params.eeg.durationMS)+powParams.params.eeg.offsetMS;
+    tStarts   = tEnds - powParams.params.pow.timeWin+1;
+    powParams.timeBins = [tStarts' tEnds'];
     
     % load events
-    [events] = RAM_loadEvents(subj,[],'RAM_YC1','events', config);
+    events = get_sub_events('RAM_YC1',subj);
     
     % add the test error to the learning trials
-    events = addErrorField(events);
-    
-    % convert to the session to an double from a string
-    session = NaN(1,length(events));
-    for e = 1:length(session)
-        session(e) = str2double(events(e).session);
-    end
+    events  = addErrorField(events);
+    session = [events.session];
     
     % filter to events of interest
     eventsToUse = params.eventFilter(events);
@@ -81,19 +89,25 @@ try
     doPermute     = params.doPermute;
     
     % load power for all electrodes
-    if ~params.useCorrectedPower
-        powerData = loadAllPower(tal,subj,events,freqBins,timeBins,config,eventsToUse);
-    else
-        powerData = loadResids_locs(tal,subj,freqBins,timeBins,config,eventsToUse);
+    powDir = fullfile(saveDir,'power');
+    powFile = fullfile(powDir,[subj '_binnedPower.mat']);
+    if ~exist(powDir,'dir')
+        mkdir(powDir)
     end
-    powerData = permute(powerData,[3 1 2 4]);
-    if params.savePower
-        powDir = fullfile(saveDir,'power');
-        if ~exist(powDir,'dir')
-            mkdir(powDir);
+    if params.loadPower
+        powerData = load(powFile);
+        powerData = powerData.powerData;
+    else
+        if ~params.useCorrectedPower
+            powerData = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse);
+        else
+            powerData = loadResids_locs(tal,subj,freqBins,timeBins,powParams,eventsToUse);
         end
-        powFile = fullfile(powDir,[subj '_binnedPower.mat']);
-        save(powFile,'powerData','params')
+        powerData = permute(powerData,[3 1 2 4]);
+        if params.savePower
+            powFile = fullfile(powDir,[subj '_binnedPower.mat']);
+            save(powFile,'powerData','params')
+        end
     end
     
     % size of feature matrix
@@ -111,6 +125,10 @@ try
     % 1 1 1 1 0 0 1 1 1 1
     % 1 1 1 1 1 1 0 0 1 1
     % 1 1 1 1 1 1 1 1 0 0
+    %
+    % Note: this is not influenced by params.nCV. params.nCV is the number
+    % of cross validation folds to estimate lambda with lassoglm. For the
+    % training test iterations, we are always doing leave one object out.
     [trials,~,trialInds] = unique([session(eventsToUse)' [events(eventsToUse).blocknum]'],'rows');
     nFolds = size(trials,1);
     folds = false(nFolds,size(trialInds,1));
@@ -123,7 +141,22 @@ try
     if doBinary
         Y  = Y < median(Y);
     end
+        
+    % use hagai's error metric instead of the normal one?
+    if isfield(params,'useHagai') && params.useHagai == 1
+        clusteredLabels = load('/home1/jfm2/matlab/YC_analyses/Multivariate/clusteredLabels2.mat');
+        sInd = strcmp(clusteredLabels.subjects,subj);
+        hagaiLabel = clusteredLabels.binaryBehaviorMetric{sInd};
+        Y_tmp = [hagaiLabel';hagaiLabel'];
+        Y_tmp = Y_tmp(:);
+        if length(Y) ~= length(Y_tmp)
+            fprintf('problem with hagai labels.\n')
+            return
+        end
+        Y = logical(Y_tmp-1);
+    end
     
+    % permute the responses if desired
     if doPermute
         randOrder = randperm(size(trials,1));
         randOrder = repmat(randOrder,2,1);
@@ -151,7 +184,8 @@ try
                 if ~isempty(params.lambda)
                     lambda = params.lambda(t);
                 else
-                    [stats,lambda] = calcLambda(X,Y,doBinary);
+                    fprintf('Subject %s: Computing optimal lambda.\n',subj)
+                    [stats,lambda] = calcLambda(X,Y,doBinary,params.nCV);
                 end
                 lambdas(t) = lambda;
             end
@@ -166,9 +200,15 @@ try
                     res(t).yTest{iFold},...
                     res(t).A{iFold},...
                     res(t).intercept{iFold},...
-                    res(t).err{iFold}] = lassoReg(X,Y,folds(iFold,:),lambda);
+                    res(t).err{iFold}] = lassoReg(X,Y,folds(iFold,:),lambda,params.nCV);
             end  
             perf(t) = mean(vertcat(res(t).err{:}));
+            res(t).perf = perf(t);
+            if doBinary     
+                yPred = vertcat(res(t).yPred{:});                
+                [res(t).xAUC,res(t).yAUC,~,res(t).AUC,res(t).optPoint] = perfcurve(Y,yPred,true);
+                AUC(t) = res(t).AUC;
+            end
         end
         lambda = lambdas;
         
@@ -185,7 +225,7 @@ try
                 lambda = params.lambda;
             else
                 fprintf('Subject %s: Computing optimal lambda.\n',subj)
-                [stats,lambda] = calcLambda(X,Y,doBinary);
+                [stats,lambda] = calcLambda(X,Y,doBinary,params.nCV);
             end
         end
         
@@ -197,26 +237,36 @@ try
                 res.yTest{iFold},...
                 res.A{iFold},...
                 res.intercept{iFold},...
-                res.err{iFold}] = lassoReg(X,Y,folds(iFold,:),lambda);
+                res.err{iFold}] = lassoReg(X,Y,folds(iFold,:),lambda,params.nCV);
         end
         perf = mean(vertcat(res.err{:}));
+        res.perf = perf;
+        if doBinary
+            yPred = vertcat(res.yPred{:});
+            [res.xAUC,res.yAUC,~,res.AUC,res.optPoint] = perfcurve(Y,yPred,true);
+            AUC = res.AUC;
+        end
     end
-      
+        
     subject       = subj;
     params.lambda = lambda;
     if saveOutput
         fname = fullfile(saveDir,[subj '_lasso.mat']);
-        save(fname,'res','Y','objLocs','params','perf');
+        save(fname,'res','Y','objLocs','params','perf','tal','AUC');
     end
 catch e
     fname = fullfile(saveDir,[subj '_lasso_error.mat']);
     save(fname,'e')
 end
 
-function [stats,lambda] = calcLambda(X,Y,doBinary)
+function [stats,lambda] = calcLambda(X,Y,doBinary,nCV)
+if isempty(nCV)
+    nCV = round(length(Y)/2);
+end
+
 if doBinary
   
-    [~,stats] = lassoglm(X,Y,'binomial','CV', round(length(Y)/2), 'NumLambda', 50);
+    [~,stats] = lassoglm(X,Y,'binomial','CV', nCV, 'NumLambda', 50);
     lambda    = stats.LambdaMinDeviance;
     
 else
@@ -229,17 +279,21 @@ else
     yCentered = round(Y - intercept,14);
     
     % compute optimal lamda
-    [~, stats] = lasso(xCentered', yCentered, 'CV', round(length(Y)/2), 'NumLambda', 50);
+    [~, stats] = lasso(xCentered', yCentered, 'CV', nCV, 'NumLambda', 50);
     lambda     = stats.LambdaMinMSE;
 end
 
-function [yPred,yTest,A,intercept,err] = lassoReg(X,Y,trainInds,lambda)
+function [yPred,yTest,A,intercept,err] = lassoReg(X,Y,trainInds,lambda,nCV)
 %
 % This does lasso. 
 % X = # trials x # features
 % Y = # trials vector of responses
 % trainInds = logical vector of training/test
 %
+
+if isempty(nCV)
+    nCV = round(length(Y)/2);
+end
 
 doBinary = false;
 if islogical(Y)
@@ -251,8 +305,8 @@ end
 if doBinary
     
     % I'm under sampling the larger class so that we have equal numbers.
-    % I'm doing this so that I can know that .5 will be my cutoff for
-    % classification. Maybe there is a something else I should be doing?
+    % This isn't a great idea of more skewed dataset, but since we are
+    % using a median threshold, it doesn't really matter here
     yTrainBool = Y(trainInds);
     
     % figure out which observations to remove from larger class
@@ -273,7 +327,7 @@ if doBinary
     
     % compute model
     if isempty(lambda)
-        [A_lasso, stats] = lassoglm(xTrain',yTrainBool,'binomial','CV', round(length(yTrainBool)/2), 'NumLambda', 50);
+        [A_lasso, stats] = lassoglm(xTrain',yTrainBool,'binomial','CV', nCV, 'NumLambda', 50);
         
         % get the best cooefficients and intercept
         A = A_lasso(:,stats.IndexMinDeviance);
@@ -292,7 +346,7 @@ if doBinary
     yPred = glmval(B1,xTest','logit');
     
     % see if the predictions match the actual results
-    err = round(yPred) == Y(~trainInds);
+    err = (yPred > mean(yTrainBool)) == Y(~trainInds);
     
 % if Y is not logical, do regression
 else
@@ -309,7 +363,7 @@ else
     
     % compute model
     if isempty(lambda)
-        [A_lasso, stats] = lasso(xTrain', yTrain, 'CV', 5, 'NumLambda', 25);
+        [A_lasso, stats] = lasso(xTrain', yTrain, 'CV', nCV, 'NumLambda', 50);
         A = A_lasso(:,stats.IndexMinMSE);
     else
         A = lasso(xTrain', yTrain, 'Lambda',lambda);
@@ -319,8 +373,7 @@ else
     xTest = X(~trainInds,:)';
     yTest = Y(~trainInds);
     
-    % I'm predicting using the intercept we computed above, not the one
-    % returned from lasso. Is that wrong?
+    % Double check this
     yPred = (xTest - xHat*ones(1,sum(~trainInds)))' * A + intercept;
     err = mean((yTest - yPred).^2);
            
@@ -328,7 +381,7 @@ end
 
 
 
-function powerData = loadAllPower(tal,subj,events,freqBins,timeBins,config,eventsToUse)
+function powerData = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse)
 
 nFreqs = size(freqBins,1);
 nTimes = size(timeBins,1);
@@ -338,40 +391,27 @@ powerData = NaN(nFreqs,nTimes,nEvents,nElecs);
 
 for e = 1:nElecs
     elecNum = tal(e).channel;
-    
-    % load power for all sessions. Power should aleady have been
-    % created or else error
-    [distOut] = RAM_dist_func(subj,[],elecNum,'RAM_YC1','events', 0, ...
-        @doNothing, config.distributedFunctionLabel, config.distributedParams, 1, 1, events);
-    
-    sessInds = distOut.sessInds;
-    subjMean = distOut.meanBasePow;
-    subjStd = distOut.stdBasePow;
-    subjPow = distOut.pow;
-    
-    % a couple sessions weren't zscored, so do it here. I should double
-    % check that this is right
-    if isempty(subjStd)
-        fprintf('power not zscored for %s\n',subj)
-        
-        sI = unique(sessInds);
-        zpow = NaN(size(subjPow));
-        for s = 1:length(sI)
-            inds = sessInds == sI(s);
-            subjMean = nanmean(squeeze(nanmean(subjPow(:,:,inds),2)),2);
-            subjMean = repmat(subjMean,[1 size(subjPow,2), size(subjPow,3)]);
-            subjStd = nanstd(squeeze(nanmean(subjPow(:,:,inds),2)),[],2);
-            subjStd = repmat(subjStd,[1 size(subjPow,2), size(subjPow,3)]);
-            zpow(:,:,inds) = (subjPow(:,:,inds) - subjMean).*subjStd;
-        end
-        subjPow = zpow;
+      
+    basePath  = '/data10/scratch/jfm2/RAM/biomarker/power/';
+    subjPath  = fullfile(basePath,subj);
+    sessions = unique([events.session]);
+    subjPow  = [];
+    for s = 1:length(sessions)
+       fname = fullfile(subjPath,'RAM_YC1_events',num2str(sessions(s)),[num2str(elecNum(1)),'-',num2str(elecNum(2)),'.mat']);
+       sessPow = load(fname);
+       subjPow = cat(3,subjPow,sessPow.sessOutput.pow);
     end
+    
+    if length(eventsToUse) ~= size(subjPow,3)
+        fprintf('Number of events does not match size of power matrix for %s!.\n',subj)
+        return
+    end    
     subjPow = subjPow(:,:,eventsToUse);
     
     % average frequencies
     tmpPower = NaN(nFreqs,size(subjPow,2),size(subjPow,3));
     for f = 1:nFreqs
-        fInds = config.distributedParams.freQ >= freqBins(f,1) & config.distributedParams.freQ < freqBins(f,2);
+        fInds = powParams.params.pow.freqs >= freqBins(f,1) & powParams.params.pow.freqs < freqBins(f,2);
         tmpPower(f,:,:) = nanmean(subjPow(fInds,:,:),1);
     end
     subjPow = tmpPower;
@@ -379,13 +419,13 @@ for e = 1:nElecs
     % average times
     tmpPower = NaN(nFreqs,nTimes,size(subjPow,3));
     for t = 1:nTimes
-        tInds = config.distributedParams.timeBins(:,1) >= timeBins(t,1) & config.distributedParams.timeBins(:,2) < timeBins(t,2);
+        tInds = powParams.timeBins(:,1) >= timeBins(t,1) & powParams.timeBins(:,2) < timeBins(t,2);
         tmpPower(:,t,:) = nanmean(subjPow(:,tInds,:),2);
     end
     powerData(:,:,:,e) = tmpPower;
 end
 
-function [powerData] = loadResids_locs(tal,subj,freqBins,timeBins,config,eventsToUse)
+function [powerData] = loadResids_locs(tal,subj,freqBins,timeBins,powParams,eventsToUse)
 
 nFreqs = size(freqBins,1);
 nTimes = size(timeBins,1);
@@ -413,7 +453,7 @@ for e = 1:nElecs
         % average frequencies
         tmpPower = NaN(nFreqs,size(resids,2),size(resids,3));
         for f = 1:nFreqs
-            fInds = config.distributedParams.freQ >= freqBins(f,1) & config.distributedParams.freQ < freqBins(f,2);
+            fInds = powParams.params.pow.freqs >= freqBins(f,1) & powParams.params.pow.freqs < freqBins(f,2);
             tmpPower(f,:,:) = nanmean(resids(fInds,:,:),1);
         end
         resids = tmpPower;
@@ -421,7 +461,7 @@ for e = 1:nElecs
         % average times
         tmpPower = NaN(nFreqs,nTimes,size(resids,3));
         for t = 1:nTimes
-            tInds = config.distributedParams.timeBins(:,1) >= timeBins(t,1) & config.distributedParams.timeBins(:,2) < timeBins(t,2);
+            tInds = powParams.timeBins(:,1) >= timeBins(t,1) & powParams.timeBins(:,2) < timeBins(t,2);
             tmpPower(:,t,:) = nanmean(resids(:,tInds,:),2);
         end
         powerData(:,:,:,e) = tmpPower;
@@ -429,11 +469,6 @@ for e = 1:nElecs
     end
 end
 
-
-
-% reshape into number of observations (events) x number of features
-% powerData = permute(powerData,[3 1 2 4]);
-% powerData = reshape(powerData,size(powerData,1),nFreqs*nTimes*nElecs);
 
 
 function events = addErrorField(events)

@@ -23,8 +23,8 @@ if ~exist('subjs','var') || isempty(subjs)
 end
 
 
-% see if this was submitted with an open pool
-poolobj = gcp('nocreate');
+% see if this was submitted with an open pool 
+poolobj = gcp('nocreate')
 if ~isempty(poolobj)
     parfor s = 1:length(subjs)
         
@@ -43,12 +43,14 @@ if ~isempty(poolobj)
             fname = sprintf('%s_chance_perf_dist.mat',subjs{s});
             fname = fullfile(saveDir,fname);
             perf_all = [];
+            auc_all  = [];
             for i = 1:numIters
                 fprintf('Processing %s iteration %d of %d.\n',subjs{s},i,numIters)
-                perf = YC1_runMulti_subj(subjs{s},params,saveDir);
+                [perf,auc] = YC1_runMulti_subj_ROC(subjs{s},params,saveDir);
                 perf_all = [perf_all;perf]
+                auc_all = [auc_all;auc]
                 if ~isempty(perf_all)
-                    parsave(fname,perf_all)
+                    parsave(fname,perf_all,auc_all)
                 end
             end
         end
@@ -71,12 +73,14 @@ else
             fname = sprintf('%s_chance_perf_dist.mat',subjs{s});
             fname = fullfile(saveDir,fname);
             perf_all = [];
+            auc_all = [];
             for i = 1:numIters
                 fprintf('Processing %s iteration %d of %d.\n',subjs{s},i,numIters)
-                perf = YC1_runMulti_subj(subjs{s},params,saveDir);
+                [perf,auc] = YC1_runMulti_subj_ROC(subjs{s},params,saveDir);
                 perf_all = [perf_all;perf]
+                auc_all = [auc_all;auc]
                 if ~isempty(perf_all)
-                    save(fname,'perf_all')
+                    save(fname,'perf_all','auc_all')
                 end
             end
             
@@ -85,9 +89,9 @@ else
 end
 
 
-function parsave(fname,perf_all)
+function parsave(fname,perf_all,auc_all)
 % Because you can't save files directly in parfor loop
-save(fname,'perf_all')
+save(fname,'perf_all','auc_all')
 
 
 

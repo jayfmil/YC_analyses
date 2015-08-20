@@ -6,20 +6,23 @@ params.freqBins = [1 3;3 9;40 70;70 200];
 % time bins to use (this depends on the RAM auto computed power time window)
 % params.timeBins = [-999 0;1 1000;1001 4000;4001 5000];
 timeStep = 1000;
-params.timeBins = [[-999:timeStep:6000]' [(-999+timeStep-1):timeStep:6000]'];
+% params.timeBins = [[-999:timeStep:6000]' [(-999+timeStep-1):timeStep:6000]'];
 %params.timeBins = [1 1000;1001 4000;4001 5000];
+% params.timeBins = [1 1000;1001 2000;2001 5000;5001 6000;6001 7000];
+% params.timeBins = [-999 0;1 1000;1001 4000;4001 5000;5001 6000];
+% params.timeBins = [-999 0;1 1000;1001 4000;4001 5000;5001 6000;1 5000];
+params.timeBins = [[-999:timeStep:6000]' [(-999+timeStep-1):timeStep:6000]';1 5000];
 
 % regions. If empty, use all electrodes. Choices right now are:
 %          'mtl', 'hipp', 'ec'
 params.region = '';
-
 
 % individual model for each time bin, or all in one model
 params.modelEachTime = 1;
 
 % filter to events of interest
 params.eventFilter = @(events)allEncodingEvents(events);
-params.basePath    = '/data10/scratch/jfm2/YC1/multi/lassoReg_allEncoding_binary_1s_bins_all_elecs';
+params.basePath    = '/data10/scratch/jfm2/YC1/multi/lassoReg_allEncoding_binary_1sPlusEnc_bins_all_elecs_10CV';
 
 % save out binned power to mat file?
 params.savePower = 1;
@@ -27,10 +30,12 @@ params.savePower = 1;
 % do binary classification or continuous regression
 params.doBinary = 1;
 
-% use original power (0) data or use regression corrected (1)
+% use original power (0) data or use regression corrected (1). 
 params.useCorrectedPower = 0;
 params.regressDir = '/data10/scratch/jfm2/YC1/multi/power/regress';
-params.lassDir    = '/data10/scratch/jfm2/YC1/multi';
+
+% path to power data
+params.powerPath = '/data10/scratch/jfm2/RAM/biomarker/power/';
 
 % cross validation strictness.
 %   0 = use all the data to calculate optimal lambda, and apply the model
@@ -39,6 +44,13 @@ params.lassDir    = '/data10/scratch/jfm2/YC1/multi';
 %       be more correct because then the test data is totall removed from
 %       the train data. This takes a lot longer.
 params.crossValStrictness = 0;
+
+% number of cross validation folds to compute lambda. If empty, will use
+% number of trials/2 folds.
+params.nCV = 10;
+
+% if empty, lambda will be computed using the specified cross validation
+% strictness and nCV
 params.lambda = [];
 
 % save the output to a file? Might not want to in some casesm for example
