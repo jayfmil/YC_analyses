@@ -46,7 +46,7 @@ if ~isempty(poolobj)
             auc_all  = [];
             for i = 1:numIters
                 fprintf('Processing %s iteration %d of %d.\n',subjs{s},i,numIters)
-                [perf,auc] = YC1_runMulti_subj_ROC(subjs{s},params,saveDir);
+                [perf,auc] = YC1_runMulti_subj(subjs{s},params,saveDir);
                 perf_all = [perf_all;perf]
                 auc_all = [auc_all;auc]
                 if ~isempty(perf_all)
@@ -76,7 +76,7 @@ else
             auc_all = [];
             for i = 1:numIters
                 fprintf('Processing %s iteration %d of %d.\n',subjs{s},i,numIters)
-                [perf,auc] = YC1_runMulti_subj_ROC(subjs{s},params,saveDir);
+                [perf,auc] = YC1_runMulti_subj(subjs{s},params,saveDir);
                 perf_all = [perf_all;perf]
                 auc_all = [auc_all;auc]
                 if ~isempty(perf_all)
