@@ -56,7 +56,7 @@ params.savedir          = saveDir;
 cd_mkdir(saveDir); save('params','params');
 
 % compute powers
-RAM_Biomarkers_ComputePowers('RAM_YC1',params);
+RAM_Biomarkers_ComputePowers('RAM_YC2',params);
 
 
 
