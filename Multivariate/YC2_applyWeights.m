@@ -1,4 +1,4 @@
-function YC2_applyWeights(subj,params,saveDir)
+function YC2_applyWeights(subj,params,yc1Data,saveDir)
 % function [] = YC2_applyWeights(subj,params,saveDir)
 %
 % Inputs:
@@ -36,7 +36,7 @@ try
     session = [events.session];
     
     % filter to just NON-STIM learning trials
-    eventsToUse = params.eventFilter(events); 
+    eventsToUse = params.eventFilter(events) & [events.isStim]==1; 
     if sum(eventsToUse) < 10
         fprintf('Not enough events for %s.\n',subj)
         return
@@ -75,49 +75,16 @@ try
     % size of feature matrix
     nElecs = size(powerData,4);
     nTimes = size(powerData,3);
-    nFreqs = size(powerData,2);
-    
-    % determine the cross validation folds. each fold actually leaves out one
-    % learning pair, not one trial. For example, if you had 5 learning pairs,
-    % the folds would look like, where each row represents the hold outs and
-    % the training for that fold:
-    %
-    % 0 0 1 1 1 1 1 1 1 1
-    % 1 1 0 0 1 1 1 1 1 1
-    % 1 1 1 1 0 0 1 1 1 1
-    % 1 1 1 1 1 1 0 0 1 1
-    % 1 1 1 1 1 1 1 1 0 0
-    %
-    % Note: this is not influenced by params.nCV. params.nCV is the number
-    % of cross validation folds to estimate lambda with lassoglm. For the
-    % training test iterations, we are always doing leave one object out.
-    [trials,~,trialInds] = unique([session(eventsToUse)' [events(eventsToUse).blocknum]'],'rows');
-    nFolds = size(trials,1);
-    folds = false(nFolds,size(trialInds,1));
-    for iFold = 1:nFolds
-        folds(iFold,:) = trialInds ~= iFold;
-    end
+    nFreqs = size(powerData,2);    
     
     % response data
+    % SHOULD THIS BE THE MEDIA OF ALL TRIALS OR JUST NON-STIM?
     Y = [events(eventsToUse).testError]';
     if doBinary
         Y  = Y < median(Y);
     end
         
-    % use hagai's error metric instead of the normal one?
-    if isfield(params,'useHagai') && params.useHagai == 1
-        clusteredLabels = load('/home1/jfm2/matlab/YC_analyses/Multivariate/clusteredLabels2.mat');
-        sInd = strcmp(clusteredLabels.subjects,subj);
-        hagaiLabel = clusteredLabels.binaryBehaviorMetric{sInd};
-        Y_tmp = [hagaiLabel';hagaiLabel'];
-        Y_tmp = Y_tmp(:);
-        if length(Y) ~= length(Y_tmp)
-            fprintf('problem with hagai labels.\n')
-            return
-        end
-        Y = logical(Y_tmp-1);
-    end
-    
+    % GET RID OF THIS
     % permute the responses if desired
     if doPermute
         randOrder = randperm(size(trials,1));
@@ -133,8 +100,7 @@ try
     % elecs.    
     res = [];
     if modelEachTime
-        perf = NaN(1,nTimes);
-        lambdas = NaN(1,nTimes);
+        perf = NaN(1,nTimes);        
         for t = 1:nTimes
             
             % reshape into # trials x # features    

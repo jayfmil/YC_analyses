@@ -7,6 +7,8 @@ function tal = filterTalByRegion(tal,region)
 %                    'mtl' includes HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc
 %
 % Output: filtered tal structure
+%
+% TO DO: add support for more regions
 
 % filter tal structure to just electrodes in a region of interest.
 if ~isfield(tal,'locTag')

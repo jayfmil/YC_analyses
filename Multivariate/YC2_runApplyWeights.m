@@ -54,7 +54,7 @@ if ~isempty(poolobj)
 %             fname = fullfile(saveDir,fname);
             
             fprintf('Processing %s.\n',subjs{s})
-            YC2_applyWeights(subjs{s},YC1_params,saveDir);
+            YC2_applyWeights(subjs{s},YC1_params,subjData,saveDir);
 
 
 %             if ~isempty(perf_all)
