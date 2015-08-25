@@ -45,55 +45,35 @@ if ~isempty(poolobj)
             continue
         else
             
-            %
+            
             subjData = load(lassoFile);
             YC1_params = subjData.params;
-            
-            
-%             fname = sprintf('%s_chance_perf_dist.mat',subjs{s});
-%             fname = fullfile(saveDir,fname);
-            
             fprintf('Processing %s.\n',subjs{s})
             YC2_applyWeights(subjs{s},YC1_params,subjData,saveDir);
-
-
-%             if ~isempty(perf_all)
-%                 parsave(fname,perf_all,auc_all)
-%             end
+            
+            
+        end
+    end
+elseif ~isempty(poolobj)
+    for s = 1:length(subjs)
+        
+        lassoFile  = fullfile(YC1_dir,[subjs{s} '_lasso.mat']);
+        errorFile  = fullfile(YC1_dir,[subjs{s} '_error_lasso.mat']);
+        if ~exist(lassoFile,'file')
+            fprintf('No YC1 lasso data for %s. Skipping.\n',subjs{s})
+            continue
+        elseif exist(errorFile,'file')
+            fprintf('YC1 lasso error file present for %s. Skipping.\n',subjs{s})
+            continue
+        else
+            
+            
+            subjData = load(lassoFile);
+            YC1_params = subjData.params;
+            fprintf('Processing %s.\n',subjs{s})
+            YC2_applyWeights(subjs{s},YC1_params,subjData,saveDir);
+            
+            
         end
     end
 end
-end
-% else
-%
-%     for s = 1:length(subjs)
-%
-%         lassoFile  = fullfile(saveDir,[subjs{s} '_lasso.mat']);
-%         errorFile  = fullfile(saveDir,[subjs{s} '_error_lasso.mat']);
-%         if exist(lassoFile,'file') && ~exist(errorFile,'file')
-%
-%             % use the same parameters as the real data
-%             subjData = load(lassoFile);
-%             params = subjData.params;
-%             params.doPermute = 1;
-%             params.saveOutput = 0;
-%             params.loadPower = 1;
-%
-%             fname = sprintf('%s_chance_perf_dist.mat',subjs{s});
-%             fname = fullfile(saveDir,fname);
-%             perf_all = [];
-%             auc_all = [];
-%             for i = 1:numIters
-%                 fprintf('Processing %s iteration %d of %d.\n',subjs{s},i,numIters)
-%                 [perf,auc] = YC1_runMulti_subj(subjs{s},params,saveDir);
-%                 perf_all = [perf_all;perf];
-%                 auc_all = [auc_all;auc];
-%                 if ~isempty(perf_all)
-%                     save(fname,'perf_all','auc_all')
-%                 end
-%             end
-%
-%         end
-%     end
-% end
-%
