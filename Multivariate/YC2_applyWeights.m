@@ -107,7 +107,7 @@ try
     res = [];
     if modelEachTime
         perf    = NaN(1,nTimes);
-        percEnc = NaN(1,nTimes);
+        perfEnc = NaN(1,nTimes);
         for t = 1:nTimes
             
             % average weights across all across all YC1 training folds
@@ -124,21 +124,20 @@ try
             res(t).perf     = mean(res(t).predBool);
             res(t).A        = A;
             rest(t).intcp   = intercept;
-            perf(t)         = res(t).perf;
-                        
-            if doBinary                     
-                [res(t).xAUC,res(t).yAUC,~,res(t).AUC,res(t).optPoint] = perfcurve(Y,res(t).yPred,true);
-                AUC(t) = res(t).AUC;
-            end
+            perf(t)         = res(t).perf;                        
             
             % predict YC1 time bin weights applied to YC2 average encoding
             X_enc = reshape(squeeze(powerDataEncAvg(:,:,1,:)),size(powerDataEncAvg,1),nFreqs*nElecs);
             res(t).yPredEnc    = glmval(B1,X_enc,'logit');
-            res(t).predBoolEnc = res(t).yPred > mean(Y);
+            res(t).predBoolEnc = res(t).yPredEnc > mean(Y);
             res(t).perfEnc     = mean(res(t).predBoolEnc);                        
             perfEnc(t)         = res(t).perfEnc;
-                        
-            if doBinary                     
+                      
+            % calculate area under ROC curve
+            if doBinary                                          
+                [res(t).xAUC,res(t).yAUC,~,res(t).AUC,res(t).optPoint] = perfcurve(Y,res(t).yPred,true);
+                AUC(t) = res(t).AUC;
+                
                 [res(t).xAUC_enc,res(t).yAUC_enc,~,res(t).AUC_enc,res(t).optPoint_enc] = perfcurve(Y,res(t).yPredEnc,true);
                 AUC_enc(t) = res(t).AUC_enc;
             end
