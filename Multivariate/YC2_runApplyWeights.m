@@ -1,4 +1,4 @@
-function YC2_applyWeights(subjs,params)
+function YC2_runApplyWeights(subjs,params)
 % function YC2_applyWeights(subjs,params)
 % Inputs:
 %
@@ -54,7 +54,7 @@ if ~isempty(poolobj)
             
         end
     end
-elseif ~isempty(poolobj)
+elseif isempty(poolobj)
     for s = 1:length(subjs)
         
         lassoFile  = fullfile(YC1_dir,[subjs{s} '_lasso.mat']);
