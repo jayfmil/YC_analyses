@@ -61,14 +61,17 @@ try
         powerData = powerData.powerData;
     else
         if ~params.useCorrectedPower
-            powerData = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse);
+            powerData       = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse);
+            powerDataEncAvg = loadAllPower(tal,subj,events,freqBins,[1 5000],powParams,eventsToUse);
         else
-            powerData = loadResids_locs(tal,subj,freqBins,timeBins,powParams,eventsToUse);
+            powerData       = loadResids_locs(tal,subj,freqBins,timeBins,powParams,eventsToUse);
+            powerDataEncAvg = loadResids_locs(tal,subj,freqBins,[1 5000],powParams,eventsToUse);
         end
-        powerData = permute(powerData,[3 1 2 4]);
+        powerData       = permute(powerData,[3 1 2 4]);
+        powerDataEncAvg = permute(powerDataEncAvg,[3 1 2 4]);
         if params.savePower
             powFile = fullfile(powDir,[subj '_binnedPower.mat']);
-            save(powFile,'powerData','params')
+            save(powFile,'powerData','powerDataEncAvg','params')
         end
     end
     
@@ -84,7 +87,7 @@ try
         Y  = Y < median(Y);
     end
         
-    % GET RID OF THIS
+    % GET RID OF THIS?
     % permute the responses if desired
     if doPermute
         randOrder = randperm(size(trials,1));
@@ -97,48 +100,50 @@ try
         
     % We can model time points seperately, so # features = # freqs x # elecs,
     % or we can model it all together, so # features = # times x # freqs x #
-    % elecs.    
+    % elecs. If we are modeling each time, the weights from the YC1
+    % classification at that time bin will be applied to the YC2 data at
+    % the same time bin. In addition, the weight will be applied to the
+    % average power across the encoding interval.
     res = [];
     if modelEachTime
-        perf = NaN(1,nTimes);        
+        perf    = NaN(1,nTimes);
+        percEnc = NaN(1,nTimes);
         for t = 1:nTimes
             
-            % reshape into # trials x # features    
+            % average weights across all across all YC1 training folds
+            A         = mean(horzcat(yc1Data.res(t).A{:}),2);                  
+            intercept = mean([yc1Data.res(t).intercept{:}]);
+            
+            % reshape power into # trials x # features
             X = reshape(squeeze(powerData(:,:,t,:)),size(powerData,1),nFreqs*nElecs);
             
-            % see if we are precomputing lambda based on all the data
-            lambda = [];
-            if params.crossValStrictness == 0
-                if ~isempty(params.lambda)
-                    lambda = params.lambda(t);
-                else
-                    fprintf('Subject %s: Computing optimal lambda.\n',subj)
-                    [stats,lambda] = calcLambda(X,Y,doBinary,params.nCV);
-                end
-                lambdas(t) = lambda;
-            end
-            
-            % will hold results from each fold
-            [res(t).yPred,res(t).yTest,res(t).A,res(t).intercept,res(t).err] = deal(cell(nFolds,1));
-            
-            % run for each fold
-            for iFold = 1:nFolds                
-                fprintf('Subject %s: Time %d of %d, Fold %d of %d.\n',subj,t,nTimes,iFold,nFolds)
-                [res(t).yPred{iFold},...
-                    res(t).yTest{iFold},...
-                    res(t).A{iFold},...
-                    res(t).intercept{iFold},...
-                    res(t).err{iFold}] = lassoReg(X,Y,folds(iFold,:),lambda,params.nCV);
-            end  
-            perf(t) = mean(vertcat(res(t).err{:}));
-            res(t).perf = perf(t);
-            if doBinary     
-                yPred = vertcat(res(t).yPred{:});                
-                [res(t).xAUC,res(t).yAUC,~,res(t).AUC,res(t).optPoint] = perfcurve(Y,yPred,true);
+            % predict YC1 time bin weights applied to YC2 time bin
+            B1 = [intercept;A];
+            res(t).yPred    = glmval(B1,X,'logit');
+            res(t).predBool = res(t).yPred > mean(Y);
+            res(t).perf     = mean(res(t).predBool);
+            res(t).A        = A;
+            rest(t).intcp   = intercept;
+            perf(t)         = res(t).perf;
+                        
+            if doBinary                     
+                [res(t).xAUC,res(t).yAUC,~,res(t).AUC,res(t).optPoint] = perfcurve(Y,res(t).yPred,true);
                 AUC(t) = res(t).AUC;
             end
-        end
-        lambda = lambdas;
+            
+            % predict YC1 time bin weights applied to YC2 average encoding
+            X_enc = reshape(squeeze(powerDataEncAvg(:,:,1,:)),size(powerDataEncAvg,1),nFreqs*nElecs);
+            res(t).yPredEnc    = glmval(B1,X_enc,'logit');
+            res(t).predBoolEnc = res(t).yPred > mean(Y);
+            res(t).perfEnc     = mean(res(t).predBoolEnc);                        
+            perfEnc(t)         = res(t).perfEnc;
+                        
+            if doBinary                     
+                [res(t).xAUC_enc,res(t).yAUC_enc,~,res(t).AUC_enc,res(t).optPoint_enc] = perfcurve(Y,res(t).yPredEnc,true);
+                AUC_enc(t) = res(t).AUC_enc;
+            end
+                        
+        end        
         
     % if using all time points in one model, current what it is set to do
     else
