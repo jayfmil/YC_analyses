@@ -61,8 +61,8 @@ try
     end
     if params.loadPower
         powerData = load(powFile);
-        powerData = powerData.powerData;
         powerDataEncAvg = powerData.powerDataEncAvg;
+        powerData = powerData.powerData;        
     else
         if ~params.useCorrectedPower
             powerData       = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse);
