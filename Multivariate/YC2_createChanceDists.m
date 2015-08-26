@@ -12,6 +12,10 @@ if ~exist('params','var') || isempty(params)
     params = multiParams();
 end
 
+% analysis settings
+% -----------------
+numIters = 1000;
+
 % save directory
 f = @(x,y) y{double(x)+1};
 y = {'OrigPower','CorrectedPower'};
