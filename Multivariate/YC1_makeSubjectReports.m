@@ -100,7 +100,7 @@ for s = 1:length(subjs)
     
     % calculate percentile for subject
     perf_p          = mean(repmat(lassoData.perf,size(chanceData.perf_all,1),1) > chanceData.perf_all);
-    auc_p           = mean(repmat(lassoData.AUC,size(chanceData.perf_all,1),1) > chanceData.perf_all);
+    auc_p           = mean(repmat(lassoData.AUC,size(chanceData.auc_all,1),1) > chanceData.auc_all);
     perf_p_all(s,:) = perf_p;
     auc_p_all(s,:)  = auc_p;
     perf_all(s,:)   = lassoData.perf;
