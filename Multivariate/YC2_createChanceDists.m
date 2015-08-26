@@ -50,6 +50,7 @@ if ~isempty(poolobj)
             % permute the responses
             subjData = load(lassoFile);
             YC1_params = subjData.params;
+            YC1_params.powerPath = params.powerPath;
             YC1_params.doPermute = 1;
             YC1_params.saveOutput = 0;
             YC1_params.loadPower = 1;
@@ -90,6 +91,7 @@ elseif isempty(poolobj)
             % permute the responses
             subjData = load(lassoFile);
             YC1_params = subjData.params;
+            YC1_params.powerPath = params.powerPath;
             YC1_params.doPermute = 1;
             YC1_params.saveOutput = 0;
             YC1_params.loadPower = 1;

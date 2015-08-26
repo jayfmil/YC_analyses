@@ -43,6 +43,7 @@ if ~isempty(poolobj)
         else
             subjData = load(lassoFile);
             YC1_params = subjData.params;
+            YC1_params.powerPath = params.powerPath;
             fprintf('Processing %s.\n',subjs{s})
             YC2_applyWeights(subjs{s},YC1_params,subjData,saveDir);            
         end
