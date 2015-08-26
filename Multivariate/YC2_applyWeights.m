@@ -1,4 +1,4 @@
-function YC2_applyWeights(subj,params,yc1Data,saveDir)
+function [AUC,AUC_enc,perf,perfEnc] = YC2_applyWeights(subj,params,yc1Data,saveDir)
 % function [] = YC2_applyWeights(subj,params,saveDir)
 %
 % Inputs:
@@ -11,7 +11,10 @@ function YC2_applyWeights(subj,params,yc1Data,saveDir)
 %
 % Saves results to 
 
-
+AUC     = [];
+AUC_enc = [];
+perf    = [];
+perfEnc = [];
 
 try
     
@@ -172,7 +175,7 @@ try
     subject       = subj;    
     if saveOutput
         fname = fullfile(saveDir,[subj '_YC2_lasso.mat']);
-        save(fname,'res','Y','objLocs','params','perf','tal','AUC');
+        save(fname,'res','Y','objLocs','params','perf','tal','AUC','AUC_enc','perfEnc');
     end
 catch e
     fname = fullfile(saveDir,[subj '_YC2_lasso_error.mat']);
