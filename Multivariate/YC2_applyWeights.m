@@ -92,7 +92,7 @@ try
             
     % permute the responses if desired
     if doPermute
-        randOrder = randperm(size(trials,1));
+        randOrder = randperm(length(Y)/2);
         randOrder = repmat(randOrder,2,1);
         randOrder = randOrder(:);
         Y = Y(randOrder);
