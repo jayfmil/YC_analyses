@@ -86,8 +86,7 @@ try
     if doBinary
         Y  = Y < median(Y);
     end
-        
-    % GET RID OF THIS?
+            
     % permute the responses if desired
     if doPermute
         randOrder = randperm(size(trials,1));
@@ -144,174 +143,41 @@ try
                         
         end        
         
-    % if using all time points in one model, current what it is set to do
+        % if using all time points in one model
     else
+        
+        % average weights across all across all YC1 training folds
+        A         = mean(horzcat(yc1Data.res.A{:}),2);
+        intercept = mean([yc1Data.res.intercept{:}]);
         
         % reshape into # trials x # features
         X = reshape(squeeze(powerData),size(powerData,1),nFreqs*nTimes*nElecs);
-        
-        % see if we are precomputing lambda based on all the data
-        lambda = [];
-        if params.crossValStrictness == 0
-            if ~isempty(params.lambda)
-                lambda = params.lambda;
-            else
-                fprintf('Subject %s: Computing optimal lambda.\n',subj)
-                [stats,lambda] = calcLambda(X,Y,doBinary,params.nCV);
-            end
-        end
-        
-        % run for each fold
-        [res.yPred,res.yTest,res.A,res.intercept,res.err] = deal(cell(nFolds,1));
-        for iFold = 1:nFolds
-            fprintf('Subject %s: Fold %d of %d.\n',subj,iFold,nFolds)
-            [res.yPred{iFold},...
-                res.yTest{iFold},...
-                res.A{iFold},...
-                res.intercept{iFold},...
-                res.err{iFold}] = lassoReg(X,Y,folds(iFold,:),lambda,params.nCV);
-        end
-        perf = mean(vertcat(res.err{:}));
-        res.perf = perf;
+                
+        % predict YC1 time bin weights applied to YC2 time bin
+        B1 = [intercept;A];
+        res.yPred    = glmval(B1,X,'logit');
+        res.predBool = res.yPred > mean(Y);
+        res.perf     = mean(res.predBool);
+        res.A        = A;
+        res.intcp    = intercept;
+        perf         = res.perf;
+                       
+        % calculate area under ROC curve
         if doBinary
-            yPred = vertcat(res.yPred{:});
-            [res.xAUC,res.yAUC,~,res.AUC,res.optPoint] = perfcurve(Y,yPred,true);
+            [res.xAUC,res.yAUC,~,res.AUC,res.optPoint] = perfcurve(Y,res.yPred,true);
             AUC = res.AUC;
-        end
+        end        
     end
         
-    subject       = subj;
-    params.lambda = lambda;
+    subject       = subj;    
     if saveOutput
-        fname = fullfile(saveDir,[subj '_lasso.mat']);
+        fname = fullfile(saveDir,[subj '_YC2_lasso.mat']);
         save(fname,'res','Y','objLocs','params','perf','tal','AUC');
     end
 catch e
-    fname = fullfile(saveDir,[subj '_lasso_error.mat']);
+    fname = fullfile(saveDir,[subj '_YC2_lasso_error.mat']);
     save(fname,'e')
 end
-
-function [stats,lambda] = calcLambda(X,Y,doBinary,nCV)
-if isempty(nCV)
-    nCV = round(length(Y)/2);
-end
-
-if doBinary
-  
-    [~,stats] = lassoglm(X,Y,'binomial','CV', nCV, 'NumLambda', 50);
-    lambda    = stats.LambdaMinDeviance;
-    
-else
-    % center x
-    xHat = mean(X, 1)';
-    xCentered = X' - xHat * ones(1,size(X',2));
-    
-    % center y
-    intercept = mean(Y);
-    yCentered = round(Y - intercept,14);
-    
-    % compute optimal lamda
-    [~, stats] = lasso(xCentered', yCentered, 'CV', nCV, 'NumLambda', 50);
-    lambda     = stats.LambdaMinMSE;
-end
-
-function [yPred,yTest,A,intercept,err] = lassoReg(X,Y,trainInds,lambda,nCV)
-%
-% This does lasso. 
-% X = # trials x # features
-% Y = # trials vector of responses
-% trainInds = logical vector of training/test
-%
-
-if isempty(nCV)
-    nCV = round(length(Y)/2);
-end
-
-doBinary = false;
-if islogical(Y)
-    doBinary = true;
-end
-
-% We will do binary classification Y is logical, which is currently the
-% default
-if doBinary
-    
-    % I'm under sampling the larger class so that we have equal numbers.
-    % This isn't a great idea of more skewed dataset, but since we are
-    % using a median threshold, it doesn't really matter here
-    yTrainBool = Y(trainInds);
-    
-    % figure out which observations to remove from larger class
-    numToRemove = sum(yTrainBool) - sum(~yTrainBool);
-    toRemove = [];
-    if numToRemove > 0
-        toRemove = randsample(find(yTrainBool),abs(numToRemove));
-    elseif numToRemove < 0
-        toRemove = randsample(find(~yTrainBool),abs(numToRemove));
-    end
-    
-    % training set x
-    xTrain = X(trainInds,:)';
-    xTrain(:,toRemove) = [];
-    
-    % training set y
-    yTrainBool(toRemove) = [];
-    
-    % compute model
-    if isempty(lambda)
-        [A_lasso, stats] = lassoglm(xTrain',yTrainBool,'binomial','CV', nCV, 'NumLambda', 50);
-        
-        % get the best cooefficients and intercept
-        A = A_lasso(:,stats.IndexMinDeviance);
-        intercept = stats.Intercept(stats.IndexMinDeviance);
-    else
-        [A, stats] = lassoglm(xTrain',yTrainBool,'binomial','Lambda',lambda);
-        intercept = stats.Intercept;
-    end
-    
-    % testing set
-    xTest = X(~trainInds,:)';
-    yTest = Y(~trainInds);
-    
-    % predict
-    B1 = [intercept;A];
-    yPred = glmval(B1,xTest','logit');
-    
-    % see if the predictions match the actual results
-    err = (yPred > mean(yTrainBool)) == Y(~trainInds);
-    
-% if Y is not logical, do regression
-else
-    
-    % training set x
-    xTrain = X(trainInds,:)';    
-    xHat = mean(xTrain, 2);
-    xTrain = xTrain - xHat * ones(1,size(xTrain,2));
-    
-    % training set y
-    yTrain = Y(trainInds);
-    intercept = mean(yTrain);
-    yTrain = round(yTrain - intercept,14);
-    
-    % compute model
-    if isempty(lambda)
-        [A_lasso, stats] = lasso(xTrain', yTrain, 'CV', nCV, 'NumLambda', 50);
-        A = A_lasso(:,stats.IndexMinMSE);
-    else
-        A = lasso(xTrain', yTrain, 'Lambda',lambda);
-    end
-    
-    % testing set
-    xTest = X(~trainInds,:)';
-    yTest = Y(~trainInds);
-    
-    % Double check this
-    yPred = (xTest - xHat*ones(1,sum(~trainInds)))' * A + intercept;
-    err = mean((yTest - yPred).^2);
-           
-end
-
-
 
 function powerData = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse)
 
