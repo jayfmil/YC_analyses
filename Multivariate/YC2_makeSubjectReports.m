@@ -39,8 +39,8 @@ end
 % tex directory
 f = @(x,y) y{double(x)+1};
 y = {'OrigPower','CorrectedPower'};
-YC1_dir = fullfile(params.basePath,f(params.useCorrectedPower,y));
-saveDir = fullfile(YC1_dir,'YC2');
+dataDir = fullfile(params.basePath,f(params.useCorrectedPower,y),'YC2');
+saveDir = fullfile(dataDir,'reports');
 if ~exist(saveDir,'dir')
     mkdir(saveDir);
 end
@@ -95,12 +95,12 @@ for s = 1:length(subjs)
         continue
     end
     
-    events     = get_sub_events('RAM_YC1',subj);    
+    events     = get_sub_events('RAM_YC2',subj);    
     
     % load lasso and chance lasso data
     chanceData = load(chanceFile);
     lassoData  = load(lassoFile);
-    figs_subj.nElecs = length(lassoData.res(1).A{1})/4;
+    figs_subj.nElecs = length(lassoData.tal)
     
     % calculate percentile for subject for the timebin to timebin direct
     % mapping
@@ -112,13 +112,14 @@ for s = 1:length(subjs)
     auc_all(s,:)    = lassoData.AUC;
     
     % now for timebin to average encoding interval
-    perf_pEnc          = mean(repmat(lassoData.perfEnc,size(chanceData.perfEncAll,1),1) > chanceData.perfEncAll);
-    auc_pEnc           = mean(repmat(lassoData.AUC,size(chanceData.aucEncAll,1),1) > chanceData.aucEncAll);
+    perf_pEnc          = mean(repmat([lassoData.res.perfEnc],size(chanceData.perfEncAll,1),1) > chanceData.perfEncAll);
+    auc_pEnc           = mean(repmat([lassoData.res.AUC_enc],size(chanceData.aucEncAll,1),1) > chanceData.aucEncAll);
     perfEnc_p_all(s,:) = perf_pEnc;
     aucEnc_p_all(s,:)  = auc_pEnc;
-    perfEnc_all(s,:)   = lassoData.perfEnc;
-    aucEnc_all(s,:)    = lassoData.AUC_enc;    
-    
+    perfEnc_all(s,:)   = [lassoData.res.perfEnc];
+    aucEnc_all(s,:)    = [lassoData.res.AUC_enc];
+    lassoData.perfEnc  = [lassoData.res.perfEnc];
+    lassoData.AUC_enc  = [lassoData.res.AUC_enc];
     
     %% FIGURE 1a and b - classifier accuracy and AUC over time       
     
@@ -130,71 +131,79 @@ for s = 1:length(subjs)
     end
         
     ylabels   = {'Classifier Accuracy (%)','Classifier AUC'};
-    ps        = [1-perf_p;1-auc_p];
-    fields    = {'perf','AUC'};
-    fieldsEnc = {'perfEnc','AUC_enc'};
-    
+    ps        = {[1-perf_p;1-auc_p],[1-perf_pEnc;1-auc_pEnc]};
+    fields    = {{'perf','perfEnc'},{'AUC','AUC_enc'}};
+    axPos     = [.13 .5 .7750 .4;.13 .1 .7750 .4];
+
     for i = 1:2
-        fname = fullfile(figDir,[subj '_' fields{i} '.eps']);
-        figs_subj.(fields{i}) = fname;
+        fname = fullfile(figDir,[subj '_' fields{i}{1} '.eps']);
+        figs_subj.(fields{i}{1}) = fname;
         if exist(fname,'file') && ~overwrite
             continue
         end
         figure(1) 
         clf
-        
-        % first plot all the points as black
-        plot(lassoData.(fields{i}),'k.','markersize',30,'linewidth',2.5)
-        hold on
-        
-        % plot any significant time points as red. Bigger red dot indicates
-        % the timepoint survived bonferroni correction. Small red dot is p
-        % < .05        
-        p = ps(i,:);
-        thresh = .05/length(lassoData.(fields{i}));
-        h=plot(find(p < .05),lassoData.(fields{i})(p < .05),'r.','markersize',30);
-        set(h,'color',[140 15 15]/255)
-        plot(find(p < thresh),lassoData.(fields{i})(p < thresh),'r.','markersize',55)
-        set(h,'color',[200 100 100]/255)
-        
-        % set axis and labels
-        set(gca,'xtick',1:length(lassoData.(fields{i})));
-        set(gca,'xlim',[0 length(lassoData.(fields{i}))+1]);
-        set(gca,'xticklabel',xBinsStr);
-        set(gca,'ylim',[0 1]);
-        set(gca,'ytick',0:.1:1);
-        if i == 1
+        keyboard
+        for j = 1:2
+          % first plot all the points as black
+          ax=axes('position',axPos(j,:));
+          plot(lassoData.(fields{i}{j}),'k.','markersize',30,'linewidth',2.5)
+          hold on
+          
+          % plot any significant time points as red. Bigger red dot indicates
+          % the timepoint survived bonferroni correction. Small red dot is p
+          % < .05        
+          p = ps{i}(j,:);
+          thresh = .05/length(lassoData.(fields{i}{j}));
+          h=plot(find(p < .05),lassoData.(fields{i}{j})(p < .05),'r.','markersize',30);
+          set(h,'color',[140 15 15]/255)
+          plot(find(p < thresh),lassoData.(fields{i}{j})(p < thresh),'r.','markersize',55)
+          set(h,'color',[200 100 100]/255)
+          
+          % set axis and labels
+          set(gca,'xtick',1:length(lassoData.(fields{i}{j})));
+          set(gca,'xlim',[0 length(lassoData.(fields{i}{j}))+1]);
+          set(gca,'xticklabel',xBinsStr);
+          set(gca,'ylim',[0 1]);
+          set(gca,'ytick',0:.1:1);
+          if i == 1
             set(gca,'yticklabel',0:10:100)
-        end
-        ylabel(ylabels{i},'fontsize',20)
-        xlabel('Time (s)','fontsize',20)
-        grid on
-        set(gca,'gridlinestyle',':');
-        set(gca,'fontsize',20)
-        fillX = [.5 .5 length(lassoData.(fields{i}))+.05 length(lassoData.(fields{i}))+.05];
-        h=fill(fillX,[.91 .98 .98 .91],'w');
-        set(h,'linestyle','none');
-        
-        % label each time point with the behavior
-        labels = params.timeBinLabels;
-        if isempty(labels);labels=repmat({''},1,size(params.timeBins,1));end
-        for t = 1:length(lassoData.(fields{i}))
-            start = t - .25;
-            stop  = t + .25;
-            plot([start stop],[.9 .9],'-k','linewidth',2)
-            h=text(t,.95,labels{t},'fontsize',16);
-            len = get(h,'extent');
-            len = len(3);
-            pos = get(h,'position');
-            set(h,'position',[pos(1)-len/2+.03 pos(2) 0]);
-        end
-        
-        % plot dashed line at 50%
-        xlim = get(gca,'xlim');
-        plot(xlim,[.5 .5],'--k','linewidth',1.5)
-        box on        
-                        
-        print('-depsc2','-tiff','-loose',fname);
+          end
+          ylabel(ylabels{i},'fontsize',20)
+          if j == 2
+            xlabel('Time (s)','fontsize',20)
+          end
+          grid on
+          set(gca,'gridlinestyle',':');
+          set(gca,'fontsize',20)
+
+          if j == 1
+            fillX = [.5 .5 length(lassoData.(fields{i}{j}))+.05 length(lassoData.(fields{i}{j}))+.05];
+            h=fill(fillX,[.91 .98 .98 .91],'w');
+            set(h,'linestyle','none');
+            
+            % label each time point with the behavior
+            labels = params.timeBinLabels;
+            if isempty(labels);labels=repmat({''},1,size(params.timeBins,1));end
+            for t = 1:length(lassoData.(fields{i}{j}))
+              start = t - .25;
+              stop  = t + .25;
+              plot([start stop],[.9 .9],'-k','linewidth',2)
+              h=text(t,.95,labels{t},'fontsize',16);
+              len = get(h,'extent');
+              len = len(3);
+              pos = get(h,'position');
+              set(h,'position',[pos(1)-len/2+.03 pos(2) 0]);
+            end
+          end
+          
+          % plot dashed line at 50%
+          xlim = get(gca,'xlim');
+          plot(xlim,[.5 .5],'--k','linewidth',1.5)
+          box on        
+        end       
+        keyboard
+        %print('-depsc2','-tiff','-loose',fname);
     end
     
     %% FIGURE 2 - quartile plot for most signficant time period

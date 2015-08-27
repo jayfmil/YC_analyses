@@ -94,9 +94,8 @@ try
     % permute the responses if desired
     if doPermute
         randOrder = randperm(length(Y)/2);
-        randOrder = repmat(randOrder,2,1);
-        randOrder = randOrder(:);
-        Y = Y(randOrder);
+        Ytmp = reshape(Y,2,[]);
+        Y = reshape(Ytmp(:,randOrder),[],1);
     end
     
     objLocs = vertcat(events(eventsToUse).objLocs);
@@ -123,7 +122,7 @@ try
             % predict YC1 time bin weights applied to YC2 time bin
             B1 = [intercept;A];
             res(t).yPred    = glmval(B1,X,'logit');
-            res(t).predBool = res(t).yPred > mean(Y);
+            res(t).predBool = res(t).yPred > mean(Y) == Y;
             res(t).perf     = mean(res(t).predBool);
             res(t).A        = A;
             rest(t).intcp   = intercept;
@@ -132,7 +131,7 @@ try
             % predict YC1 time bin weights applied to YC2 average encoding
             X_enc = reshape(squeeze(powerDataEncAvg(:,:,1,:)),size(powerDataEncAvg,1),nFreqs*nElecs);
             res(t).yPredEnc    = glmval(B1,X_enc,'logit');
-            res(t).predBoolEnc = res(t).yPredEnc > mean(Y);
+            res(t).predBoolEnc = res(t).yPredEnc > mean(Y) == Y;
             res(t).perfEnc     = mean(res(t).predBoolEnc);                        
             perfEnc(t)         = res(t).perfEnc;
                       
@@ -143,10 +142,9 @@ try
                 
                 [res(t).xAUC_enc,res(t).yAUC_enc,~,res(t).AUC_enc,res(t).optPoint_enc] = perfcurve(Y,res(t).yPredEnc,true);
                 AUC_enc(t) = res(t).AUC_enc;
-            end
-                        
+            end                        
         end        
-        
+
         % if using all time points in one model
     else
         
@@ -160,7 +158,7 @@ try
         % predict YC1 time bin weights applied to YC2 time bin
         B1 = [intercept;A];
         res.yPred    = glmval(B1,X,'logit');
-        res.predBool = res.yPred > mean(Y);
+        res.predBool = res.yPred > mean(Y) == Y;
         res.perf     = mean(res.predBool);
         res.A        = A;
         res.intcp    = intercept;

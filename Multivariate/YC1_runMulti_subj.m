@@ -161,13 +161,12 @@ try
         end
         Y = logical(Y_tmp-1);
     end
-    
+
     % permute the responses if desired
     if doPermute
         randOrder = randperm(size(trials,1));
-        randOrder = repmat(randOrder,2,1);
-        randOrder = randOrder(:);
-        Y = Y(randOrder);
+        Ytmp = reshape(Y,2,[]);
+        Y = reshape(Ytmp(:,randOrder),[],1);
     end
     
     objLocs = vertcat(events(eventsToUse).objLocs);

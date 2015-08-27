@@ -6,7 +6,7 @@ function YC1_runMulti_leaveOutTimes_wrapper
 %
 
 if isunix && ~ismac
-    open_rhino2_pool(50,'12G');
+    open_rhino2_pool(45,'12G');
 end
 
 % get basic parameters
@@ -30,7 +30,7 @@ subjs = subjs(~strcmp(subjs,'R1001P'));
 params.timeBins = timeBins;
 params.timeBinLabels = timeBinLabels;
 params.basePath = fullfile(basePath,'allTimes');
-YC1_runMulti(subjs,params);
+%YC1_runMulti(subjs,params);
 YC1_createChanceDists(subjs,params)
 
 % loop over time bins, remove from classification
@@ -45,6 +45,6 @@ for t = 1:length(timesToRemove)
     params.timeBinLabels = timeBinLabels(binsToKeep);
     pathStr = ['allTime_exc',timesToRemove{t}];
     params.basePath = fullfile(basePath,pathStr);
-    YC1_runMulti(subjs,params);
+    %YC1_runMulti(subjs,params);
     YC1_createChanceDists(subjs,params)
 end

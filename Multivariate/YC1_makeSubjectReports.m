@@ -57,6 +57,7 @@ if ~exist('figDir','dir')
 end
 
 % store group information
+nTrialsAll = NaN(length(subjs),1);
 perf_all   = NaN(length(subjs),size(params.timeBins,1));
 perf_p_all = NaN(length(subjs),size(params.timeBins,1));
 auc_all    = NaN(length(subjs),size(params.timeBins,1));
@@ -97,6 +98,7 @@ for s = 1:length(subjs)
     chanceData = load(chanceFile);
     lassoData  = load(lassoFile);
     figs_subj.nElecs = length(lassoData.res(1).A{1})/4;
+    nTrialsAll(s) = length(lassoData.Y);
     
     % calculate percentile for subject
     perf_p          = mean(repmat(lassoData.perf,size(chanceData.perf_all,1),1) > chanceData.perf_all);
@@ -257,7 +259,7 @@ for s = 1:length(subjs)
     figs = [figs;figs_subj];
     
 end
-
+keyboard
 % also make group plots/report
 fprintf('Creating group plots.\n');
 figs_group = [];
