@@ -22,7 +22,11 @@ try
     % desired.
     tal = getBipolarSubjElecs(subj,1,1,1);
     tal = filterTalByRegion(tal,params.region);
-       
+    if isempty(tal)
+        fprintf('No %s electrode for %s.\n',params.region,subj)
+        return
+    end
+    
     % load power parameters    
     powParams = load(fullfile(params.powerPath,'params.mat'));
     
@@ -63,14 +67,9 @@ try
         powerData = load(powFile);
         powerDataEncAvg = powerData.powerDataEncAvg;
         powerData = powerData.powerData;        
-    else
-        if ~params.useCorrectedPower
-            powerData       = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse);
-            powerDataEncAvg = loadAllPower(tal,subj,events,freqBins,[1 5000],powParams,eventsToUse);
-        else
-            powerData       = loadResids_locs(tal,subj,freqBins,timeBins,powParams,eventsToUse);
-            powerDataEncAvg = loadResids_locs(tal,subj,freqBins,[1 5000],powParams,eventsToUse);
-        end
+    else        
+        powerData       = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse,params);
+        powerDataEncAvg = loadAllPower(tal,subj,events,freqBins,[1 5000],powParams,eventsToUse,params);
         powerData       = permute(powerData,[3 1 2 4]);
         powerDataEncAvg = permute(powerDataEncAvg,[3 1 2 4]);
         if params.savePower
@@ -181,7 +180,7 @@ catch e
     save(fname,'e')
 end
 
-function powerData = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse)
+function powerData = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse,params)
 
 nFreqs = size(freqBins,1);
 nTimes = size(timeBins,1);
@@ -189,6 +188,12 @@ nEvents = sum(eventsToUse);
 nElecs = length(tal);
 powerData = NaN(nFreqs,nTimes,nEvents,nElecs);
 
+% when loading power, use either original power or power with effect of
+% trial number removed.
+powField = 'pow';
+if params.useCorrectedPower
+    powField = 'powCorr';
+end
 for e = 1:nElecs
     elecNum = tal(e).channel;
       
@@ -199,7 +204,7 @@ for e = 1:nElecs
     for s = 1:length(sessions)
        fname = fullfile(subjPath,'RAM_YC2_events',num2str(sessions(s)),[num2str(elecNum(1)),'-',num2str(elecNum(2)),'.mat']);
        sessPow = load(fname);
-       subjPow = cat(3,subjPow,sessPow.sessOutput.pow);
+       subjPow = cat(3,subjPow,sessPow.sessOutput.(powField));
     end
     
     if length(eventsToUse) ~= size(subjPow,3)
@@ -223,50 +228,6 @@ for e = 1:nElecs
         tmpPower(:,t,:) = nanmean(subjPow(:,tInds,:),2);
     end
     powerData(:,:,:,e) = tmpPower;
-end
-
-function [powerData] = loadResids_locs(tal,subj,freqBins,timeBins,powParams,eventsToUse)
-
-nFreqs = size(freqBins,1);
-nTimes = size(timeBins,1);
-nEvents = sum(eventsToUse);
-nElecs = length(tal);
-powerData = NaN(nFreqs,nTimes,nEvents,nElecs);
-
-basePath  = '/data10/scratch/jfm2/YC1/multi/power/regress/';
-subjPath  = fullfile(basePath,subj);
-
-for e = 1:nElecs
-    elecNum   = tal(e).channel;
-    fname     = sprintf('%s_elec_%d-%d_residuals.mat',subj,elecNum(1),elecNum(2));
-    
-    if ~exist(fullfile(subjPath,fname),'file')
-        error('Residuals file %s not found.\n',fname)
-    else
-        elecData = load(fullfile(subjPath,fname));
-        resids   = elecData.resid;
-        resids   = permute(resids,[3 2 1]);
-        if size(resids,3) ~= sum(eventsToUse)
-            keyboard
-        end
-        
-        % average frequencies
-        tmpPower = NaN(nFreqs,size(resids,2),size(resids,3));
-        for f = 1:nFreqs
-            fInds = powParams.params.pow.freqs >= freqBins(f,1) & powParams.params.pow.freqs < freqBins(f,2);
-            tmpPower(f,:,:) = nanmean(resids(fInds,:,:),1);
-        end
-        resids = tmpPower;
-        
-        % average times
-        tmpPower = NaN(nFreqs,nTimes,size(resids,3));
-        for t = 1:nTimes
-            tInds = powParams.timeBins(:,1) >= timeBins(t,1) & powParams.timeBins(:,2) < timeBins(t,2);
-            tmpPower(:,t,:) = nanmean(resids(:,tInds,:),2);
-        end
-        powerData(:,:,:,e) = tmpPower;
-        
-    end
 end
 
 

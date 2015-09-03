@@ -19,7 +19,6 @@ params.timeBins = [[-999:timeStep:6000]' [(-999+timeStep-1):timeStep:6000]';1 50
 % params.timeBins.
 params.timeBinLabels = {'Pre','Spin','Drive1','Drive2','Drive3','Wait','Post','Enc'};
 
-
 % regions. If empty, use all electrodes. Choices right now are:
 %          'mtl', 'hipp', 'ec'
 params.region = '';
@@ -42,7 +41,7 @@ params.useCorrectedPower = 0;
 params.regressDir = '/data10/scratch/jfm2/YC1/multi/power/regress';
 
 % path to power data
-params.powerPath = '/data10/scratch/jfm2/RAM/biomarker/power/';
+params.powerPath = '/data10/scratch/jfm2/power';
 
 % cross validation strictness.
 %   0 = use all the data to calculate optimal lambda, and apply the model
@@ -64,8 +63,15 @@ params.lambda = [];
 % creating a chance distribution
 params.saveOutput = 1;
 
+% default is to do nothing if the file already exists and saveOutout is
+% true
+params.overwrite = 0;
+
 % load prebinned power
 params.loadPower = 0;
+
+% exclude epileptic electrodes?
+params.excludeEpiElecs = 1;
 
 % permute the Y, usually in the process of creating a chance distribution
 params.doPermute = 0;

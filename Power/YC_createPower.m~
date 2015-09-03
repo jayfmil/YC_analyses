@@ -1,4 +1,4 @@
-function YC_createPower(saveDir)
+function YC_createPower(task)
 % function YC_createPower(saveDir)
 %
 % Creates power for each electrode for each subject in the RAM_YC1
@@ -51,12 +51,14 @@ params.pow.wavenum      = 7;
 params.pow.timeWin      = 100;
 params.pow.timeStep     = 100;
 params.pow.freqBins     = logspace(log10(1),log10(200),50);
-params.events           = @(events)strcmp({events.type},'NAV_LEARN') | strcmp({events.type},'NAV_LEARN_HARD');
-params.savedir          = saveDir;
+params.eventsYC1           = @(events)strcmp({events.type},'NAV_LEARN') | strcmp({events.type},'NAV_LEARN_HARD');
+params.eventsYC           = @(events)strcmp({events.type},'NAV_LEARN') | strcmp({events.type},'NAV_LEARN_HARD');
+params.savedir          = '/data10/scratch/jfm2/power';
+
 cd_mkdir(saveDir); save('params','params');
 
 % compute powers
-RAM_Biomarkers_ComputePowers('RAM_YC2',params);
+RAM_Biomarkers_ComputePowers('RAM_YC1',params)
 
 
 

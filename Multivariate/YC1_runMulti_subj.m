@@ -23,45 +23,22 @@ perf    = [];
 subject = [];
 AUC     = [];
 
+% do we overwrite?
+fname = fullfile(saveDir,[subj '_lasso.mat']);
+if exist(fname,'file') && params.saveOutput && ~params.overwrite
+    fprintf('Lasso file already exists for %s.\n',subj)
+    return
+end
+
 try
     
     % load subject electrode locations and filter to specific regions if
     % desired.
-    tal = getBipolarSubjElecs(subj,1,1,1);
-    if ~isfield(tal,'locTag')
-        fprintf('No loc tag information for %s.\n',subj)
-        if ~isempty(params.region)
-            fprintf('Regional analysis requested by no localizations found, skipping %s.\n',subj)
-            return
-        end
-    else
-        if strcmpi(params.region,'hipp')
-            if any(~cellfun('isempty',regexpi({tal.locTag},['CA1|CA3|DG|sub'])))
-                fprintf('Using only hippocampal electrodes for %s.\n',subj)
-                tal = tal(~cellfun('isempty',regexpi({tal.locTag},['CA1|CA3|DG|sub'])));
-            else
-                fprintf('Using only hippocampal electrodes for %s...NONE FOUND.\n',subj)
-                return
-            end           
-        end
-        if strcmpi(params.region,'ec')
-            if any(~cellfun('isempty',regexpi({tal.locTag},['ec|erc'])))
-                fprintf('Using only ec electrodes for %s.\n',subj)
-                tal = tal(~cellfun('isempty',regexpi({tal.locTag},['ec|erc'])));
-            else
-                fprintf('Using only ec electrodes for %s...NONE FOUND.\n',subj)
-                return
-            end            
-        end
-        if strcmpi(params.region,'mtl')
-            if any(~cellfun('isempty',regexpi({tal.locTag},['HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc'])))
-                fprintf('Using only mtl electrodes for %s.\n',subj)
-                tal = tal(~cellfun('isempty',regexpi({tal.locTag},['HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc'])));
-            else
-                fprintf('Using only mtl electrodes for %s...NONE FOUND.\n',subj)
-                return
-            end            
-        end        
+    tal = getBipolarSubjElecs(subj,1,1,params.excludeEpiElecs);
+    tal = filterTalByRegion(tal,params.region);
+    if isempty(tal)
+        fprintf('No %s electrode for %s.\n',params.region,subj)
+        return
     end
     
     % load power parameters    
@@ -70,7 +47,7 @@ try
     % Setting time bins for convenience:
     tEnds     = (powParams.params.pow.timeWin:powParams.params.pow.timeStep:powParams.params.eeg.durationMS)+powParams.params.eeg.offsetMS;
     tStarts   = tEnds - powParams.params.pow.timeWin+1;
-    powParams.timeBins = [tStarts' tEnds'];
+    powParams.timeBins = [tStarts' tEnds'];    
     
     % load events
     events = get_sub_events('RAM_YC1',subj);
@@ -92,7 +69,7 @@ try
     modelEachTime = params.modelEachTime;
     doBinary      = params.doBinary;
     saveOutput    = params.saveOutput;
-    doPermute     = params.doPermute;
+    doPermute     = params.doPermute;    
     
     % load power for all electrodes
     powDir = fullfile(saveDir,'power');
@@ -104,11 +81,7 @@ try
         powerData = load(powFile);
         powerData = powerData.powerData;
     else
-        if ~params.useCorrectedPower
-            powerData = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse);
-        else
-            powerData = loadResids_locs(tal,subj,freqBins,timeBins,powParams,eventsToUse);
-        end
+        powerData = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse,params);
         powerData = permute(powerData,[3 1 2 4]);
         if params.savePower
             powFile = fullfile(powDir,[subj '_binnedPower.mat']);
@@ -211,8 +184,9 @@ try
             res(t).perf = perf(t);
             if doBinary     
                 yPred = vertcat(res(t).yPred{:});                
-                [res(t).xAUC,res(t).yAUC,~,res(t).AUC,res(t).optPoint] = perfcurve(Y,yPred,true);
-                AUC(t) = res(t).AUC;
+%                 [res(t).xAUC,res(t).yAUC,~,res(t).AUC,res(t).optPoint] = perfcurve(Y,yPred,true);
+                res(t).AUC = compute_auc(yPred,Y);
+                AUC(t) = res(t).AUC;                
             end
         end
         lambda = lambdas;
@@ -248,15 +222,15 @@ try
         res.perf = perf;
         if doBinary
             yPred = vertcat(res.yPred{:});
-            [res.xAUC,res.yAUC,~,res.AUC,res.optPoint] = perfcurve(Y,yPred,true);
-            AUC = res.AUC;
+%             [res.xAUC,res.yAUC,~,res.AUC,res.optPoint] = perfcurve(Y,yPred,true);
+            res.AUC = compute_auc(yPred,Y);
+            AUC = res.AUC;            
         end
     end
         
     subject       = subj;
     params.lambda = lambda;
-    if saveOutput
-        fname = fullfile(saveDir,[subj '_lasso.mat']);
+    if saveOutput        
         save(fname,'res','Y','objLocs','params','perf','tal','AUC');
     end
 catch e
@@ -386,7 +360,7 @@ end
 
 
 
-function powerData = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse)
+function powerData = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse,params)
 
 nFreqs = size(freqBins,1);
 nTimes = size(timeBins,1);
@@ -394,9 +368,15 @@ nEvents = sum(eventsToUse);
 nElecs = length(tal);
 powerData = NaN(nFreqs,nTimes,nEvents,nElecs);
 
+% when loading power, use either original power or power with effect of
+% trial number removed.
+powField = 'pow';
+if params.useCorrectedPower
+    powField = 'powCorr';
+end
 for e = 1:nElecs
     elecNum = tal(e).channel;
-      
+
     basePath  = '/data10/scratch/jfm2/RAM/biomarker/power/';
     subjPath  = fullfile(basePath,subj);
     sessions = unique([events.session]);
@@ -404,7 +384,7 @@ for e = 1:nElecs
     for s = 1:length(sessions)
        fname = fullfile(subjPath,'RAM_YC1_events',num2str(sessions(s)),[num2str(elecNum(1)),'-',num2str(elecNum(2)),'.mat']);
        sessPow = load(fname);
-       subjPow = cat(3,subjPow,sessPow.sessOutput.pow);
+       subjPow = cat(3,subjPow,sessPow.sessOutput.(powField));
     end
     
     if length(eventsToUse) ~= size(subjPow,3)
@@ -414,12 +394,14 @@ for e = 1:nElecs
     subjPow = subjPow(:,:,eventsToUse);
     
     % average frequencies
-    tmpPower = NaN(nFreqs,size(subjPow,2),size(subjPow,3));
-    for f = 1:nFreqs
-        fInds = powParams.params.pow.freqs >= freqBins(f,1) & powParams.params.pow.freqs < freqBins(f,2);
-        tmpPower(f,:,:) = nanmean(subjPow(fInds,:,:),1);
+    if nFreqs ~= length(powParams.params.pow.freqs)
+        tmpPower = NaN(nFreqs,size(subjPow,2),size(subjPow,3));
+        for f = 1:nFreqs
+            fInds = powParams.params.pow.freqs >= freqBins(f,1) & powParams.params.pow.freqs < freqBins(f,2);
+            tmpPower(f,:,:) = nanmean(subjPow(fInds,:,:),1);
+        end
+        subjPow = tmpPower;
     end
-    subjPow = tmpPower;
     
     % average times
     tmpPower = NaN(nFreqs,nTimes,size(subjPow,3));
@@ -428,50 +410,6 @@ for e = 1:nElecs
         tmpPower(:,t,:) = nanmean(subjPow(:,tInds,:),2);
     end
     powerData(:,:,:,e) = tmpPower;
-end
-
-function [powerData] = loadResids_locs(tal,subj,freqBins,timeBins,powParams,eventsToUse)
-
-nFreqs = size(freqBins,1);
-nTimes = size(timeBins,1);
-nEvents = sum(eventsToUse);
-nElecs = length(tal);
-powerData = NaN(nFreqs,nTimes,nEvents,nElecs);
-
-basePath  = '/data10/scratch/jfm2/YC1/multi/power/regress/';
-subjPath  = fullfile(basePath,subj);
-
-for e = 1:nElecs
-    elecNum   = tal(e).channel;
-    fname     = sprintf('%s_elec_%d-%d_residuals.mat',subj,elecNum(1),elecNum(2));
-    
-    if ~exist(fullfile(subjPath,fname),'file')
-        error('Residuals file %s not found.\n',fname)
-    else
-        elecData = load(fullfile(subjPath,fname));
-        resids   = elecData.resid;
-        resids   = permute(resids,[3 2 1]);
-        if size(resids,3) ~= sum(eventsToUse)
-            keyboard
-        end
-        
-        % average frequencies
-        tmpPower = NaN(nFreqs,size(resids,2),size(resids,3));
-        for f = 1:nFreqs
-            fInds = powParams.params.pow.freqs >= freqBins(f,1) & powParams.params.pow.freqs < freqBins(f,2);
-            tmpPower(f,:,:) = nanmean(resids(fInds,:,:),1);
-        end
-        resids = tmpPower;
-        
-        % average times
-        tmpPower = NaN(nFreqs,nTimes,size(resids,3));
-        for t = 1:nTimes
-            tInds = powParams.timeBins(:,1) >= timeBins(t,1) & powParams.timeBins(:,2) < timeBins(t,2);
-            tmpPower(:,t,:) = nanmean(resids(:,tInds,:),2);
-        end
-        powerData(:,:,:,e) = tmpPower;
-        
-    end
 end
 
 

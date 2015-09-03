@@ -48,9 +48,6 @@ if ~exist('subjs','var') || isempty(subjs)
     subjs = get_subs('RAM_YC1');
 end
 
-subjs = subjs(~strcmp(subjs,'R1025P'));
-
-
 % load all errors
 [allErrors,allObjectLocs] = YC1_loadAllSubjErrors;
 
@@ -95,27 +92,14 @@ if ~exist(subjDir,'dir')
     mkdir(subjDir)
 end
 
-% load events so we can filter into our conditions of interest
-config = RAM_config('RAM_YC1');
-
-% Setting time bins for convenience:
-tEnds = (config.distributedParams.timeWin:...
-    config.distributedParams.timeStep:...
-    config.postMS+config.priorMS)-config.priorMS;
-tStarts = tEnds - config.distributedParams.timeWin + 1;
-config.distributedParams.timeBins = [tStarts' tEnds'];
+% load power parameters
+powParams = load(fullfile(params.powerPath,'params.mat'));
 
 % load events
-[events] = RAM_loadEvents(subj,[],'RAM_YC1','events', config);
+events = get_sub_events('RAM_YC1',subj);
 
 % add the test error to the learning trials
-events = addErrorField(events);
-
-% convert to the session to an double from a string
-session = NaN(1,length(events));
-for e = 1:length(session)
-    session(e) = str2double(events(e).session);
-end
+events  = addErrorField(events);
 
 % filter to events of interest
 eventsToUse = params.eventFilter(events);
@@ -129,7 +113,8 @@ freqBins = params.freqBins;
 timeBins = params.timeBins;
 
 % load power for all electrodes
-powerData = loadAllPower(tal,subj,events,freqBins,timeBins,config,eventsToUse);
+% powerData = loadAllPower(tal,subj,events,freqBins,timeBins,config,eventsToUse);
+powerData = loadAllPower_jfm(tal,subj,events,freqBins,timeBins,powParams,eventsToUse);
 
 % reorder to be events x electrodes x time x freq.
 powerData = permute(powerData,[3 4 2 1]);
@@ -161,7 +146,7 @@ learningNum(IA+1) = 2;
 
 % get beta3 (overall trial number within session)
 trialNumber = [events(eventsToUse).itemno]'+1;
-
+keyboard
 % create data matrix
 x = [avgDiff learningNum trialNumber];
 
@@ -234,6 +219,57 @@ for e = 1:size(powerData,2)
 end % electrode
 
 
+end
+
+function powerData = loadAllPower_jfm(tal,subj,events,freqBins,timeBins,powParams,eventsToUse)
+
+nFreqs = size(freqBins,1);
+nTimes = size(timeBins,1);
+nEvents = sum(eventsToUse);
+nElecs = length(tal);
+powerData = NaN(nFreqs,nTimes,nEvents,nElecs);
+
+for e = 1:nElecs
+    elecNum = tal(e).channel;
+      
+    basePath  = '/data10/scratch/jfm2/RAM/biomarker/power/';
+    subjPath  = fullfile(basePath,subj);
+    sessions = unique([events.session]);
+    subjPow  = [];
+    for s = 1:length(sessions)
+       fname = fullfile(subjPath,'RAM_YC1_events',num2str(sessions(s)),[num2str(elecNum(1)),'-',num2str(elecNum(2)),'.mat']);
+       sessPow = load(fname);
+       subjPow = cat(3,subjPow,sessPow.sessOutput.pow);
+    end
+    
+    if length(eventsToUse) ~= size(subjPow,3)
+        fprintf('Number of events does not match size of power matrix for %s!.\n',subj)
+        return
+    end    
+    subjPow = subjPow(:,:,eventsToUse);
+    
+    % average frequencies
+    if nFreqs ~= 0
+        tmpPower = NaN(nFreqs,size(subjPow,2),size(subjPow,3));
+        for f = 1:nFreqs
+            fInds = powParams.params.pow.freqs >= freqBins(f,1) & powParams.params.pow.freqs < freqBins(f,2);
+            tmpPower(f,:,:) = nanmean(subjPow(fInds,:,:),1);
+        end
+        subjPow = tmpPower;
+    end
+    
+    % average times
+    if nTimes ~= 0
+        tmpPower = NaN(nFreqs,nTimes,size(subjPow,3));
+        for t = 1:nTimes
+            tInds = powParams.timeBins(:,1) >= timeBins(t,1) & powParams.timeBins(:,2) < timeBins(t,2);
+            tmpPower(:,t,:) = nanmean(subjPow(:,tInds,:),2);
+        end
+        powerData(:,:,:,e) = tmpPower;
+    else
+        powerData(:,:,:,e) = subjPow;
+    end
+end
 end
 
 function powerData = loadAllPower(tal,subj,events,freqBins,timeBins,config,eventsToUse)

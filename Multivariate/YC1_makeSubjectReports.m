@@ -33,7 +33,7 @@ end
 
 % overwrite exisiting figures?
 if ~exist('overwrite','var') || isempty(overwrite)
-    overwrite = true;
+    overwrite = false;
 end
 
 % tex directory
@@ -371,6 +371,44 @@ for t = 1:size(quarts_group,1)
     end        
 end
 
+% AUC OVER DIRECT TIME BIN MAPPING
+fname = fullfile(figDir,'auc_time_direct.eps');
+figs_group.auc_time_direct = fname;
+if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
+    figure(3)
+    clf
+    [h,p] = ttest(auc_all,.5);
+    sigCorr = p*size(auc_all,2) < .05;
+    sig     = p <.05 & ~sigCorr;
+    h=bar(find(~sig & ~sigCorr),nanmean(auc_all(:,~sig & ~sigCorr)),'w','linewidth',2);
+    set(h,'facecolor',[.5 .5 .5])
+    hold on
+    if any(sig)
+        h=bar(find(sig),nanmean(auc_all(:,sig)),'w','linewidth',2);
+        set(gca,'ylim',[.4 .6])
+        set(h,'facecolor',[200 100 100]/255)
+    end
+    if any(sigCorr)
+        h=bar(find(sigCorr),nanmean(auc_all(:,sigCorr)),'w','linewidth',2);
+        set(gca,'ylim',[.4 .6])
+        set(h,'facecolor',[140 15 15]/255)
+    end
+    err = nanstd(auc_all)./sqrt(sum(~isnan(auc_all))-1);
+    errorbar(1:size(auc_all,2),nanmean(auc_all),err*1.96,'k','linewidth',2,'linestyle','none')
+    plot([0 size(auc_all,2)+1],[.5 .5],'--k','linewidth',2)
+    grid on
+    set(gca,'gridlinestyle',':');
+    set(gca,'xlim',[0 size(auc_all,2)+1]);
+    set(gca,'xtick',1:size(auc_all,2));
+    set(gca,'xticklabel',xBinsStr);
+    set(gca,'ylim',[.4 .6])
+    set(gca,'ytick',.4:.05:.6)
+    ylabel('Classifier AUC','Fontsize',16);
+    xlabel('Timebin','Fontsize',16);
+    set(gca,'fontsize',16)
+    print('-depsc2','-tiff','-loose',fname);   
+end
+
 good = ~cellfun('isempty',{figs.subj});
 figs = figs(good);
 texName = 'lassoChance_report.tex';
@@ -542,6 +580,13 @@ for f = 1:size(figs.N,1)
     fprintf(fid,'\\includegraphics[width=0.4\\textwidth]{%s}\n',figs.auc_hist{f});
 end
 fprintf(fid,'\\caption{%d Subjects: Subject AUC histogram by time bin}\n\n',figs.N(1,1));
+fprintf(fid,'\\end{figure}\n\n\n');
+
+fprintf(fid,'\\begin{figure}[!h]\n');
+fprintf(fid,'\\centering\n');
+
+fprintf(fid,'\\includegraphics[width=0.8\\textwidth]{%s}\n',figs.auc_time_direct);
+fprintf(fid,'\\caption{%d Subjects: Average AUC over time. Dark red: significant after correcting for number of time bins. Light red: $p<.05$.}\n\n',figs.N(1,1));
 fprintf(fid,'\\end{figure}\n\n\n');
 
 fprintf(fid,'\\end{document}\n\n\n');
