@@ -1,5 +1,5 @@
-function YC2_runApplyWeights(subjs,params)
-% function YC2_applyWeights(subjs,params)
+function YC2_runPreStimBaselineChange(subjs,params)
+% function YC2_runPostStimBaselineChange(subjs,params)
 % Inputs:
 %
 %      subjs - cell array of subject strings (default get_subs('RAM_YC2'))
@@ -16,7 +16,7 @@ end
 f = @(x,y) y{double(x)+1};
 y = {'OrigPower','CorrectedPower'};
 YC1_dir = fullfile(params.basePath,f(params.useCorrectedPower,y));
-saveDir = fullfile(YC1_dir,'YC2');
+saveDir = fullfile(YC1_dir,'YC2_preStim');
 if ~exist(saveDir,'dir')
     mkdir(saveDir);
 end
@@ -25,6 +25,7 @@ end
 if ~exist('subjs','var') || isempty(subjs)
     subjs = get_subs('RAM_YC2');
 end
+% subjs = subjs(~strcmp(subjs,'R1006P'))
 
 % see if this was submitted with an open pool. If so, parallel on the level
 % of subjects. Otherwise, will loop over subjects one by one.
@@ -43,14 +44,14 @@ if ~isempty(poolobj)
             continue
         elseif ~exist(chanceFile,'file')
             fprintf('No YC1 chance file present for %s. Skipping.\n',subjs{s})            
-            continue             
+            continue            
         else
             subjData = load(lassoFile);
             chanceData = load(chanceFile);
             YC1_params = subjData.params;
             YC1_params.powerPath = params.powerPath;
             fprintf('Processing %s.\n',subjs{s})
-            YC2_applyWeights(subjs{s},YC1_params,subjData,chanceData,saveDir);            
+            YC2_preStimBaselineChange(subjs{s},YC1_params,subjData,chanceData,saveDir);            
         end
     end
 elseif isempty(poolobj)
@@ -66,14 +67,15 @@ elseif isempty(poolobj)
             continue
         elseif ~exist(chanceFile,'file')
             fprintf('No YC1 chance file present for %s. Skipping.\n',subjs{s})            
-            continue             
+            continue            
         else                        
-            subjData = load(lassoFile);
+            subjData   = load(lassoFile);
             chanceData = load(chanceFile);
             YC1_params = subjData.params;
             YC1_params.powerPath = params.powerPath;
             fprintf('Processing %s.\n',subjs{s})
-            YC2_applyWeights(subjs{s},YC1_params,subjData,chanceData,saveDir);                        
+            res=YC2_preStimBaselineChange(subjs{s},YC1_params,subjData,chanceData,saveDir);      
+            
         end
     end
 end

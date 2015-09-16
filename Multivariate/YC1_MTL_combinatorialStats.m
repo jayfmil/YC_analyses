@@ -18,6 +18,7 @@ end
 
 % all combinations of regions
 regions = {'CA1','CA3','DG','EC','PHC','PRC','Sub'};
+regions = {'mtl','frontal','parietal','occipital','temporal','limbic'};
 combs   = nchoosek(1:length(regions),2);
 
 % get subjects
@@ -41,6 +42,7 @@ for s = 1:length(subjs)
     
     % load the MTL AUC
     regionPath = fullfile(basePath,'MTL');
+    regionPath = fullfile(basePath,'all');
     fname      = fullfile(regionPath,'OrigPower',[subjs{s} '_lasso.mat']);
     if exist(fname,'file')
         res = load(fname);
@@ -91,10 +93,10 @@ for s = 1:length(subjs)
     end
     
 end
-
+keyboard
 figs = [];
 %% FIGURE 1a - heatmap of AUC differences
-myfig = figure('Position',[1,20,1000,1000]);
+% myfig = figure('Position',[1,20,1000,1000]);
 clf
 a = axes('position',[.1 .5 .35 .45]);
 fname = fullfile(figDir,'heatmap');
@@ -149,9 +151,9 @@ else
     set(ha,'facecolor',[.7 .7 .7]);
 end
 errorbar(x,y,e,'k','linewidth',2,'linestyle','none');
-set(gca,'xtick',1:7)
+set(gca,'xtick',1:(length(x)+.5))
 set(gca,'xticklabel',regions)
-set(gca,'xlim',[0.5 7.5])
+set(gca,'xlim',[0.5 length(x)+.5])
 set(gca,'ylim',[-.1 .1])
 set(gca,'ytick',[-.1:.05:.1])
 set(gca,'XAxisLocation','Top')
@@ -166,7 +168,7 @@ axis square
 
 %% FIGURE 1c - UCP BAR
 pos=get(a1,'Position');
-a=axes('position',[pos(1) .06 pos(3) pos(4)]);
+a=axes('position',[pos(1) .1 pos(3) pos(4)]);
 UCP = squeeze(nanmean(single_multi_diffAUC,1))';
 [h,p,c,s] = ttest(UCP);
 y = nanmean(UCP);
@@ -193,9 +195,10 @@ else
     set(ha,'facecolor',[.7 .7 .7]);
 end
 errorbar(x,y,e,'k','linewidth',2,'linestyle','none');
-set(gca,'xtick',1:7)
+set(gca,'xtick',1:(length(x)+.5))
 set(gca,'xticklabel',regions)
-set(gca,'xlim',[0.5 7.5])
+set(gca,'XTickLabelRotation',45)
+set(gca,'xlim',[0.5 length(x)+.5])
 set(gca,'ylim',[-.1 .1])
 set(gca,'ytick',[-.1:.05:.1])
 ylabel('UCP (\Delta AUC)','fontsize',16)
@@ -206,7 +209,7 @@ axis square
 
 
 %% FIGURE 1d - PERFORMANCE BY NUMBER OF REGIONS BAR
-a=axes('position',[pos(1)+pos(3)+.1 .06 pos(3) pos(4)]);
+a=axes('position',[pos(1)+pos(3)+.1 .1 pos(3) pos(4)]);
 % fname = fullfile(figDir,'perf');
 % figs.perf = fname;
 
@@ -257,26 +260,26 @@ set(gca,'fontsize',16)
 axis square
 box on
 set(gcf,'paperpositionmode','auto') 
-print('-dpng','-loose',fname);
+% print('-dpng','-loose',fname);
 % print('-depsc2','-tiff','-loose',fname);
-
+keyboard
 %% FIGURE 2 - Subject counts per region
 myfig2 = figure('Position',[1,20,1000,400]);
 fname = fullfile(figDir,'counts');
 figs.counts = fname;
-
+keyboard
 subj_counts = sum(~isnan(single_regionAUC));
-ha=bar(1:7,subj_counts,'linewidth',2);
+ha=bar(1:length(subj_counts),subj_counts,'linewidth',2);
 set(ha,'facecolor',[.7 .7 .7]);
 ylabel('N (patients)','fontsize',16)
 set(gca,'xtick',1:7)
 set(gca,'xticklabel',regions)
-set(gca,'xlim',[0.5 7.5])
+set(gca,'xlim',[0.5 length(subj_counts)+.5])
 grid on
 set(gca,'gridlinestyle',':')
 set(gca,'fontsize',16)
 set(gcf,'paperpositionmode','auto') 
-print('-depsc2','-tiff','-loose',fname);
+% print('-depsc2','-tiff','-loose',fname);
 keyboard
 
 

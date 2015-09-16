@@ -1,4 +1,4 @@
-function [AUC,AUC_enc,perf,perfEnc] = YC2_applyWeights(subj,params,yc1Data,saveDir)
+function [AUC,AUC_enc,perf,perfEnc,AUC_best,AUC_bestEnc] = YC2_applyWeights(subj,params,yc1Data,yc1ChanceData,saveDir)
 % function [] = YC2_applyWeights(subj,params,saveDir)
 %
 % Inputs:
@@ -11,11 +11,12 @@ function [AUC,AUC_enc,perf,perfEnc] = YC2_applyWeights(subj,params,yc1Data,saveD
 %
 % Saves results to 
 
-AUC     = [];
-AUC_enc = [];
-perf    = [];
-perfEnc = [];
-
+AUC         = [];
+AUC_enc     = [];
+perf        = [];
+perfEnc     = [];
+AUC_best    = [];
+AUC_bestEnc = [];
 try
     
     % load subject electrode locations and filter to specific regions if
@@ -28,6 +29,7 @@ try
     end
     
     % load power parameters    
+    % WE ARE PROBABLY GOING TO NEED SEPERATE YC1 AND YC2 params
     powParams = load(fullfile(params.powerPath,'params.mat'));
     
     % Setting time bins for convenience:
@@ -98,14 +100,22 @@ try
     end
     
     objLocs = vertcat(events(eventsToUse).objLocs);
-        
+    % What was the best YC1 time point?
+    p = mean(repmat(yc1Data.AUC,[size(yc1ChanceData.auc_all,1), 1]) > yc1ChanceData.auc_all);
+    maxP = max(p);
+    yc1AUC = yc1Data.AUC;
+    yc1AUC(p~=maxP) = NaN;
+    [~,bestTime] = max(yc1AUC);
+    
+    
     % We can model time points seperately, so # features = # freqs x # elecs,
     % or we can model it all together, so # features = # times x # freqs x #
     % elecs. If we are modeling each time, the weights from the YC1
     % classification at that time bin will be applied to the YC2 data at
     % the same time bin. In addition, the weight will be applied to the
     % average power across the encoding interval.
-    res = [];
+    res     = [];
+    resBest = [];
     if modelEachTime
         perf    = NaN(1,nTimes);
         perfEnc = NaN(1,nTimes);
@@ -125,25 +135,52 @@ try
             res(t).perf     = mean(res(t).predBool);
             res(t).A        = A;
             rest(t).intcp   = intercept;
-            perf(t)         = res(t).perf;                        
+            perf(t)         = res(t).perf;
             
             % predict YC1 time bin weights applied to YC2 average encoding
             X_enc = reshape(squeeze(powerDataEncAvg(:,:,1,:)),size(powerDataEncAvg,1),nFreqs*nElecs);
             res(t).yPredEnc    = glmval(B1,X_enc,'logit');
             res(t).predBoolEnc = res(t).yPredEnc > mean(Y) == Y;
-            res(t).perfEnc     = mean(res(t).predBoolEnc);                        
+            res(t).perfEnc     = mean(res(t).predBoolEnc);
             perfEnc(t)         = res(t).perfEnc;
-                      
+            
             % calculate area under ROC curve
-            if doBinary                                          
-                [res(t).xAUC,res(t).yAUC,~,res(t).AUC,res(t).optPoint] = perfcurve(Y,res(t).yPred,true);
+            if doBinary
+                [~,~,~,res(t).AUC] = perfcurve(Y,res(t).yPred,true);
                 AUC(t) = res(t).AUC;
                 
-                [res(t).xAUC_enc,res(t).yAUC_enc,~,res(t).AUC_enc,res(t).optPoint_enc] = perfcurve(Y,res(t).yPredEnc,true);
+                [~,~,~,res(t).AUC_enc] = perfcurve(Y,res(t).yPredEnc,true);
                 AUC_enc(t) = res(t).AUC_enc;
-            end                        
-        end        
-
+            end
+            
+            % average weights across all across all YC1 training folds for the
+            % best timepoint
+            A         = mean(horzcat(yc1Data.res(bestTime).A{:}),2);
+            intercept = mean([yc1Data.res(bestTime).intercept{:}]);
+                        
+            % predict YC1 best bin weights applied to YC2 time bin
+            B1 = [intercept;A];
+            resBest(t).yPred    = glmval(B1,X,'logit');
+            resBest(t).predBool = resBest(t).yPred > mean(Y) == Y;
+            resBest(t).perf     = mean(resBest(t).predBool);
+            resBest(t).A        = A;
+            resBest(t).intcp    = intercept;
+            
+            % predict YC1 time bin weights applied to YC2 average encoding            
+            resBest(t).yPredEnc    = glmval(B1,X_enc,'logit');
+            resBest(t).predBoolEnc = resBest(t).yPredEnc > mean(Y) == Y;
+            resBest(t).perfEnc     = mean(resBest(t).predBoolEnc);
+            
+            % calculate area under ROC curve
+            if doBinary
+                [~,~,~,resBest(t).AUC] = perfcurve(Y,resBest(t).yPred,true);
+                AUC_best(t) = resBest(t).AUC;
+                
+                [~,~,~,resBest(t).AUC_enc] = perfcurve(Y,resBest(t).yPredEnc,true);
+                AUC_bestEnc(t) = resBest(t).AUC_enc;
+            end
+        end
+        
         % if using all time points in one model
     else
         
@@ -165,7 +202,7 @@ try
                        
         % calculate area under ROC curve
         if doBinary
-            [res.xAUC,res.yAUC,~,res.AUC,res.optPoint] = perfcurve(Y,res.yPred,true);
+            [~,~,~,res.AUC] = perfcurve(Y,res.yPred,true);
             AUC = res.AUC;
         end        
     end
@@ -173,7 +210,7 @@ try
     subject       = subj;    
     if saveOutput
         fname = fullfile(saveDir,[subj '_YC2_lasso.mat']);
-        save(fname,'res','Y','objLocs','params','perf','tal','AUC','AUC_enc','perfEnc');
+        save(fname,'res','Y','objLocs','params','perf','tal','AUC','AUC_enc','perfEnc','resBest','AUC_best','AUC_bestEnc');
     end
 catch e
     fname = fullfile(saveDir,[subj '_YC2_lasso_error.mat']);

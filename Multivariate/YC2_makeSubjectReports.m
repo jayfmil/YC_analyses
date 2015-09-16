@@ -33,7 +33,7 @@ end
 
 % overwrite exisiting figures?
 if ~exist('overwrite','var') || isempty(overwrite)
-    overwrite = true;
+    overwrite = false;
 end
 
 % tex directory
@@ -49,7 +49,7 @@ end
 if ~exist('subjs','var') || isempty(subjs)
     subjs = get_subs('RAM_YC2');
 end
-subjs = subjs(~strcmp(subjs,'R1061T'))
+% subjs = subjs(~strcmp(subjs,'R1061T'))
 
 % figure directory
 figDir = fullfile(saveDir,'figs');
@@ -61,14 +61,23 @@ end
 perf_all      = NaN(length(subjs),size(params.timeBins,1));
 perf_p_all    = NaN(length(subjs),size(params.timeBins,1));
 auc_all       = NaN(length(subjs),size(params.timeBins,1));
+aucNull_all   = NaN(length(subjs),size(params.timeBins,1));
+aucNull_all   = [];
 auc_p_all     = NaN(length(subjs),size(params.timeBins,1));
 perfEnc_all   = NaN(length(subjs),size(params.timeBins,1));
 perfEnc_p_all = NaN(length(subjs),size(params.timeBins,1));
 aucEnc_all    = NaN(length(subjs),size(params.timeBins,1));
 aucEnc_p_all  = NaN(length(subjs),size(params.timeBins,1));
-quarts_all    = NaN(size(params.timeBins,1),4,length(subjs));
-quartsEnc_all = NaN(size(params.timeBins,1),4,length(subjs));
+quarts_all    = NaN(size(params.timeBins,1),3,length(subjs));
+quartsEnc_all = NaN(size(params.timeBins,1),3,length(subjs));
+quartsBest_all = NaN(size(params.timeBins,1),3,length(subjs));
+quartsBestEnc_all = NaN(size(params.timeBins,1),3,length(subjs));
 
+aucBest_all       = NaN(length(subjs),size(params.timeBins,1));
+aucBest_p_all     = NaN(length(subjs),size(params.timeBins,1));
+
+aucBestEnc_all    = NaN(length(subjs),size(params.timeBins,1));
+aucBestEnc_p_all  = NaN(length(subjs),size(params.timeBins,1));
 % will hold figure paths for latex report
 figs = [];
 for s = 1:length(subjs)
@@ -103,51 +112,93 @@ for s = 1:length(subjs)
     lassoData  = load(lassoFile);
     figs_subj.nElecs = length(lassoData.tal);
     
+    % 
+%     p = mean(repmat(lassoData.AUC,[size(chanceData.auc_all,1), 1]) > chanceData.auc_all);
+%     maxP = max(p);
+%     AUC = yc1Data.AUC;
+%     AUC(p~=maxP) = NaN;
+%     [~,timeToUse] = max(AUC);    
+%     keyboard
     % calculate percentile for subject for the timebin to timebin direct
     % mapping
-    perf_p          = mean(repmat(lassoData.perf,size(chanceData.perf_all,1),1) > chanceData.perf_all);
-    auc_p           = mean(repmat(lassoData.AUC,size(chanceData.perf_all,1),1) > chanceData.auc_all);
-    perf_p_all(s,:) = perf_p;
-    auc_p_all(s,:)  = auc_p;
-    perf_all(s,:)   = lassoData.perf;
-    auc_all(s,:)    = lassoData.AUC;
+    perf_p              = mean(repmat(lassoData.perf,size(chanceData.perf_all,1),1) > chanceData.perf_all);
+    auc_p               = mean(repmat(lassoData.AUC,size(chanceData.auc_all,1),1) > chanceData.auc_all);
+    aucBest_p           = mean(repmat(lassoData.AUC_best,size(chanceData.aucBest_all,1),1) > chanceData.aucBest_all);
+    perf_p_all(s,:)     = perf_p;
+    auc_p_all(s,:)      = auc_p;
+    aucBest_p_all(s,:)  = aucBest_p;
+    perf_all(s,:)       = lassoData.perf;
+    auc_all(s,:)        = lassoData.AUC;
+    aucNull_all    = [aucNull_all; chanceData.auc_all];
+    aucBest_all(s,:)    = lassoData.AUC_best;
     
     % now for timebin to average encoding interval
-    perf_pEnc          = mean(repmat([lassoData.res.perfEnc],size(chanceData.perfEncAll,1),1) > chanceData.perfEncAll);
-    auc_pEnc           = mean(repmat([lassoData.res.AUC_enc],size(chanceData.aucEncAll,1),1) > chanceData.aucEncAll);
-    perfEnc_p_all(s,:) = perf_pEnc;
-    aucEnc_p_all(s,:)  = auc_pEnc;
-    perfEnc_all(s,:)   = [lassoData.res.perfEnc];
-    aucEnc_all(s,:)    = [lassoData.res.AUC_enc];
-    lassoData.perfEnc  = [lassoData.res.perfEnc];
-    lassoData.AUC_enc  = [lassoData.res.AUC_enc];
+    perf_pEnc              = mean(repmat([lassoData.res.perfEnc],size(chanceData.perfEncAll,1),1) > chanceData.perfEncAll);
+    auc_pEnc               = mean(repmat([lassoData.res.AUC_enc],size(chanceData.aucEncAll,1),1) > chanceData.aucEncAll);
+    aucBest_pEnc           = mean(repmat([lassoData.resBest.AUC_enc],size(chanceData.aucBestEnc_all,1),1) > chanceData.aucBestEnc_all);
+    perfEnc_p_all(s,:)     = perf_pEnc;
+    aucEnc_p_all(s,:)      = auc_pEnc;
+    aucBestEnc_p_all(s,:)  = aucBest_pEnc;
+    perfEnc_all(s,:)       = [lassoData.res.perfEnc];
+    aucEnc_all(s,:)        = [lassoData.res.AUC_enc];
+    aucBestEnc_all(s,:)    = [lassoData.resBest.AUC_enc];
+    lassoData.perfEnc      = [lassoData.res.perfEnc];
+    lassoData.AUC_enc      = [lassoData.res.AUC_enc];
             
     % recalled vs not recalled vector
     rec       = vertcat(lassoData.Y);
     for t = 1:length(lassoData.res)
+        
+        
+        %% YC1 direct time bin mapping
         classProb = lassoData.res(t).yPred;
-        
-        % sort the recall vector based on the classifier probs
         [~,ind] = sort(classProb);
         recSort = rec(ind);
         
         % now bin the sorted recall vector
-        start = 1:(length(recSort)/4):length(recSort);
-        stop = [start(2:end)-1 length(recSort)];
-        quarts_all(t,:,s) = [mean(recSort(start(1):stop(1))) mean(recSort(start(2):stop(2))) ...
-            mean(recSort(start(3):stop(3))) mean(recSort(start(4):stop(4)))];
+        start = 1:(length(recSort)/3):length(recSort);
+        stop = [start(2:end)-1 length(recSort)];        
+        bins = NaN(1,length(stop));
+        for r = 1:length(stop)
+            bins(r) = mean(recSort(start(r):stop(r)));
+        end
+        quarts_all(t,:,s) = bins;
         
-        classProb = lassoData.res(t).yPredEnc;
-        
-        % sort the recall vector based on the classifier probs
+        %% YC to encoding mapping
+        classProb = lassoData.res(t).yPredEnc;                
         [~,ind] = sort(classProb);
         recSort = rec(ind);
         
         % now bin the sorted recall vector
-        start = 1:(length(recSort)/4):length(recSort);
-        stop = [start(2:end)-1 length(recSort)];
-        quartsEnc_all(t,:,s) = [mean(recSort(start(1):stop(1))) mean(recSort(start(2):stop(2))) ...
-            mean(recSort(start(3):stop(3))) mean(recSort(start(4):stop(4)))];
+        bins = NaN(1,length(stop));
+        for r = 1:length(stop)
+            bins(r) = mean(recSort(start(r):stop(r)));
+        end
+        quartsEnc_all(t,:,s) = bins;
+        
+        %% YC1 best time bin mapping
+        classProb = lassoData.resBest(t).yPred;
+        [~,ind] = sort(classProb);
+        recSort = rec(ind);
+        
+        % now bin the sorted recall vector
+        bins = NaN(1,length(stop));
+        for r = 1:length(stop)
+            bins(r) = mean(recSort(start(r):stop(r)));
+        end
+        quartsBest_all(t,:,s) = bins;    
+        
+        %% YC1 best time bin mapping to encoding. I realize each timebin is the same...
+        classProb = lassoData.resBest(t).yPredEnc;
+        [~,ind] = sort(classProb);
+        recSort = rec(ind);
+        
+        % now bin the sorted recall vector
+        bins = NaN(1,length(stop));
+        for r = 1:length(stop)
+            bins(r) = mean(recSort(start(r):stop(r)));
+        end
+        quartsBestEnc_all(t,:,s) = bins;            
         
     end
     
@@ -160,12 +211,12 @@ for s = 1:length(subjs)
         xBinsStr{x} = [num2str(xBins(x,1)), '-', num2str(xBins(x,2))];
     end
     
-    ylabels   = {'Classifier Accuracy (%)','Classifier AUC'};
-    ps        = {[1-perf_p;1-perf_pEnc],[1-auc_p;1-auc_pEnc]};    
-    fields    = {{'perf','perfEnc'},{'AUC','AUC_enc'}};
+    ylabels   = {'Classifier Accuracy (%)','Classifier AUC','Classifier AUC'};
+    ps        = {[1-perf_p;1-perf_pEnc],[1-auc_p;1-auc_pEnc],[1-aucBest_p;1-aucBest_pEnc]};    
+    fields    = {{'perf','perfEnc'},{'AUC','AUC_enc'},{'AUC_best','AUC_bestEnc'}};
     axPos     = [.15 .55 .8 .4;.15 .15 .8 .4];
     
-    for i = 1:2
+    for i = 1:3
         fname = fullfile(figDir,[subj '_' fields{i}{1} '.eps']);
         figs_subj.(fields{i}{1}) = fname;
         if exist(fname,'file') && ~overwrite
@@ -174,7 +225,7 @@ for s = 1:length(subjs)
         figure(1)
         clf
         
-        for j = 1:2
+        for j = 1:1
             figure(1)
             % first plot all the points as black
             axes('position',axPos(j,:));
@@ -238,6 +289,7 @@ for s = 1:length(subjs)
             xlim = get(gca,'xlim');
             plot(xlim,[.5 .5],'--k','linewidth',1.5)
             box on
+            
         end
         print('-depsc2','-tiff','-loose',fname);
         
@@ -303,16 +355,30 @@ end
 fprintf('Creating group plots.\n');
 figs_group = [];
 figs_group.quarts   = {};
+figs_group.quarts_enc = {};
+figs_group.quartsBest = {};
+figs_group.quartsBestEnc = {};
 figs_group.auc_hist = {};
+figs_group.aucEnc_hist = {};
+figs_group.aucBestEnc_hist = {};
+figs_group.aucBest_hist = {};
+figs_group.quartsBest = {};
+figs_group.quartsBestEnc = {};
 
 % compute average quartile measure for each time bin
-meanRec_subj    = repmat(nanmean(quarts_all,2),[1,4,1]);
+meanRec_subj    = repmat(nanmean(quarts_all,2),[1,3,1]);
 nSubj           = sum(~isnan(quarts_all),3);
 figs_group.N    = nSubj(:,1);
 quarts_err      = nanstd((quarts_all - meanRec_subj)./meanRec_subj,[],3)./sqrt(nSubj-1);
 quarts_group    = nanmean((quarts_all - meanRec_subj)./meanRec_subj,3);
 quartsEnc_err   = nanstd((quartsEnc_all - meanRec_subj)./meanRec_subj,[],3)./sqrt(nSubj-1);
 quartsEnc_group = nanmean((quartsEnc_all - meanRec_subj)./meanRec_subj,3);
+
+quartsBest_all_err   = nanstd((quartsBest_all - meanRec_subj)./meanRec_subj,[],3)./sqrt(nSubj-1);
+quartsBest_all_group = nanmean((quartsBest_all - meanRec_subj)./meanRec_subj,3);
+quartsBestEnc_all_err   = nanstd((quartsBestEnc_all - meanRec_subj)./meanRec_subj,[],3)./sqrt(nSubj-1);
+quartsBestEnc_all_group = nanmean((quartsBestEnc_all - meanRec_subj)./meanRec_subj,3);
+
 
 % labels for plotting
 labels = params.timeBinLabels;
@@ -321,7 +387,7 @@ if isempty(labels);labels=repmat({''},1,size(quarts_group,1));end
 % plot each time bin separately
 for t = 1:size(quarts_group,1)
     
-    %% QUARTILE PLOT
+    %% QUARTILE PLOT - YC1 direct time bin mapping
     fname = fullfile(figDir,['group_quart_' labels{t} '.eps']);
     figs_group.quarts{t} = fname;
     
@@ -330,7 +396,7 @@ for t = 1:size(quarts_group,1)
         clf
         bar(quarts_group(t,:)*100,'w','linewidth',2);
         hold on
-        errorbar(1:4,quarts_group(t,:)*100,quarts_err(t,:)*196,'k','linewidth',2,'linestyle','none')
+        errorbar(1:3,quarts_group(t,:)*100,quarts_err(t,:)*196,'k','linewidth',2,'linestyle','none')
         
         xlabel('Quartile of Classifier Estimate','fontsize',20)
         ylabel('Recall Change (%)','fontsize',20)
@@ -346,7 +412,7 @@ for t = 1:size(quarts_group,1)
         print('-depsc2','-tiff','-loose',fname);
     end
     
-    %% QUARTILE PLOT
+    %% QUARTILE PLOT - YC1 time bin to encoding mapping
     fname = fullfile(figDir,['group_quart_enc_' labels{t} '.eps']);
     figs_group.quarts_enc{t} = fname;
     
@@ -355,7 +421,7 @@ for t = 1:size(quarts_group,1)
         clf
         bar(quartsEnc_group(t,:)*100,'w','linewidth',2);
         hold on
-        errorbar(1:4,quartsEnc_group(t,:)*100,quartsEnc_err(t,:)*196,'k','linewidth',2,'linestyle','none')
+        errorbar(1:3,quartsEnc_group(t,:)*100,quartsEnc_err(t,:)*196,'k','linewidth',2,'linestyle','none')
         
         xlabel('Quartile of Classifier Estimate','fontsize',20)
         ylabel('Recall Change (%)','fontsize',20)
@@ -371,37 +437,56 @@ for t = 1:size(quarts_group,1)
         print('-depsc2','-tiff','-loose',fname);
     end    
     
-%     %% ACCURACY HISTOGRAM PLOT
-%     fname = fullfile(figDir,['acc_hist_' labels{t} '.eps']);
-%     figs_group.acc_hist{t} = fname;
-%     
-%     if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
-%         figure(3)
-%         clf
-%         perf = perf_all(:,t);
-%         sig  = perf_p_all(:,t) > .95;
-%         n1   = histc(perf(sig),0.025:.05:.975);
-%         n2   = histc(perf(~sig),0.025:.05:.975);
-%         h    = bar([.05:.05:1]*100,[n1 n2],1,'stacked','linewidth',2);
-%         xlabel('Classifier Percent Correct','Fontsize',20);
-%         set(gca,'xlim',[.2 .8]*100);
-%         set(gca,'xlim',[0 100]);
-%         set(gca,'xtick',0:25:100)
-%         set(gca,'ylim',[0 15]);
-%         ylabel('Subject Count','Fontsize',20)
-%         set(h(2),'FaceColor','w');
-%         set(h(1),'FaceColor',[226 55 67]/255);
-%         grid on
-%         set(gca,'fontsize',20)
-%         set(gca,'gridlinestyle',':');
-%         box on
-%         hold on
-%         plot([50 50],[0 15],'--k','linewidth',2)
-%         h=title([labels{t} ' Period'],'fontsize',20);
-%         set(h,'fontweight','normal');     
-%         print('-depsc2','-tiff','-loose',fname);
-%         
-%     end
+   %% QUARTILE PLOT - YC1 best to each mapping
+    fname = fullfile(figDir,['group_quartBest_' labels{t} '.eps']);
+    figs_group.quartsBest{t} = fname;
+    
+    if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
+        figure(2)
+        clf
+        bar(quartsBest_all_group(t,:)*100,'w','linewidth',2);
+        hold on
+        errorbar(1:3,quartsBest_all_group(t,:)*100,quartsBest_all_err(t,:)*196,'k','linewidth',2,'linestyle','none')
+        
+        xlabel('Quartile of Classifier Estimate','fontsize',20)
+        ylabel('Recall Change (%)','fontsize',20)
+        set(gca,'fontsize',20)
+        set(gca,'ylim',[-100 100])
+        set(gca,'xlim',[0 5])
+        set(gca,'ylim',[-25 25])
+        grid on
+        set(gca,'gridlinestyle',':');
+        hold on
+        h=title([labels{t} ' Period'],'fontsize',20);
+        set(h,'fontweight','normal');
+        print('-depsc2','-tiff','-loose',fname);
+    end    
+    
+      %% QUARTILE PLOT - YC1 best to Enc mapping. 
+    fname = fullfile(figDir,['group_quartBestEnc_' labels{t} '.eps']);
+    figs_group.quartsBestEnc{t} = fname;
+    
+    if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
+        figure(2)
+        clf
+        bar(quartsBestEnc_all_group(t,:)*100,'w','linewidth',2);
+        hold on
+        errorbar(1:3,quartsBestEnc_all_group(t,:)*100,quartsBestEnc_all_err(t,:)*196,'k','linewidth',2,'linestyle','none')
+        
+        xlabel('Quartile of Classifier Estimate','fontsize',20)
+        ylabel('Recall Change (%)','fontsize',20)
+        set(gca,'fontsize',20)
+        set(gca,'ylim',[-100 100])
+        set(gca,'xlim',[0 5])
+        set(gca,'ylim',[-25 25])
+        grid on
+        set(gca,'gridlinestyle',':');
+        hold on
+        h=title([labels{t} ' Period'],'fontsize',20);
+        set(h,'fontweight','normal');
+        print('-depsc2','-tiff','-loose',fname);
+    end     
+    
     
     %% AUC HISTOGRAM PLOT DIRECT TIME BIN MAPPING
     fname = fullfile(figDir,['auc_hist_' labels{t} '.eps']);
@@ -413,6 +498,8 @@ for t = 1:size(quarts_group,1)
         auc = auc_all(:,t);
         sig  = auc_p_all(:,t) > .95;
         n1   = histc(auc(sig),0.025:.05:.975);
+        % wtf
+        if isrow(n1);n1=n1';end        
         n2   = histc(auc(~sig),0.025:.05:.975);
         h    = bar([.05:.05:1]*100,[n1 n2],1,'stacked','linewidth',2);
         xlabel('Classifier AUC','Fontsize',20);
@@ -431,8 +518,8 @@ for t = 1:size(quarts_group,1)
         plot([50 50],[0 15],'--k','linewidth',2)
         h=title([labels{t} ' Period'],'fontsize',20);
         set(h,'fontweight','normal');     
-        print('-depsc2','-tiff','-loose',fname);        
-    end        
+        print('-depsc2','-tiff','-loose',fname);              
+    end     
     
     %% AUC HISTOGRAM PLOT TIME BIN TO 0-5 ENCODING
     fname = fullfile(figDir,['auc_histEnc_' labels{t} '.eps']);
@@ -466,6 +553,73 @@ for t = 1:size(quarts_group,1)
         set(h,'fontweight','normal');     
         print('-depsc2','-tiff','-loose',fname);        
     end        
+    
+    %% AUC HISTOGRAM PLOT BEST TO EACH
+    fname = fullfile(figDir,['aucBest_hist_' labels{t} '.eps']);
+    figs_group.aucBest_hist{t} = fname;
+    
+    if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
+        figure(3)
+        clf
+        auc = aucBest_all(:,t);
+        sig  = aucBest_p_all(:,t) > .95;
+        n1   = histc(auc(sig),0.025:.05:.975);
+        % wtf
+        if isrow(n1);n1=n1';end        
+        n2   = histc(auc(~sig),0.025:.05:.975);
+        h    = bar([.05:.05:1]*100,[n1 n2],1,'stacked','linewidth',2);
+        xlabel('Classifier AUC','Fontsize',20);
+        set(gca,'xlim',[.2 .8]*100);
+        set(gca,'xlim',[0 100]);
+        set(gca,'xtick',0:25:100)
+        set(gca,'ylim',[0 15]);
+        ylabel('Subject Count','Fontsize',20)
+        set(h(2),'FaceColor','w');
+        set(h(1),'FaceColor',[226 55 67]/255);
+        grid on
+        set(gca,'fontsize',20)
+        set(gca,'gridlinestyle',':');
+        box on
+        hold on
+        plot([50 50],[0 15],'--k','linewidth',2)
+        h=title([labels{t} ' Period'],'fontsize',20);
+        set(h,'fontweight','normal');     
+        print('-depsc2','-tiff','-loose',fname);              
+    end        
+    
+       %% AUC HISTOGRAM PLOT BEST TO ENC
+    fname = fullfile(figDir,['aucBestEnc_hist_' labels{t} '.eps']);
+    figs_group.aucBestEnc_hist{t} = fname;
+    
+    if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
+        figure(3)
+        clf
+        auc = aucBestEnc_all(:,t);
+        sig  = aucBestEnc_p_all(:,t) > .95;
+        n1   = histc(auc(sig),0.025:.05:.975);
+        % wtf
+        if isrow(n1);n1=n1';end        
+        n2   = histc(auc(~sig),0.025:.05:.975);
+        h    = bar([.05:.05:1]*100,[n1 n2],1,'stacked','linewidth',2);
+        xlabel('Classifier AUC','Fontsize',20);
+        set(gca,'xlim',[.2 .8]*100);
+        set(gca,'xlim',[0 100]);
+        set(gca,'xtick',0:25:100)
+        set(gca,'ylim',[0 15]);
+        ylabel('Subject Count','Fontsize',20)
+        set(h(2),'FaceColor','w');
+        set(h(1),'FaceColor',[226 55 67]/255);
+        grid on
+        set(gca,'fontsize',20)
+        set(gca,'gridlinestyle',':');
+        box on
+        hold on
+        plot([50 50],[0 15],'--k','linewidth',2)
+        h=title([labels{t} ' Period'],'fontsize',20);
+        set(h,'fontweight','normal');     
+        print('-depsc2','-tiff','-loose',fname);              
+    end    
+    
 end
 
 % AUC OVER DIRECT TIME BIN MAPPING
@@ -543,6 +697,83 @@ if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
     set(gca,'fontsize',16)
     print('-depsc2','-tiff','-loose',fname);   
 end
+
+% AUC BEST TO EACH
+fname = fullfile(figDir,'aucBest_time_direct.eps');
+figs_group.aucBest_time_direct = fname;
+if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
+    figure(3)
+    clf
+    [h,p] = ttest(aucBest_all,.5);
+    sigCorr = p*size(aucBest_all,2) < .05;
+    sig     = p <.05 & ~sigCorr;
+    h=bar(find(~sig & ~sigCorr),nanmean(aucBest_all(:,~sig & ~sigCorr)),'w','linewidth',2);
+    set(h,'facecolor',[.5 .5 .5])
+    hold on
+    if any(sig)
+        h=bar(find(sig),nanmean(aucBest_all(:,sig)),'w','linewidth',2);
+        set(gca,'ylim',[.4 .6])
+        set(h,'facecolor',[200 100 100]/255)
+    end
+    if any(sigCorr)
+        h=bar(find(sigCorr),nanmean(aucBest_all(:,sigCorr)),'w','linewidth',2);
+        set(gca,'ylim',[.4 .6])
+        set(h,'facecolor',[140 15 15]/255)
+    end
+    err = nanstd(aucBest_all)./sqrt(sum(~isnan(aucBest_all))-1);
+    errorbar(1:size(aucBest_all,2),nanmean(aucBest_all),err*1.96,'k','linewidth',2,'linestyle','none')
+    plot([0 size(aucBest_all,2)+1],[.5 .5],'--k','linewidth',2)
+    grid on
+    set(gca,'gridlinestyle',':');
+    set(gca,'xlim',[0 size(aucBest_all,2)+1]);
+    set(gca,'xtick',1:size(aucBest_all,2));
+    set(gca,'xticklabel',xBinsStr);
+    set(gca,'ylim',[.4 .6])
+    set(gca,'ytick',.4:.05:.6)
+    ylabel('Classifier AUC','Fontsize',16);
+    xlabel('Timebin','Fontsize',16);
+    set(gca,'fontsize',16)
+    print('-depsc2','-tiff','-loose',fname);   
+end
+
+% AUC BEST TO ENC
+fname = fullfile(figDir,'aucBestEnc_time_direct.eps');
+figs_group.aucBestEnc_time_direct = fname;
+if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
+    figure(3)
+    clf
+    [h,p] = ttest(aucBestEnc_all,.5);
+    sigCorr = p*size(aucBestEnc_all,2) < .05;
+    sig     = p <.05 & ~sigCorr;
+    h=bar(find(~sig & ~sigCorr),nanmean(aucBestEnc_all(:,~sig & ~sigCorr)),'w','linewidth',2);
+    set(h,'facecolor',[.5 .5 .5])
+    hold on
+    if any(sig)
+        h=bar(find(sig),nanmean(aucBestEnc_all(:,sig)),'w','linewidth',2);
+        set(gca,'ylim',[.4 .6])
+        set(h,'facecolor',[200 100 100]/255)
+    end
+    if any(sigCorr)
+        h=bar(find(sigCorr),nanmean(aucBestEnc_all(:,sigCorr)),'w','linewidth',2);
+        set(gca,'ylim',[.4 .6])
+        set(h,'facecolor',[140 15 15]/255)
+    end
+    err = nanstd(aucBestEnc_all)./sqrt(sum(~isnan(aucBestEnc_all))-1);
+    errorbar(1:size(aucBestEnc_all,2),nanmean(aucBestEnc_all),err*1.96,'k','linewidth',2,'linestyle','none')
+    plot([0 size(aucBestEnc_all,2)+1],[.5 .5],'--k','linewidth',2)
+    grid on
+    set(gca,'gridlinestyle',':');
+    set(gca,'xlim',[0 size(aucBestEnc_all,2)+1]);
+    set(gca,'xtick',1:size(aucBestEnc_all,2));
+    set(gca,'xticklabel',xBinsStr);
+    set(gca,'ylim',[.4 .6])
+    set(gca,'ytick',.4:.05:.6)
+    ylabel('Classifier AUC','Fontsize',16);
+    xlabel('Timebin','Fontsize',16);
+    set(gca,'fontsize',16)
+    print('-depsc2','-tiff','-loose',fname);   
+end
+
 keyboard
 good = ~cellfun('isempty',{figs.subj});
 figs = figs(good);
@@ -560,7 +791,7 @@ fprintf('Done!\n');
 cd(curr_dir);
 
 % compile group report
-texName = 'group_lassoChance_report.tex';
+texName = 'YC2_group_lassoChance_report.tex';
 write_texfile_group(saveDir,texName,figs_group)
 
 curr_dir = pwd;
@@ -641,7 +872,7 @@ for s = 1:length(figs)
 end 
 
 fprintf(fid,'\\end{document}\n\n\n');
-
+fclose(fid);
 % Start making the tex file
 function write_texfile_group(saveDir,texName, figs)
 
@@ -714,6 +945,24 @@ fprintf(fid,'\\end{figure}\n\n\n');
 fprintf(fid,'\\clearpage\n\n\n');
 
 
+fprintf(fid,'\\begin{figure}[!h]\n');
+fprintf(fid,'\\centering\n');
+for f = 1:size(figs.N,1)
+    fprintf(fid,'\\includegraphics[width=0.4\\textwidth]{%s}\n',figs.quartsBest{f});
+end
+fprintf(fid,'\\caption{%d Subjects: Subject average quartile by time bin. YC1 model from BEST time bin is applied to the \\textbf{same} time bin in YC2.}\n\n',figs.N(1,1));
+fprintf(fid,'\\end{figure}\n\n\n');
+fprintf(fid,'\\clearpage\n\n\n');
+
+fprintf(fid,'\\begin{figure}[!h]\n');
+fprintf(fid,'\\centering\n');
+for f = 1:size(figs.N,1)
+    fprintf(fid,'\\includegraphics[width=0.4\\textwidth]{%s}\n',figs.quartsBestEnc{f});
+end
+fprintf(fid,'\\caption{%d Subjects: Subject average quartile by time bin. YC1 model from BEST time bin is applied to the \\textbf{ENC} time bin in YC2.}\n\n',figs.N(1,1));
+fprintf(fid,'\\end{figure}\n\n\n');
+fprintf(fid,'\\clearpage\n\n\n');
+
 
 fprintf(fid,'\\begin{figure}[!h]\n');
 fprintf(fid,'\\centering\n');
@@ -735,6 +984,28 @@ fprintf(fid,'\\end{figure}\n\n\n');
 fprintf(fid,'\\clearpage\n\n\n');
 
 
+
+fprintf(fid,'\\begin{figure}[!h]\n');
+fprintf(fid,'\\centering\n');
+for f = 1:size(figs.N,1)
+    fprintf(fid,'\\includegraphics[width=0.4\\textwidth]{%s}\n',figs.aucBest_hist{f});
+end
+fprintf(fid,'\\caption{%d Subjects: Subject AUC histogram by time bin. YC1 model from BEST time bin is applied to the \\textbf{same} time bin in YC2.}\n\n',figs.N(1,1));
+fprintf(fid,'\\end{figure}\n\n\n');
+fprintf(fid,'\\clearpage\n\n\n');
+
+
+fprintf(fid,'\\begin{figure}[!h]\n');
+fprintf(fid,'\\centering\n');
+for f = 1:size(figs.N,1)
+    fprintf(fid,'\\includegraphics[width=0.4\\textwidth]{%s}\n',figs.aucBestEnc_hist{f});
+end
+fprintf(fid,'\\caption{%d Subjects: Subject AUC histogram by time bin. YC1 model from BEST time bin is applied to the \\textbf{0-5 encoding bin} in YC2.}\n\n',figs.N(1,1));
+fprintf(fid,'\\end{figure}\n\n\n');
+fprintf(fid,'\\clearpage\n\n\n');
+
+
+
 fprintf(fid,'\\begin{figure}[!h]\n');
 fprintf(fid,'\\centering\n');
 
@@ -743,9 +1014,16 @@ fprintf(fid,'\\includegraphics[width=0.45\\textwidth]{%s}\n',figs.auc_time_indir
 fprintf(fid,'\\caption{%d Subjects: Average AUC over time. Dark red: significant after correcting for number of time bins. Light red: $p<.05$. \\textbf{Left:} YC1 model for each time bin applied to the same YC2 timebin. \\textbf{Right:} YC1 model for each time bin applied to average 0-5 second bin.}\n\n',figs.N(1,1));
 fprintf(fid,'\\end{figure}\n\n\n');
 
+fprintf(fid,'\\begin{figure}[!h]\n');
+fprintf(fid,'\\centering\n');
+
+fprintf(fid,'\\includegraphics[width=0.45\\textwidth]{%s}\n',figs.aucBest_time_direct);
+fprintf(fid,'\\includegraphics[width=0.45\\textwidth]{%s}\n',figs.aucBestEnc_time_direct);
+fprintf(fid,'\\caption{%d Subjects: Average AUC over time. Dark red: significant after correcting for number of time bins. Light red: $p<.05$. \\textbf{Left:} YC1 model for each time bin applied to the same YC2 timebin. \\textbf{Right:} YC1 model for each time bin applied to average 0-5 second bin.}\n\n',figs.N(1,1));
+fprintf(fid,'\\end{figure}\n\n\n');
 
 fprintf(fid,'\\end{document}\n\n\n');
-
+fclose(fid);
 
 
 

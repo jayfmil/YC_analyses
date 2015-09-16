@@ -69,7 +69,8 @@ try
     modelEachTime = params.modelEachTime;
     doBinary      = params.doBinary;
     saveOutput    = params.saveOutput;
-    doPermute     = params.doPermute;    
+    doPermute     = params.doPermute;   
+    normType      = params.normType;
     
     % load power for all electrodes
     powDir = fullfile(saveDir,'power');
@@ -143,7 +144,7 @@ try
     end
     
     objLocs = vertcat(events(eventsToUse).objLocs);
-        
+    
     % We can model time points seperately, so # features = # freqs x # elecs,
     % or we can model it all together, so # features = # times x # freqs x #
     % elecs.    
@@ -162,8 +163,16 @@ try
                 if ~isempty(params.lambda)
                     lambda = params.lambda(t);
                 else
-                    fprintf('Subject %s: Computing optimal lambda.\n',subj)
-                    [stats,lambda] = calcLambda(X,Y,doBinary,params.nCV);
+                    if params.alpha < 1 && strcmp(normType,'L1')  
+                        fprintf('Subject %s: Computing optimal lambda using elastic net normalization.\n',subj)
+                    else
+                        fprintf('Subject %s: Computing optimal lambda using %s normalization.\n',subj,normType)
+                    end
+                    if strcmp(normType,'L1')                        
+                        [stats,lambda] = calcLambda(X,Y,doBinary,params.nCV,params.alpha);
+                    elseif strcmp(normType,'L2')                        
+                        lambda = calcPenalty(X,Y,params.nCV);
+                    end
                 end
                 lambdas(t) = lambda;
             end
@@ -178,14 +187,14 @@ try
                     res(t).yTest{iFold},...
                     res(t).A{iFold},...
                     res(t).intercept{iFold},...
-                    res(t).err{iFold}] = lassoReg(X,Y,folds(iFold,:),lambda,params.nCV);
+                    res(t).err{iFold}] = doRegFun(X,Y,folds(iFold,:),lambda,params.nCV,params.alpha,normType);
             end  
             perf(t) = mean(vertcat(res(t).err{:}));
             res(t).perf = perf(t);
             if doBinary     
                 yPred = vertcat(res(t).yPred{:});                
-%                 [res(t).xAUC,res(t).yAUC,~,res(t).AUC,res(t).optPoint] = perfcurve(Y,yPred,true);
-                res(t).AUC = compute_auc(yPred,Y);
+                [~,~,~,res(t).AUC] = perfcurve(Y,yPred,true);
+%                res(t).AUC = compute_auc(yPred,Y);
                 AUC(t) = res(t).AUC;                
             end
         end
@@ -204,7 +213,7 @@ try
                 lambda = params.lambda;
             else
                 fprintf('Subject %s: Computing optimal lambda.\n',subj)
-                [stats,lambda] = calcLambda(X,Y,doBinary,params.nCV);
+                [stats,lambda] = calcLambda(X,Y,doBinary,params.nCV,params.alpha);
             end
         end
         
@@ -216,14 +225,14 @@ try
                 res.yTest{iFold},...
                 res.A{iFold},...
                 res.intercept{iFold},...
-                res.err{iFold}] = lassoReg(X,Y,folds(iFold,:),lambda,params.nCV);
+                res.err{iFold}] = doRegFun(X,Y,folds(iFold,:),lambda,params.nCV,params.alpha,normType);
         end
         perf = mean(vertcat(res.err{:}));
         res.perf = perf;
         if doBinary
             yPred = vertcat(res.yPred{:});
-%             [res.xAUC,res.yAUC,~,res.AUC,res.optPoint] = perfcurve(Y,yPred,true);
-            res.AUC = compute_auc(yPred,Y);
+            [~,~,~,res.AUC] = perfcurve(Y,yPred,true);
+%            res.AUC = compute_auc(yPred,Y);
             AUC = res.AUC;            
         end
     end
@@ -238,14 +247,14 @@ catch e
     save(fname,'e')
 end
 
-function [stats,lambda] = calcLambda(X,Y,doBinary,nCV)
+function [stats,lambda] = calcLambda(X,Y,doBinary,nCV,alpha)
 if isempty(nCV)
     nCV = round(length(Y)/2);
 end
 
 if doBinary
   
-    [~,stats] = lassoglm(X,Y,'binomial','CV', nCV, 'NumLambda', 50);
+    [~,stats] = lassoglm(X,Y,'binomial','CV', nCV, 'NumLambda', 50,'alpha',alpha);
     lambda    = stats.LambdaMinDeviance;
     
 else
@@ -258,13 +267,93 @@ else
     yCentered = round(Y - intercept,14);
     
     % compute optimal lamda
-    [~, stats] = lasso(xCentered', yCentered, 'CV', nCV, 'NumLambda', 50);
+    [~, stats] = lasso(xCentered', yCentered, 'CV', nCV, 'NumLambda', 50,'alpha',alpha);
     lambda     = stats.LambdaMinMSE;
 end
 
-function [yPred,yTest,A,intercept,err] = lassoReg(X,Y,trainInds,lambda,nCV)
+function penalty = calcPenalty(X,Y,nCV)
+% Calculate the L2 penalty parameter. Following logic from Marc Coutanche's
+% optimal_penalty_search, for find the best parameter across a broad range
+% of values. Then focus in on the best value for a more precise measure.
+if isempty(nCV)
+    nCV = round(length(Y)/2);
+end
+
+% find best penatlty across a wide range
+starting_vals = [0 0.01 0.1 1.0 10 100 1000 10000];
+auc_pen = NaN(length(starting_vals),nCV);
+for pVal = 1:length(starting_vals)
+    thisPen = starting_vals(pVal);
+    inds    = crossvalind('Kfold',size(X,1),nCV);    
+    for cv = 1:nCV        
+        
+        % train data for this cv
+        xTrain = [ones(sum(inds~=cv),1) X(inds~=cv,:)];
+        yTrain = Y(inds~=cv);
+        
+        % test data for this cv
+        xTest = [ones(sum(inds==cv),1) X(inds==cv,:)]; 
+        yTest = Y(inds==cv);
+        
+        % train on this date with this cv
+        out = logRegFun(yTrain',xTrain',thisPen);        
+        
+        % test on held out
+        p = exp(out.weights' * xTest')./(1+exp(out.weights' * xTest'));
+        auc_pen(pVal,cv) = compute_auc(p,yTest);
+    end
+end
+
+% pick best of the wide range
+[maxBroad,bestInd] = max(nanmean(auc_pen,2));
+bestBroadPen       = starting_vals(bestInd);
+
+% search around the best value
+if find(bestInd) == 0;
+    pen_vals = linspace(0,starting_vals(find(bestInd)+1)/2,10);
+elseif find(bestInd) == length(starting_vals)
+    pen_vals = linspace(bestBroadPen/2,starting_vals(bestInd)*1.5,10);
+else
+    pen_vals = linspace(bestBroadPen/2,starting_vals(find(bestInd)+1)/2,10);
+end
+
+% loop over all new values
+auc_pen_refined = NaN(length(pen_vals),nCV);
+for pVal = 1:length(pen_vals)
+    thisPen = pen_vals(pVal);
+    inds    = crossvalind('Kfold',size(X,1),nCV);    
+    for cv = 1:nCV        
+        
+        % train data for this cv
+        xTrain = [ones(sum(inds~=cv),1) X(inds~=cv,:)];
+        yTrain = Y(inds~=cv);
+        
+        % test data for this cv
+        xTest = [ones(sum(inds==cv),1) X(inds==cv,:)]; 
+        yTest = Y(inds==cv);
+        
+        % train on this date with this cv
+        out = logRegFun(yTrain',xTrain',thisPen);        
+        
+        % test on held out
+        p = exp(out.weights' * xTest')./(1+exp(out.weights' * xTest'));
+        auc_pen_refined(pVal,cv) = compute_auc(p,yTest);
+    end
+end
+
+% pick best of the narrow range
+[maxRefined,bestInd] = max(nanmean(auc_pen_refined,2));
+bestRefinedPen       = pen_vals(bestInd);
+
+% pick best of both
+[~,ind] = max([maxBroad maxRefined]);
+penalties = [bestBroadPen bestRefinedPen];
+penalty = penalties(ind);
+
+
+function [yPred,yTest,A,intercept,err] = doRegFun(X,Y,trainInds,lambda,nCV,alpha,normType)
 %
-% This does lasso. 
+% This does the regression. 
 % X = # trials x # features
 % Y = # trials vector of responses
 % trainInds = logical vector of training/test
@@ -285,7 +374,8 @@ if doBinary
     
     % I'm under sampling the larger class so that we have equal numbers.
     % This isn't a great idea of more skewed dataset, but since we are
-    % using a median threshold, it doesn't really matter here
+    % using a median threshold, it doesn't really matter here. Should also
+    % do multiple rounds.
     yTrainBool = Y(trainInds);
     
     % figure out which observations to remove from larger class
@@ -304,16 +394,33 @@ if doBinary
     % training set y
     yTrainBool(toRemove) = [];
     
-    % compute model
-    if isempty(lambda)
-        [A_lasso, stats] = lassoglm(xTrain',yTrainBool,'binomial','CV', nCV, 'NumLambda', 50);
+    % if no lambda given, calculate lambda for this fold.
+    if isempty(lambda)        
+        if strcmp(normType,'L1')  
+            [A_lasso, stats] = lassoglm(xTrain',yTrainBool,'binomial','CV', nCV, 'NumLambda', 50,'alpha',alpha);
+            
+            % get the best cooefficients and intercept
+            A = A_lasso(:,stats.IndexMinDeviance);
+            intercept = stats.Intercept(stats.IndexMinDeviance);
+        else
+            lambda    = calcPenalty(xTrain',yTrainBool,params.nCV);
+            xTrain    = [ones(sum(size(xTrain,2)),1) xTrain'];
+            out       = logRegFun(yTrainBool',xTrain',lambda);
+            intercept = out.weights(1);
+            A         = out.weights(2:end);                        
+        end
         
-        % get the best cooefficients and intercept
-        A = A_lasso(:,stats.IndexMinDeviance);
-        intercept = stats.Intercept(stats.IndexMinDeviance);
-    else
-        [A, stats] = lassoglm(xTrain',yTrainBool,'binomial','Lambda',lambda);
-        intercept = stats.Intercept;
+    % otherwise use the given lambda
+    else        
+        if strcmp(normType,'L1')                   
+            [A, stats] = lassoglm(xTrain',yTrainBool,'binomial','Lambda',lambda,'alpha',alpha);
+            intercept = stats.Intercept;
+        else
+            xTrain    = [ones(sum(size(xTrain,2)),1) xTrain'];
+            out       = logRegFun(yTrainBool',xTrain',lambda);
+            intercept = out.weights(1);
+            A         = out.weights(2:end);
+        end                
     end
     
     % testing set
@@ -342,10 +449,10 @@ else
     
     % compute model
     if isempty(lambda)
-        [A_lasso, stats] = lasso(xTrain', yTrain, 'CV', nCV, 'NumLambda', 50);
+        [A_lasso, stats] = lasso(xTrain', yTrain, 'CV', nCV, 'NumLambda', 50, 'alpha',alpha);
         A = A_lasso(:,stats.IndexMinMSE);
     else
-        A = lasso(xTrain', yTrain, 'Lambda',lambda);
+        A = lasso(xTrain', yTrain, 'Lambda',lambda, 'alpha',alpha);
     end
     
     % testing set

@@ -1,5 +1,5 @@
-function YC2_runApplyWeights(subjs,params)
-% function YC2_applyWeights(subjs,params)
+function YC2_runPostStimBaselineChange(subjs,params)
+% function YC2_runPostStimBaselineChange(subjs,params)
 % Inputs:
 %
 %      subjs - cell array of subject strings (default get_subs('RAM_YC2'))
@@ -12,11 +12,18 @@ if ~exist('params','var') || isempty(params)
     params = multiParams();
 end
 
+% use first stim event, second stim event, or both?
+stimToUse = 'both'
+
+% YC time period to use (pick one of the timeBinLabels in params, or choose
+% 'best'
+timeToUse = 'post'
+
 % save directory
 f = @(x,y) y{double(x)+1};
 y = {'OrigPower','CorrectedPower'};
 YC1_dir = fullfile(params.basePath,f(params.useCorrectedPower,y));
-saveDir = fullfile(YC1_dir,'YC2');
+saveDir = fullfile(YC1_dir,['YC2_postStim_',stimToUse,'_',timeToUse]);
 if ~exist(saveDir,'dir')
     mkdir(saveDir);
 end
@@ -38,19 +45,19 @@ if ~isempty(poolobj)
         if ~exist(lassoFile,'file')
             fprintf('No YC1 lasso data for %s. Skipping.\n',subjs{s})
             continue
-        elseif exist(errorFile,'file')
-            fprintf('YC1 lasso error file present for %s. Skipping.\n',subjs{s})
-            continue
+%         elseif exist(errorFile,'file')
+%             fprintf('YC1 lasso error file present for %s. Skipping.\n',subjs{s})
+%             continue
         elseif ~exist(chanceFile,'file')
             fprintf('No YC1 chance file present for %s. Skipping.\n',subjs{s})            
-            continue             
+            continue            
         else
             subjData = load(lassoFile);
             chanceData = load(chanceFile);
             YC1_params = subjData.params;
             YC1_params.powerPath = params.powerPath;
             fprintf('Processing %s.\n',subjs{s})
-            YC2_applyWeights(subjs{s},YC1_params,subjData,chanceData,saveDir);            
+            YC2_postStimBaselineChange(subjs{s},YC1_params,subjData,chanceData,stimToUse,timeToUse,saveDir);            
         end
     end
 elseif isempty(poolobj)
@@ -61,19 +68,20 @@ elseif isempty(poolobj)
         if ~exist(lassoFile,'file')
             fprintf('No YC1 lasso data for %s. Skipping.\n',subjs{s})
             continue
-        elseif exist(errorFile,'file')
-            fprintf('YC1 lasso error file present for %s. Skipping.\n',subjs{s})
-            continue
+%         elseif exist(errorFile,'file')
+%             fprintf('YC1 lasso error file present for %s. Skipping.\n',subjs{s})
+%             continue
         elseif ~exist(chanceFile,'file')
             fprintf('No YC1 chance file present for %s. Skipping.\n',subjs{s})            
-            continue             
+            continue            
         else                        
-            subjData = load(lassoFile);
+            subjData   = load(lassoFile);
             chanceData = load(chanceFile);
             YC1_params = subjData.params;
             YC1_params.powerPath = params.powerPath;
             fprintf('Processing %s.\n',subjs{s})
-            YC2_applyWeights(subjs{s},YC1_params,subjData,chanceData,saveDir);                        
+            res=YC2_postStimBaselineChange(subjs{s},YC1_params,subjData,chanceData,stimToUse,timeToUse,saveDir);      
+            
         end
     end
 end

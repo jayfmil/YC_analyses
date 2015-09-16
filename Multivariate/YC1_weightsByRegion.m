@@ -64,7 +64,7 @@ end
 if ~exist('subjs','var') || isempty(subjs)
     subjs = get_subs('RAM_YC1');
 end
-
+subjs = subjs(~strcmp(subjs,'R1061T'))
 
 nTimes = size(params.timeBins,1);
 nFreqs = size(params.freqBins,1);
@@ -286,12 +286,13 @@ end
 %% FIGURE - mean absolute weights for frequencies avg acros times
 fname = fullfile(figDir,['group_freq_bar.eps']);
 figs_group.group_freq_bar = fname;
+keyboard
 % figs_group.N = sum(~isnan(spectTimeFreq(1,1,:)),3);
 if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
     figure(3)
     clf
     
-    plotData = squeeze(nanmean(spectTimeFreq,2));
+    plotData = squeeze(nanmean(spectTimeFreq(:,1:7,:),2));
     err      = nanstd(plotData,[],2)/sqrt(figs_group.N-1);
     h=bar(nanmean(plotData,2),'linewidth',2,'facecolor',[.6 .6 .6]);
     hold on
@@ -492,9 +493,16 @@ if nElecs ~= length(tal)
 end
 
 if ~isfield(tal,'locTag')
-    fprintf('No loc tag information for %s.\n',subj)
-    return
+%     fprintf('No loc tag information for %s.\n',subj)
+    [tal.locTag] = deal('');
+%     return
 end
+
+if sum(cellfun('isempty',{tal.locTag})) == length(tal)
+%     fprintf('No loc tag information for %s.\n',subj)
+    [tal.locTag] = deal('');   
+end
+    
 
 % get the electrode indices of brain regions
 hipp_elecs    = ~cellfun('isempty',regexpi({tal.locTag},['CA1|CA3|DG|sub']));

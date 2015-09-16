@@ -38,7 +38,6 @@ params.doBinary = 1;
 
 % use original power (0) data or use regression corrected (1). 
 params.useCorrectedPower = 0;
-params.regressDir = '/data10/scratch/jfm2/YC1/multi/power/regress';
 
 % path to power data
 params.powerPath = '/data10/scratch/jfm2/power';
@@ -55,9 +54,19 @@ params.crossValStrictness = 0;
 % number of trials/2 folds.
 params.nCV = 10;
 
+% use lasso (L1) normaliztion or L2 normaliztion? L1 zeros out most of the
+% weights, L2 minimizes but doesn't zero out. If L1, uses lassoglm(). If
+% L2, uses logRegFun().
+params.normType = 'L1';
+
 % if empty, lambda will be computed using the specified cross validation
 % strictness and nCV
 params.lambda = [];
+
+% what lassoglm Alpha value to use? 1 = lasso (L1), 0 similar to ridge
+% (L2). In between is elastic net. This is only applicable if normType ==
+% 'L1'
+params.alpha = 1;
 
 % save the output to a file? Might not want to in some casesm for example
 % creating a chance distribution

@@ -1,11 +1,13 @@
 function YC_plotElecTrialPower(subj,task,elecNums)
 
 % parameters obviously
-params.eeg.durationMS   = 8000;
+params.eeg.durationMS   = 2000;
 params.eeg.offsetMS     = -1000;
 params.eeg.bufferMS     = 2000;
 params.eeg.filtfreq     = .1;
+params.eeg.filtfreq     = [58 62];
 params.eeg.filttype     = 'high';
+params.eeg.filttype     = 'stop';
 params.eeg.filtorder    = 1;
 params.eeg.sampFreq     = 500;
 params.eeg.kurtThr      = 4;
@@ -21,19 +23,22 @@ params.events           = @(events)strcmp({events.type},'NAV_LEARN') | strcmp({e
 
 % get events for subject
 events   = get_sub_events(task,subj);
-events   = addErrorField(events);
+%events   = addErrorField(events);
 sessions = unique([events.session]);
 for sess = 1:length(sessions)
    
+
     % filter to session events
     sess_events = events([events.session]==sessions(sess));
     
     % filter to just learning trials
-    sess_events = sess_events(strcmp({sess_events.type},'NAV_LEARN'));
+    sess_events = sess_events(strcmp({sess_events.type},'WORD'));
     
     % filter to non-stim
     sess_events = sess_events([sess_events.isStim]==0);
     
+%    sess_events = sess_events([sess_events.serialpos]==1);
+
     % calculate power for this session and electrode
     eeg = ComputeEEG(elecNums,sess_events,params);
     pow = ComputePow(eeg,params);
@@ -66,20 +71,24 @@ for sess = 1:length(sessions)
     ylabel('log(power)','fontsize',16)
     set(gca,'fontsize',16)
     
-    recalled = [sess_events.testError] < median([sess_events.testError]);
+%    recalled = [sess_events.testError] < median([sess_events.testError]);
+
+    recalled = [sess_events.recalled] == 1;
     hfaPow   = nanmean(squeeze(nanmean(pow(params.pow.freqs>70&params.pow.freqs<200,:,:),2)),1);
+
+
     
     figure(2)
     clf
-    plot(find(recalled),hfaPow(recalled),'.r','markersize',25)
+    plot(find(recalled),hfaPow(recalled),'.r','markersize',40)
     hold on
-    plot(find(~recalled),hfaPow(~recalled),'.b','markersize',25)
+    plot(find(~recalled),hfaPow(~recalled),'.b','markersize',40)
     grid on
     set(gca,'gridlinestyle',':')
     xlabel('Learning Trial Number','fontsize',16)
     ylabel('HFA log(power)','fontsize',16)
     set(gca,'fontsize',16)
-    
+    keyboard
 
     figure(3)
     clf

@@ -47,6 +47,9 @@ if ~exist('subjs','var') || isempty(subjs)
 end
 
 params.eeg.durationMS   = 8000;
+if strcmp(task,'RAM_YC2')
+    params.eeg.durationMS   = 8000;
+end
 params.eeg.offsetMS     = -1000;
 params.eeg.bufferMS     = 2000;
 params.eeg.filtfreq     = [58 62];
@@ -71,7 +74,7 @@ params.eventsYC1        = @(events)strcmp({events.type},'NAV_LEARN') | strcmp({e
 % If YC2, use all non-stim learning trials to zscore
 params.eventsYC2        = @(events)[events.isStim]==0&(strcmp({events.type},'NAV_LEARN') | strcmp({events.type},'NAV_LEARN_HARD'));
 params.savedir          = '/data10/scratch/jfm2/power';
-cd_mkdir(params.savedir); save('params','params');
+cd_mkdir(params.savedir); save(['params_',task,'.mat'],'params');
 
 % compute powers
 computePower(task,subjs,params)

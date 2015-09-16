@@ -259,7 +259,7 @@ for s = 1:length(subjs)
     figs = [figs;figs_subj];
     
 end
-keyboard
+
 % also make group plots/report
 fprintf('Creating group plots.\n');
 figs_group = [];
@@ -316,6 +316,8 @@ for t = 1:size(quarts_group,1)
         perf = perf_all(:,t);
         sig  = perf_p_all(:,t) > .95;
         n1   = histc(perf(sig),0.025:.05:.975);
+        % wtf
+        if isrow(n1);n1=n1';end        
         n2   = histc(perf(~sig),0.025:.05:.975);
         h    = bar([.05:.05:1]*100,[n1 n2],1,'stacked','linewidth',2);
         xlabel('Classifier Percent Correct','Fontsize',20);
@@ -348,6 +350,8 @@ for t = 1:size(quarts_group,1)
         auc = auc_all(:,t);
         sig  = auc_p_all(:,t) > .95;
         n1   = histc(auc(sig),0.025:.05:.975);
+        % wtf
+        if isrow(n1);n1=n1';end        
         n2   = histc(auc(~sig),0.025:.05:.975);
         h    = bar([.05:.05:1]*100,[n1 n2],1,'stacked','linewidth',2);
         xlabel('Classifier AUC','Fontsize',20);
@@ -408,6 +412,7 @@ if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
     set(gca,'fontsize',16)
     print('-depsc2','-tiff','-loose',fname);   
 end
+keyboard
 
 good = ~cellfun('isempty',{figs.subj});
 figs = figs(good);

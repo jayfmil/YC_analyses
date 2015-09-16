@@ -12,21 +12,23 @@ for s = 1:length(subjs)
         subj = subjs{s};
         events = get_sub_events(task,subj);        
         sessions = unique([events.session]);
-        tal = getBipolarSubjElecs(subj,1,1,0);
+        tal = getBipolarSubjElecs(subj,1,0,0);
         
         cd(params.savedir);
                 
         % first check if we need to compute power for a subj/session
-        doPow = 1;             
+        doPow = 0;             
         for sess = 1:length(sessions)
             sessDir = fullfile(params.savedir,subj,[task '_events'],num2str(sessions(sess)));
             if ~exist(sessDir,'dir')
                 doPow = 1;
                 cd_mkdir(sessDir);
+                
             else
                 cd(sessDir);
                 % if any electrode files are missing, make power for
                 % session
+                
                 for iElec = 1:length(tal)
                     fname = sprintf('%d-%d.mat',tal(iElec).channel(1),tal(iElec).channel(2));
                     if ~exist(fname,'file')
@@ -35,7 +37,7 @@ for s = 1:length(subjs)
                     end
                 end
             end
-            
+
             % compute power
             if doPow                
                 if isempty(gcp('nocreate'))
@@ -61,12 +63,12 @@ for s = 1:length(subjs)
     display(sprintf('completed %s',subj));
     
 end
-delete(gcp('nocreate'));
+% delete(gcp('nocreate'));
 
 
 
 
-%% ComputePow_local: parallel power over electrodes
+% ComputePow_local: parallel power over electrodes
 function [] = ComputePow_local(Elec,events,sessDir,params,task)
 
 [EEG] = ComputeEEG(Elec.channel,events,params);

@@ -55,7 +55,7 @@ if ~isempty(poolobj)
             params.doPermute = 1;
             params.saveOutput = 0;            
             params.loadPower = 1;
-            params.powerPath = '/data10/scratch/jfm2/RAM/biomarker/power/';
+%             params.powerPath = '/data10/scratch/jfm2/RAM/biomarker/power/';
 
             fname = sprintf('%s_chance_perf_dist.mat',subjs{s});
             fname = fullfile(saveDir,fname);
@@ -86,7 +86,7 @@ else
             params.doPermute = 1;     
             params.saveOutput = 0;
             params.loadPower = 1;
-            params.powerPath = '/data10/scratch/jfm2/RAM/biomarker/power/';
+%             params.powerPath = '/data10/scratch/jfm2/RAM/biomarker/power/';
 
             fname = sprintf('%s_chance_perf_dist.mat',subjs{s});
             fname = fullfile(saveDir,fname);

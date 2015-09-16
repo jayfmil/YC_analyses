@@ -38,17 +38,22 @@ if ~isempty(poolobj)
         
         lassoFile  = fullfile(YC1_dir,[subjs{s} '_lasso.mat']);
         errorFile  = fullfile(YC1_dir,[subjs{s} '_error_lasso.mat']);
+        chanceFile = fullfile(YC1_dir,[subjs{s} '_chance_perf_dist.mat']);
         if ~exist(lassoFile,'file')
             fprintf('No YC1 lasso data for %s. Skipping.\n',subjs{s})
             continue
         elseif exist(errorFile,'file')
             fprintf('YC1 lasso error file present for %s. Skipping.\n',subjs{s})
             continue
+        elseif ~exist(chanceFile,'file')
+            fprintf('No YC1 chance file present for %s. Skipping.\n',subjs{s})            
+            continue              
         else
             
             % use the same parameters as the real data, but set it to
             % permute the responses
             subjData = load(lassoFile);
+            chanceData = load(chanceFile);
             YC1_params = subjData.params;
             YC1_params.powerPath = params.powerPath;
             YC1_params.doPermute = 1;
@@ -57,19 +62,23 @@ if ~isempty(poolobj)
             
             fname = sprintf('%s_YC2_chance_perf_dist.mat',subjs{s});
             fname = fullfile(saveDir,fname);
-            perf_all   = [];
-            perfEncAll = [];
-            auc_all    = [];
-            aucEncAll  = [];
+            perf_all       = [];
+            perfEncAll     = [];
+            auc_all        = [];
+            aucEncAll      = [];
+            aucBest_all    = [];
+            aucBestEnc_all = [];
             for i = 1:numIters
                 fprintf('Processing %s iteration %d of %d.\n',subjs{s},i,numIters)
-                [AUC,AUC_enc,perf,perfEnc] = YC2_applyWeights(subjs{s},YC1_params,subjData,saveDir);
-                perf_all   = [perf_all;perf];
-                auc_all    = [auc_all;AUC];
-                perfEncAll = [perfEncAll;perfEnc];
-                aucEncAll  = [aucEncAll;AUC_enc];
+                [AUC,AUC_enc,perf,perfEnc,AUC_best,AUC_bestEnc] = YC2_applyWeights(subjs{s},YC1_params,subjData,chanceData,saveDir);
+                perf_all          = [perf_all;perf];
+                auc_all           = [auc_all;AUC];
+                perfEncAll        = [perfEncAll;perfEnc];
+                aucEncAll         = [aucEncAll;AUC_enc];
+                aucBest_all       = [aucBest_all;AUC_best];
+                aucBestEnc_all    = [aucBestEnc_all;AUC_bestEnc];
                 if ~isempty(perf_all)
-                    parsave(fname,perf_all,auc_all,perfEncAll,aucEncAll)
+                    parsave(fname,perf_all,auc_all,perfEncAll,aucEncAll,aucBest_all,aucBestEnc_all)
                 end
             end
         end
@@ -79,17 +88,22 @@ elseif isempty(poolobj)
     for s = 1:length(subjs)
         lassoFile  = fullfile(YC1_dir,[subjs{s} '_lasso.mat']);
         errorFile  = fullfile(YC1_dir,[subjs{s} '_error_lasso.mat']);
+        chanceFile = fullfile(YC1_dir,[subjs{s} '_chance_perf_dist.mat']);
         if ~exist(lassoFile,'file')
             fprintf('No YC1 lasso data for %s. Skipping.\n',subjs{s})
             continue
         elseif exist(errorFile,'file')
             fprintf('YC1 lasso error file present for %s. Skipping.\n',subjs{s})
             continue
+        elseif ~exist(chanceFile,'file')
+            fprintf('No YC1 chance file present for %s. Skipping.\n',subjs{s})
+            continue
         else
             
             % use the same parameters as the real data, but set it to
             % permute the responses
             subjData = load(lassoFile);
+            chanceData = load(chanceFile);
             YC1_params = subjData.params;
             YC1_params.powerPath = params.powerPath;
             YC1_params.doPermute = 1;
@@ -104,7 +118,7 @@ elseif isempty(poolobj)
             aucEncAll  = [];
             for i = 1:numIters
                 fprintf('Processing %s iteration %d of %d.\n',subjs{s},i,numIters)
-                [AUC,AUC_enc,perf,perfEnc] = YC2_applyWeights(subjs{s},YC1_params,subjData,saveDir);
+                [AUC,AUC_enc,perf,perfEnc] = YC2_applyWeights(subjs{s},YC1_params,subjData,chanceData,saveDir);
                 perf_all   = [perf_all;perf];
                 auc_all    = [auc_all;AUC];
                 perfEncAll = [perfEncAll;perfEnc];
@@ -117,9 +131,9 @@ elseif isempty(poolobj)
     end
 end
 
-function parsave(fname,perf_all,auc_all,perfEncAll,aucEncAll)
+function parsave(fname,perf_all,auc_all,perfEncAll,aucEncAll,aucBest_all,aucBestEnc_all)
 % Because you can't save files directly in parfor loop
-save(fname,'perf_all','auc_all','perfEncAll','aucEncAll')
+save(fname,'perf_all','auc_all','perfEncAll','aucEncAll','aucBest_all','aucBestEnc_all')
 
 
 
