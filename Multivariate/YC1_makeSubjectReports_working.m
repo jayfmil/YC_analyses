@@ -58,10 +58,10 @@ end
 
 % store group information
 nTrialsAll = NaN(length(subjs),1);
-perf_all   = NaN(length(subjs),size(params.timeBins,1));
-perf_p_all = NaN(length(subjs),size(params.timeBins,1));
-auc_all    = NaN(length(subjs),size(params.timeBins,1));
-auc_p_all  = NaN(length(subjs),size(params.timeBins,1));
+r_all   = NaN(length(subjs),size(params.timeBins,1));
+r_p_all = NaN(length(subjs),size(params.timeBins,1));
+r_all    = NaN(length(subjs),size(params.timeBins,1));
+r_p_all  = NaN(length(subjs),size(params.timeBins,1));
 quarts_all = NaN(size(params.timeBins,1),4,length(subjs));
 best_time  = NaN(length(subjs),1);
 
@@ -73,7 +73,7 @@ for s = 1:length(subjs)
         
     % will subject specific figure paths
     figs_subj = struct('subj',[],'behavior',[],'quarts',[],'region','',...
-                       'AUC','','perf','','nElecs',[]);        
+                       'r','','r2','','nElecs',[]);        
     if isempty(params.region)
         params.region = 'all';
     end
@@ -101,12 +101,12 @@ for s = 1:length(subjs)
     nTrialsAll(s) = length(lassoData.Y);
     
     % calculate percentile for subject
-    perf_p          = mean(repmat(lassoData.perf,size(chanceData.perf_all,1),1) > chanceData.perf_all);
-    auc_p           = mean(repmat(lassoData.AUC,size(chanceData.auc_all,1),1) > chanceData.auc_all);
-    perf_p_all(s,:) = perf_p;
-    auc_p_all(s,:)  = auc_p;
-    perf_all(s,:)   = lassoData.perf;
-    auc_all(s,:)    = lassoData.AUC;
+    r_p          = mean(repmat(lassoData.r,size(chanceData.r_all,1),1) > chanceData.r_all);
+    r_p           = mean(repmat(lassoData.r,size(chanceData.r_all,1),1) > chanceData.r_all);
+    r_p_all(s,:) = r_p;
+    r_p_all(s,:)  = r_p;
+    r_all(s,:)   = lassoData.r;
+    r_all(s,:)    = lassoData.r;
     
     
     %% FIGURE 1a and b - classifier accuracy and AUC over time       
@@ -119,12 +119,9 @@ for s = 1:length(subjs)
     end
         
     ylabels = {'Classifier Accuracy (%)','Classifier AUC'};
-    ps      = [1-perf_p;1-auc_p];
-    fields  = {'perf','AUC'};
-
-    f = @(x) nnz(mean(horzcat(lassoData.res(x).A{:}),2));
-    emptyModels = cellfun(f,num2cell(1:length(lassoData.res)))==0;
-
+    ps      = [1-r_p;1-r_p];
+    fields  = {'r','r'};
+    
     for i = 1:2
         fname = fullfile(figDir,[subj '_' fields{i} '.eps']);
         figs_subj.(fields{i}) = fname;
@@ -137,9 +134,6 @@ for s = 1:length(subjs)
         % first plot all the points as black
         plot(lassoData.(fields{i}),'k.','markersize',30,'linewidth',2.5)
         hold on
-
-        % plot all empty models as X
-        plot(find(emptyModels),lassoData.(fields{i})(emptyModels),'xk','markersize',65)
         
         % plot any significant time points as red. Bigger red dot indicates
         % the timepoint survived bonferroni correction. Small red dot is p
@@ -155,7 +149,7 @@ for s = 1:length(subjs)
         set(gca,'xtick',1:length(lassoData.(fields{i})));
         set(gca,'xlim',[0 length(lassoData.(fields{i}))+1]);
         set(gca,'xticklabel',xBinsStr);
-        set(gca,'ylim',[0 1]);
+        set(gca,'ylim',[-1 1]);
         set(gca,'ytick',0:.1:1);
         if i == 1
             set(gca,'yticklabel',0:10:100)
@@ -199,7 +193,7 @@ for s = 1:length(subjs)
     rec       = vertcat(lassoData.res(1).yTest{:});
     
     % compute quartiles
-    bestTime  = find(perf_p == max(perf_p),1,'first');
+    bestTime  = find(r_p == max(r_p),1,'first');
     best_time(s) = bestTime;
     for t = 1:length(lassoData.res)
         classProb = vertcat(lassoData.res(t).yPred{:});
@@ -319,8 +313,8 @@ for t = 1:size(quarts_group,1)
     if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
         figure(3)
         clf
-        perf = perf_all(:,t);
-        sig  = perf_p_all(:,t) > .95;
+        perf = r_all(:,t);
+        sig  = r_p_all(:,t) > .95;
         n1   = histc(perf(sig),0.025:.05:.975);
         % wtf
         if isrow(n1);n1=n1';end        
@@ -353,8 +347,8 @@ for t = 1:size(quarts_group,1)
     if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
         figure(3)
         clf
-        auc = auc_all(:,t);
-        sig  = auc_p_all(:,t) > .95;
+        auc = r_all(:,t);
+        sig  = r_p_all(:,t) > .95;
         n1   = histc(auc(sig),0.025:.05:.975);
         % wtf
         if isrow(n1);n1=n1';end        
@@ -387,29 +381,29 @@ figs_group.auc_time_direct = fname;
 if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
     figure(3)
     clf
-    [h,p] = ttest(auc_all,.5);
-    sigCorr = p*size(auc_all,2) < .05;
+    [h,p] = ttest(r_all,.5);
+    sigCorr = p*size(r_all,2) < .05;
     sig     = p <.05 & ~sigCorr;
-    h=bar(find(~sig & ~sigCorr),nanmean(auc_all(:,~sig & ~sigCorr)),'w','linewidth',2);
+    h=bar(find(~sig & ~sigCorr),nanmean(r_all(:,~sig & ~sigCorr)),'w','linewidth',2);
     set(h,'facecolor',[.5 .5 .5])
     hold on
     if any(sig)
-        h=bar(find(sig),nanmean(auc_all(:,sig)),'w','linewidth',2);
+        h=bar(find(sig),nanmean(r_all(:,sig)),'w','linewidth',2);
         set(gca,'ylim',[.4 .6])
         set(h,'facecolor',[200 100 100]/255)
     end
     if any(sigCorr)
-        h=bar(find(sigCorr),nanmean(auc_all(:,sigCorr)),'w','linewidth',2);
+        h=bar(find(sigCorr),nanmean(r_all(:,sigCorr)),'w','linewidth',2);
         set(gca,'ylim',[.4 .6])
         set(h,'facecolor',[140 15 15]/255)
     end
-    err = nanstd(auc_all)./sqrt(sum(~isnan(auc_all))-1);
-    errorbar(1:size(auc_all,2),nanmean(auc_all),err*1.96,'k','linewidth',2,'linestyle','none')
-    plot([0 size(auc_all,2)+1],[.5 .5],'--k','linewidth',2)
+    err = nanstd(r_all)./sqrt(sum(~isnan(r_all))-1);
+    errorbar(1:size(r_all,2),nanmean(r_all),err*1.96,'k','linewidth',2,'linestyle','none')
+    plot([0 size(r_all,2)+1],[.5 .5],'--k','linewidth',2)
     grid on
     set(gca,'gridlinestyle',':');
-    set(gca,'xlim',[0 size(auc_all,2)+1]);
-    set(gca,'xtick',1:size(auc_all,2));
+    set(gca,'xlim',[0 size(r_all,2)+1]);
+    set(gca,'xtick',1:size(r_all,2));
     set(gca,'xticklabel',xBinsStr);
     set(gca,'ylim',[.4 .6])
     set(gca,'ytick',.4:.05:.6)
@@ -418,7 +412,7 @@ if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
     set(gca,'fontsize',16)
     print('-depsc2','-tiff','-loose',fname);   
 end
-
+keyboard
 
 good = ~cellfun('isempty',{figs.subj});
 figs = figs(good);
@@ -505,8 +499,8 @@ for s = 1:length(figs)
     
     fprintf(fid,'\\begin{figure}[!h]\n');
     fprintf(fid,'\\centering\n');    
-    fprintf(fid,'\\includegraphics[width=0.4\\textwidth]{%s}\n',figs(s).perf);
-    fprintf(fid,'\\includegraphics[width=0.4\\textwidth]{%s}\n',figs(s).AUC);
+    fprintf(fid,'\\includegraphics[width=0.4\\textwidth]{%s}\n',figs(s).r);
+    fprintf(fid,'\\includegraphics[width=0.4\\textwidth]{%s}\n',figs(s).r);
     fprintf(fid,'\\includegraphics[width=0.4\\textwidth]{%s}\n',figs(s).quarts);
     fprintf(fid,'\\includegraphics[width=0.4\\textwidth]{%s}\n',figs(s).behavior);    
     fprintf(fid,'\\caption{%s: region: %s, %d electrodes}\n\n',strrep(figs(s).subj,'_',' '),figs(s).region,figs(s).nElecs);

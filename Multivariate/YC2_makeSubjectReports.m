@@ -225,7 +225,7 @@ for s = 1:length(subjs)
         figure(1)
         clf
         
-        for j = 1:1
+        for j = 1:2
             figure(1)
             % first plot all the points as black
             axes('position',axPos(j,:));

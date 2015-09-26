@@ -17,13 +17,13 @@ stimToUse = 'both'
 
 % YC time period to use (pick one of the timeBinLabels in params, or choose
 % 'best'
-timeToUse = 'post'
+timeToUse = 'best'
 
 % save directory
 f = @(x,y) y{double(x)+1};
 y = {'OrigPower','CorrectedPower'};
 YC1_dir = fullfile(params.basePath,f(params.useCorrectedPower,y));
-saveDir = fullfile(YC1_dir,['YC2_postStim_',stimToUse,'_',timeToUse]);
+saveDir = fullfile(YC1_dir,['YC2_postStimFFT_',stimToUse,'_',timeToUse]);
 if ~exist(saveDir,'dir')
     mkdir(saveDir);
 end
@@ -57,7 +57,7 @@ if ~isempty(poolobj)
             YC1_params = subjData.params;
             YC1_params.powerPath = params.powerPath;
             fprintf('Processing %s.\n',subjs{s})
-            YC2_postStimBaselineChange(subjs{s},YC1_params,subjData,chanceData,stimToUse,timeToUse,saveDir);            
+            YC2_postStimBaselineChange_working(subjs{s},YC1_params,subjData,chanceData,stimToUse,timeToUse,saveDir);            
         end
     end
 elseif isempty(poolobj)
@@ -80,7 +80,7 @@ elseif isempty(poolobj)
             YC1_params = subjData.params;
             YC1_params.powerPath = params.powerPath;
             fprintf('Processing %s.\n',subjs{s})
-            res=YC2_postStimBaselineChange(subjs{s},YC1_params,subjData,chanceData,stimToUse,timeToUse,saveDir);      
+            res=YC2_postStimBaselineChange_working(subjs{s},YC1_params,subjData,chanceData,stimToUse,timeToUse,saveDir);      
             
         end
     end

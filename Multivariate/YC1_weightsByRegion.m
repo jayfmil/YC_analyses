@@ -204,6 +204,7 @@ for s = 1:length(subjs)
             ylims(2) = max([ylims(2) max(regionDataNonZero)]);            
         end
         ylims = ceil(ylims * 100)/100;    
+        ylims(ylims==0) = .001;
         
         % loop over each time bin
         for t = 1:size(params.timeBins,1)                        
@@ -461,7 +462,7 @@ out = [];
 
 chanceFile = fullfile(saveDir,[subj '_chance_perf_dist.mat']);
 lassoFile  = fullfile(saveDir,[subj '_lasso.mat']);
-if ~exist(lassoFile,'file') || ~exist(chanceFile,'file')
+if ~exist(lassoFile,'file') %|| ~exist(chanceFile,'file')
     fprintf('No lasso/chance file for %s.\n',subj)
     out = [];
     return
@@ -469,11 +470,11 @@ end
 
 % load classification model
 lassoData  = load(lassoFile);
-chanceData = load(chanceFile);
+%chanceData = load(chanceFile);
 
 % get the significant (percetile) at each time point
-perc = mean(repmat(lassoData.perf,size(chanceData.perf_all,1),1) > chanceData.perf_all);
-[~,bestTimeBin] = max(perc);
+%perc = mean(repmat(lassoData.perf,size(chanceData.perf_all,1),1) > chanceData.perf_all);
+%[~,bestTimeBin] = max(perc);
 
 % get subject electrode info
 tal = lassoData.tal;
@@ -515,10 +516,10 @@ temp_elecs    = strcmp({tal.Loc2},'Temporal Lobe') & ~mtl_elecs;
 other_elecs   = ~(hipp_elecs | ec_elecs | mtl_elecs | frontal_elecs | occ_elecs | par_elecs | temp_elecs);
 
 % pval of different time bins
-p = 1-perc;
-thresh = p < .05;
-sigTimes = p < thresh;
-out.sigTimes = sigTimes;
+%p = 1-perc;
+%thresh = p < .05;
+%sigTimes = p < thresh;
+%out.sigTimes = sigTimes;
 
 % % make this part of the params in the future
 % params.timeIsMovement = [false true true true true false false false];
@@ -539,10 +540,15 @@ out.sigTimes = sigTimes;
 
 % average across all folds and reshape into freq x elec x time
 meanWeightsPerTime = NaN(nFreqs,nElecs,nTimes);
-for t = 1:length(lassoData.res)
+if lassoData.params.modelEachTime
+  for t = 1:length(lassoData.res)
     meanTmp = mean(horzcat(lassoData.res(t).A{:}),2);
     meanTmp = reshape(meanTmp,nFreqs,nElecs);
     meanWeightsPerTime(:,:,t) = meanTmp;
+  end
+else
+  meanTmp = mean(horzcat(lassoData.res.A{:}),2);
+  meanWeightsPerTime = reshape(meanTmp,nFreqs,nElecs,[]);
 end
 
 % filter by regions
@@ -555,7 +561,6 @@ out.meanWeightsPerTimeOC   = meanWeightsPerTime(:,occ_elecs,:);
 out.meanWeightsPerTimePC   = meanWeightsPerTime(:,par_elecs,:);
 out.meanWeightsPerTimeTC   = meanWeightsPerTime(:,temp_elecs,:);
 out.meanWeightsPerTimeOth  = meanWeightsPerTime(:,other_elecs,:);
-
 
 elec_order = [find(hipp_elecs) find(ec_elecs) find(mtl_elecs) ...
               find(temp_elecs) find(frontal_elecs) find(occ_elecs) ...

@@ -1,4 +1,4 @@
-function computePower(task,subjs,params)
+function computePower(task,subjs,params,fileExt)
 % function computePower(task,subjs,params)
 % credit: Youssef Ezzyat, minor modifications by Jonathan Miller. The
 % largest change is the ability to regress out trial number from the power.
@@ -30,7 +30,14 @@ for s = 1:length(subjs)
                 % session
                 
                 for iElec = 1:length(tal)
-                    fname = sprintf('%d-%d.mat',tal(iElec).channel(1),tal(iElec).channel(2));
+                    if strcmp(params.pow.type,'wavelet')
+                        fname = sprintf('%d-%d%s.mat',tal(iElec).channel(1),tal(iElec).channel(2),fileExt);
+                    elseif strcmp(params.pow.type,'fft_slep')
+                        fname = sprintf('%d-%d%s.mat',tal(iElec).channel(1),tal(iElec).channel(2),fileExt);                        
+                    else
+                        fprintf('Currently unsupported power type: %s.\n',params.pow.type);
+                        return
+                    end
                     if ~exist(fname,'file')
                         doPow = 1;
                         break;
@@ -39,15 +46,16 @@ for s = 1:length(subjs)
             end
 
             % compute power
-            if doPow                
-                if isempty(gcp('nocreate'))
-                    num_nodes = 30;mem = '12G';
-                    open_rhino2_pool(num_nodes,mem);
-                end
+            if doPow    
+                
+%                 if isempty(gcp('nocreate'))
+%                     num_nodes = 30;mem = '12G';
+%                     open_rhino2_pool(num_nodes,mem);
+%                 end
 
                 sess_events = events([events.session]==sessions(sess));
                 parfor iElec = 1:length(tal)
-                    ComputePow_local(tal(iElec),sess_events,sessDir,params,task);
+                    ComputePow_local(tal(iElec),sess_events,sessDir,params,task,fileExt);
                 end
                 cd(sessDir);
                 save('params.mat','params');                
@@ -69,16 +77,20 @@ end
 
 
 % ComputePow_local: parallel power over electrodes
-function [] = ComputePow_local(Elec,events,sessDir,params,task)
+function [] = ComputePow_local(Elec,events,sessDir,params,task,fileExt)
 
 [EEG] = ComputeEEG(Elec.channel,events,params);
 [PowMat,~] = ComputePow(EEG,params);
-fname = sprintf('%d-%d_raw.mat',Elec.channel(1),Elec.channel(2));
+% fname = sprintf('%d-%d_raw.mat',Elec.channel(1),Elec.channel(2));
 cd_mkdir(sessDir);
 %save(fname,'PowMat');
 
-[binPowMat] = BinPow(PowMat,params.pow.timeWin,params.pow.timeStep,...
-    params.eeg.sampFreq,params.pow.freqs,params.pow.freqBins);
+if strcmp(params.pow.type,'wavelet')
+    [binPowMat] = BinPow(PowMat,params.pow.timeWin,params.pow.timeStep,...
+        params.eeg.sampFreq,params.pow.freqs,params.pow.freqBins);
+elseif strcmp(params.pow.type,'fft_slep')
+    binPowMat = mean(PowMat,2);
+end
 
 clear PowMat;
 
@@ -87,6 +99,9 @@ if strcmp(task,'RAM_YC1')
     baseInds    = params.eventsYC1(events);
 elseif strcmp(task,'RAM_YC2')
     baseInds    = params.eventsYC2(events);
+    if strcmp(params.pow.type,'fft_slep')
+        baseInds    = params.eventsYC1(events);
+    end
 end
 PowMean     = nanmean(nanmean(binPowMat(:,:,baseInds),3),2);
 PowSTD      = std(nanmean(binPowMat(:,:,baseInds),2),[],3);
@@ -118,7 +133,7 @@ if params.regressTrialNumber
     sessOutput.stdBasePowCorr  = PowSTD;
 end
 
-fname = sprintf('%d-%d.mat',Elec.channel(1),Elec.channel(2));
+fname = sprintf('%d-%d%s.mat',Elec.channel(1),Elec.channel(2),fileExt);
 cd_mkdir(sessDir);
 save(fname,'sessOutput');
 

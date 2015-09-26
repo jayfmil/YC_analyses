@@ -37,6 +37,10 @@ try
     tStarts   = tEnds - powParams.params.pow.timeWin+1;
     powParams.timeBins = [tStarts' tEnds'];
     
+    % load yc1 events
+    eventsYC1 = get_sub_events('RAM_YC1',subj);
+    yc1thresh = median([eventsYC1(strcmp({eventsYC1.type},'NAV_TEST')).respPerformanceFactor])
+
     % load events
     events = get_sub_events('RAM_YC2',subj);
     
@@ -87,9 +91,11 @@ try
     
     % response data
     % SHOULD THIS BE THE MEDIA OF ALL TRIALS OR JUST NON-STIM?
+    % OR the median of the YC1 data?
     Y = [events(eventsToUse).testError]';
+
     if doBinary
-        Y  = Y < median(Y);
+        Y  = Y < yc1thresh;
     end
             
     % permute the responses if desired
@@ -136,7 +142,7 @@ try
             res(t).A        = A;
             rest(t).intcp   = intercept;
             perf(t)         = res(t).perf;
-            
+
             % predict YC1 time bin weights applied to YC2 average encoding
             X_enc = reshape(squeeze(powerDataEncAvg(:,:,1,:)),size(powerDataEncAvg,1),nFreqs*nElecs);
             res(t).yPredEnc    = glmval(B1,X_enc,'logit');

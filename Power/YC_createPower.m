@@ -1,4 +1,4 @@
-function YC_createPower(task,subjs)
+function YC_createPower()
 % function YC_createPower(saveDir)
 % credit: Youssef Ezzyat, minor modifications by Jonathan Miller
 %
@@ -36,20 +36,12 @@ function YC_createPower(task,subjs)
 %   params.pow.timeStep     step size to jump when binning data
 %   params.pow.freqBins     bins within which to average when binning
 
-if ~ismember(task,{'RAM_YC1','RAM_YC2'});
-    fprintf('Supported tasks names are RAM_YC1 and RAM_YC2.\n')
-    return
-end
 
-% if subjects not given, use all
-if ~exist('subjs','var') || isempty(subjs)
-    subjs = get_subs(task);
-end
+%%%%% create YC1 power using wavelets
+task = 'RAM_YC1';
+subjs = get_subs(task);
 
 params.eeg.durationMS   = 8000;
-if strcmp(task,'RAM_YC2')
-    params.eeg.durationMS   = 8000;
-end
 params.eeg.offsetMS     = -1000;
 params.eeg.bufferMS     = 2000;
 params.eeg.filtfreq     = [58 62];
@@ -65,6 +57,11 @@ params.pow.timeWin      = 100;
 params.pow.timeStep     = 100;
 params.pow.freqBins     = logspace(log10(1),log10(200),50);
 
+% for fft slep power
+params.pow.bandwidth    = 2;
+params.pow.winSize      = .4;
+params.pow.winStep      = .05;
+
 % also save out power with the effect of trial number regressed away?
 params.regressTrialNumber = 1;
 
@@ -77,10 +74,39 @@ params.savedir          = '/data10/scratch/jfm2/power';
 cd_mkdir(params.savedir); save(['params_',task,'.mat'],'params');
 
 % compute powers
-computePower(task,subjs,params)
+fileExt = '';
+computePower(task,subjs,params,fileExt)
+
+%%%%% create YC2 power using wavelets
+task = 'RAM_YC2';
+subjs = get_subs(task);
+
+% compute powers
+fileExt = '';
+computePower(task,subjs,params,fileExt)
+
+%%%% create YC2 post stim power with fft_slep method
+params.pow.type         = 'fft_slep';
+params.eeg.offsetMS     = 5100;
+params.eeg.durationMS   = 1900;
+params.eeg.wavenum = NaN;
+params.eeg.timeWin = NaN;
+params.eeg.timeStep = NaN;
+
+cd_mkdir(params.savedir); save(['params_post_',task,'.mat'],'params');
+
+% compute powers
+fileExt = '_post';
+computePower(task,subjs,params,fileExt)
+
+%%%% create YC2 pre stim power with fft_slep method
+params.pow.type         = 'fft_slep';
+params.eeg.offsetMS     = -900;
+params.eeg.durationMS   = 800;
 
 
+cd_mkdir(params.savedir); save(['params_pre_',task,'.mat'],'params');
 
-
-
-
+% compute powers
+fileExt = '_pre';
+computePower(task,subjs,params,fileExt)
