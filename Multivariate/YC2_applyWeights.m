@@ -39,7 +39,7 @@ try
     
     % load yc1 events
     eventsYC1 = get_sub_events('RAM_YC1',subj);
-    yc1thresh = median([eventsYC1(strcmp({eventsYC1.type},'NAV_TEST')).respPerformanceFactor])
+    yc1thresh = median([eventsYC1(strcmp({eventsYC1.type},'NAV_TEST')).respPerformanceFactor]);
 
     % load events
     events = get_sub_events('RAM_YC2',subj);
@@ -106,6 +106,7 @@ try
     end
     
     objLocs = vertcat(events(eventsToUse).objLocs);
+    
     % What was the best YC1 time point?
     p = mean(repmat(yc1Data.AUC,[size(yc1ChanceData.auc_all,1), 1]) > yc1ChanceData.auc_all);
     maxP = max(p);

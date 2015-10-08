@@ -13,7 +13,7 @@ if ~exist('params','var') || isempty(params)
 end
 
 % use first stim event, second stim event, or both?
-stimToUse = 'both'
+stimToUse = 'second'
 
 % YC time period to use (pick one of the timeBinLabels in params, or choose
 % 'best'

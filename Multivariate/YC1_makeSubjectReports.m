@@ -92,13 +92,19 @@ for s = 1:length(subjs)
         continue
     end
     
-    events     = get_sub_events('RAM_YC1',subj);    
-    
     % load lasso and chance lasso data
     chanceData = load(chanceFile);
     lassoData  = load(lassoFile);
+    if length(lassoData.Y) < 48
+        fprintf('Less than half a session of data for %s. Skipping.\n',subj)
+        continue
+    end
+    
     figs_subj.nElecs = length(lassoData.res(1).A{1})/4;
-    nTrialsAll(s) = length(lassoData.Y);
+    nTrialsAll(s) = length(lassoData.Y);            
+    events     = get_sub_events('RAM_YC1',subj);    
+    
+
     
     % calculate percentile for subject
     perf_p          = mean(repmat(lassoData.perf,size(chanceData.perf_all,1),1) > chanceData.perf_all);

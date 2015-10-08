@@ -1,4 +1,4 @@
-function [res] = YC2_postStimBaselineChange(subj,params,yc1Data,chanceData,stimToUse,timeToUse,saveDir)
+function [res] = YC2_postStimBaselineChange_working(subj,params,yc1Data,chanceData,stimToUse,timeToUse,saveDir)
 % function [] = YC2_applyWeights(subj,params,saveDir)
 %
 % Inputs:
@@ -82,8 +82,7 @@ try
         stimEvents    = [events(eventsToUse).isStim]==1;
         nonStimEvents = [events(eventsToUse).isStim]==0;
         
-        [resTmp,postProb] = computePostStimStats(powerData,yc1Data,chanceData,stimEvents,nonStimEvents,events,eventsToUse,timeToUse);
-        
+        [resTmp,postProb] = computePostStimStats(powerData,yc1Data,chanceData,stimEvents,nonStimEvents,events,eventsToUse,timeToUse);                
         res(stimLoc).deltaRR         = resTmp.deltaRR;
         res(stimLoc).deltaRR_bin     = resTmp.deltaRR_binary;
         res(stimLoc).yc1Score        = resTmp.yc1Score;
@@ -98,7 +97,7 @@ try
         res(stimLoc).numNZweights    = resTmp.numNZweights;
                         
         % Do 1000 permutattion of stim non-stim labels
-        nIters = 10000;
+        nIters = 1000;
         stimLabels           = [events(eventsToUse).isStim];
         deltaEE_perm         = NaN(1,nIters);
         deltaEE_Prob_perm    = NaN(1,nIters);
@@ -111,7 +110,7 @@ try
         stimPerf_perm        = NaN(1,nIters);
         nonStimPerf_perm     = NaN(1,nIters);
         
-        for i = 1:10000              
+        for i = 1:nIters              
             fprintf('Processing %s: stim region: %s, %s (%d of %d). Permuation %d of %d.\n',subj,res(stimLoc).stimAnat,res(stimLoc).stimTagName,stimLoc,length(stimLeads),i,nIters)
             
             if any(strcmp({'first','second'},stimToUse))
@@ -178,10 +177,19 @@ nFreqs = size(powerData,2);
 
 % Choose most significnat timebin from YC1. Instead of looping
 % over all times? If we have a tie, use most sig with highest AUC
-p = mean(repmat(yc1Data.AUC,[size(chanceData.auc_all,1), 1]) > chanceData.auc_all);
+if yc1Data.params.doBinary
+    field_all = 'auc_all';
+    field     = 'AUC';
+    link      = 'logit';
+else
+    field_all = 'r_all';
+    field     = 'r';
+    link      = 'identity';
+end
+p = mean(repmat(yc1Data.(field),[size(chanceData.(field_all),1), 1]) > chanceData.(field_all));
 if strcmpi(timeToUse,'best')    
     maxP = max(p);
-    AUC = yc1Data.AUC;
+    AUC = yc1Data.(field);
     AUC(p~=maxP) = NaN;
     [~,timeToUse] = max(AUC);
     res.yc1Score = maxP;
@@ -200,7 +208,7 @@ B1 = [intercept;A];
 
 % predict with YC1 time bin weights applied to YC2 post period
 X = reshape(squeeze(powerData(:,:,1,:)),size(powerData,1),nFreqs*nElecs);
-postProb = glmval(B1,X,'logit');
+postProb = glmval(B1,X,link);
 
 % convert probability to log-odds, for both stim and non-stim
 postProbStim        = postProb(stimEvents);
@@ -229,15 +237,16 @@ powField = 'pow';
 if params.useCorrectedPower
     powField = 'powCorr';
 end
+
 for e = 1:nElecs
     elecNum = tal(e).channel;
     
-    basePath  = '/data10/scratch/jfm2/RAM/biomarker/power/';
+    basePath  = params.powerPath;%'/data10/scratch/jfm2/RAM/biomarker/power/';
     subjPath  = fullfile(basePath,subj);
     sessions = unique([events.session]);
     subjPow  = [];
     for s = 1:length(sessions)
-        fname = fullfile(subjPath,'RAM_YC2_events',num2str(sessions(s)),[num2str(elecNum(1)),'-',num2str(elecNum(2)),'.mat']);
+        fname = fullfile(subjPath,'RAM_YC2_events',num2str(sessions(s)),[num2str(elecNum(1)),'-',num2str(elecNum(2)),'_post.mat']);
         sessPow = load(fname);
         subjPow = cat(3,subjPow,sessPow.sessOutput.(powField));
     end
@@ -259,12 +268,12 @@ for e = 1:nElecs
     end
     
     % average times
-    tmpPower = NaN(nFreqs,nTimes,size(subjPow,3));
-    for t = 1:nTimes
-        tInds = powParams.timeBins(:,1) >= timeBins(t,1) & powParams.timeBins(:,2) < timeBins(t,2);
-        tmpPower(:,t,:) = nanmean(subjPow(:,tInds,:),2);
-    end
-    powerData(:,:,:,e) = tmpPower;
+%     tmpPower = NaN(nFreqs,nTimes,size(subjPow,3));
+%     for t = 1:nTimes
+%         tInds = powParams.timeBins(:,1) >= timeBins(t,1) & powParams.timeBins(:,2) < timeBins(t,2);
+%         tmpPower(:,t,:) = nanmean(subjPow(:,tInds,:),2);
+%     end
+    powerData(:,:,:,e) = subjPow;
 end
 
 

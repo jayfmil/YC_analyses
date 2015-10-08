@@ -10,16 +10,33 @@ r       = [];
 % load subject data
 subjData = load(fullfile(saveDir,[subj '_lasso.mat']));
 
-AUC  = NaN(1,size(params.timeBins,1));
-perf = NaN(1,size(params.timeBins,1));
-r    = NaN(1,size(params.timeBins,1));
+if params.modelEachTime
+    nTimes = size(params.timeBins,1);
+else
+    nTimes = 1;
+end
+
+AUC  = NaN(1,nTimes);
+perf = NaN(1,nTimes);
+r    = NaN(1,nTimes); 
 % loop over each time bin
-for t = 1:size(params.timeBins,1)
+
+if params.modelEachTime
+    nTimes = size(params.timeBins,1);
+else
+    nTimes = 1;
+end
+
+for t = 1:nTimes
     
     % get the actual predicted values
     yPred     = vertcat(subjData.res(t).yPred{:});
     
-    randOrder = randperm(length(subjData.res(t).yPred));
+    if isfield(params,'encPeriod') && (strcmpi(params.encPeriod,'combined')  || strcmpi(params.encPeriod,'average') )
+        randOrder = randperm(length(yPred));
+    else
+        randOrder = randperm(length(yPred)/2);
+    end
     if ~isfield(params,'encPeriod') || strcmpi(params.encPeriod,'both')        
         randOrder = [randOrder;randOrder];
         randOrder = randOrder(:);
@@ -35,4 +52,4 @@ for t = 1:size(params.timeBins,1)
     % calculate new AUC
     [~,~,~,AUC(t)] = perfcurve(yPerm,yPred,true);
     
-end
+end 

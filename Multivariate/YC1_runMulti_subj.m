@@ -68,6 +68,16 @@ try
         return
     end
     
+    % and filter to encoding period of interest
+    [~,firstIdx,~] = unique([session(eventsToUse)' [events(eventsToUse).blocknum]'],'rows','first');
+    if any(strcmp({'first','second'},params.encPeriod))        
+        if strcmp(params.encPeriod,'first')
+            eventsToUse(firstIdx+1) = false;
+        elseif strcmp(params.encPeriod,'second')
+            eventsToUse(firstIdx) = false;
+        end
+    end    
+    
     % get parameters
     freqBins      = params.freqBins;
     timeBins      = params.timeBins;
@@ -95,10 +105,37 @@ try
         end
     end
     
+
+    % if params.encPeriod is 'combined', then reshape the matrix to add an
+    % additional dimensions that is encoding trial number (1 or 2). So
+    % feature matrix will be:
+    %       nItems x nFreqs x nTimes x nElecs x 2    
+    
+    if strcmpi(params.encPeriod,'combined') || strcmpi(params.encPeriod,'average')        
+        
+        % this is assuming every other entry is encoding 1, encoding 2,
+        % encoding 1, encoding 2. This *should* always be true
+        firstEnc  = powerData(1:2:end,:,:,:);
+        secondEnc = powerData(2:2:end,:,:,:);        
+        powerData = cat(5,firstEnc,secondEnc);
+        
+        if strcmpi(params.encPeriod,'average')
+            powerData = nanmean(powerData,5);
+        end
+        
+    end
+    
     % size of feature matrix
     nElecs = size(powerData,4);
     nTimes = size(powerData,3);
-    nFreqs = size(powerData,2);
+    nFreqs = size(powerData,2);    
+    nItemObs = size(powerData,5);        
+    
+    % response data
+    Y = [events(eventsToUse).testError]';
+    if doBinary
+        Y  = Y < median(Y);
+    end    
     
     % determine the cross validation folds. each fold actually leaves out one
     % learning pair, not one trial. For example, if you had 5 learning pairs,
@@ -111,21 +148,26 @@ try
     % 1 1 1 1 1 1 0 0 1 1
     % 1 1 1 1 1 1 1 1 0 0
     %
+    % JFM edit 9/16/2015: if params.encPeriod is 'first' or 'second' or
+    % 'combined', it will not hold out pairs because there are no pairs.
+    % If params.encPeriod is 'both', it will hold out pairs. The below
+    % logic is unchanged.
+    %
     % Note: this is not influenced by params.nCV. params.nCV is the number
     % of cross validation folds to estimate lambda with lassoglm. For the
-    % training test iterations, we are always doing leave one object out.
+    % training test iterations, we are always doing leave one object out.    
+
     [trials,~,trialInds] = unique([session(eventsToUse)' [events(eventsToUse).blocknum]'],'rows');
+    if strcmpi(params.encPeriod,'combined') || strcmpi(params.encPeriod,'average')
+        trialInds = trialInds(firstIdx);    
+        Y = Y(firstIdx);
+    end
+    
     nFolds = size(trials,1);
     folds = false(nFolds,size(trialInds,1));
     for iFold = 1:nFolds
         folds(iFold,:) = trialInds ~= iFold;
-    end
-    
-    % response data
-    Y = [events(eventsToUse).testError]';
-    if doBinary
-        Y  = Y < median(Y);
-    end
+    end  
     
     % use hagai's error metric instead of the normal one?
     if isfield(params,'useHagai') && params.useHagai == 1
@@ -143,11 +185,18 @@ try
     
     % permute the responses if desired
     if doPermute
-        randOrder = randperm(size(trials,1));
-        Ytmp = reshape(Y,2,[]);
-        Y = reshape(Ytmp(:,randOrder),[],1);
+        randOrder = randperm(size(trials,1));        
+        if ~isfield(params,'encPeriod') || strcmpi(params.encPeriod,'both')
+            randOrder = [randOrder;randOrder];
+            randOrder = randOrder(:);
+            Ytmp = reshape(Y,2,[]);
+            Y = reshape(Ytmp(:,randOrder),[],1);
+        else
+            Y = Y(randOrder);
+        end        
     end
     
+
     objLocs = vertcat(events(eventsToUse).objLocs);
     
     % We can model time points seperately, so # features = # freqs x # elecs,
@@ -160,7 +209,7 @@ try
         for t = 1:nTimes
             
             % reshape into # trials x # features
-            X = reshape(squeeze(powerData(:,:,t,:)),size(powerData,1),nFreqs*nElecs);
+            X = reshape(squeeze(powerData(:,:,t,:,:)),size(powerData,1),nFreqs*nElecs*nItemObs);
             
             % see if we are precomputing lambda based on all the data
             lambda = [];
@@ -236,7 +285,7 @@ try
     else
         
         % reshape into # trials x # features
-        X = reshape(squeeze(powerData),size(powerData,1),nFreqs*nTimes*nElecs);
+        X = reshape(squeeze(powerData),size(powerData,1),nFreqs*nTimes*nElecs*nItemObs);
         
         % see if we are precomputing lambda based on all the data
         lambda = [];
@@ -320,16 +369,16 @@ end
 if doBinary
     
     [~,stats] = lassoglm(X,Y,'binomial','CV', nCV, 'NumLambda', 50,'alpha',alpha);
-
+    
     % if the best model is a model with no features, then the data
     % are not all predictive of the behavior. I set a high lambda,
     % making it hard for any non-zero weights to get
     % through. Otherwise, you can end up with odd behavior on some
-    % of the folds. 
+    % of the folds.
     if stats.DF(stats.Index1SE) == 0
-      lambda = 5;
+        lambda = 5;
     else
-      lambda = stats.Lambda1SE;
+        lambda = stats.Lambda1SE;
     end
     
 else
@@ -358,21 +407,21 @@ opts = optimset('TolX',5e-4,'TolFun',5e-4);
 % fun = @(z)SVM_min_fn(X,Y,exp(z(1)),exp(z(2)),nCV);
 
 
-	
+
 m = 10;
 fval = zeros(m,1);
 z = zeros(m,1);
-for j = 1:m;	
-	c = cvpartition(Y,'KFold',nCV);
-	% minfn = @(z)kfoldLoss(fitcsvm(X,Y,'CVPartition',c,...
-	    % 'KernelFunction','linear','standardize',true,'BoxConstraint',exp(z(2)),...
-	    % 'KernelScale',exp(z(1))));
-		minfn = @(z)kfoldLoss(fitcsvm(X,Y,'CVPartition',c,...
-		    'KernelFunction','linear','standardize',true,'BoxConstraint',exp(z)));			
+for j = 1:m;
+    c = cvpartition(Y,'KFold',nCV);
+    % minfn = @(z)kfoldLoss(fitcsvm(X,Y,'CVPartition',c,...
+    % 'KernelFunction','linear','standardize',true,'BoxConstraint',exp(z(2)),...
+    % 'KernelScale',exp(z(1))));
+    minfn = @(z)kfoldLoss(fitcsvm(X,Y,'CVPartition',c,...
+        'KernelFunction','linear','standardize',true,'BoxConstraint',exp(z)));
     [searchmin fval(j)] = fminsearch(minfn,randn(1,1),opts);
     z(j,:) = exp(searchmin)
 end
-z = z(fval == min(fval),:)	
+z = z(fval == min(fval),:)
 z = mean(z,1);
 
 boxConstraint = z;
@@ -384,7 +433,7 @@ return
 [~, Features_opt] = fun(z_opt);
 
 %************ Get optimal results **************
-Acc = 1 - Crit;                       % Accuracy for model  
+Acc = 1 - Crit;                       % Accuracy for model
 rbf_sigma = exp(z_opt(1));
 boxconstraint = exp(z_opt(2));
 disp(sprintf('Max Acc: %2.2f, RBF sigma: %1.2f. Boxconstraint: %1.2f',Acc,rbf_sigma,boxconstraint))
@@ -525,21 +574,21 @@ if doBinary
     if isempty(lambda)
         if strcmp(normType,'L1')
             [~, stats] = lassoglm(xTrain',yTrainBool,'binomial','CV', nCV, 'NumLambda', 25,'alpha',alpha);
-
+            
             % if the best model is a model with no features, then the data
             % are not all predictive of the behavior. I set a high lambda,
             % making it hard for any non-zero weights to get
             % through. Otherwise, you can end up with odd behavior on some
-            % of the folds. 
+            % of the folds.
             if stats.DF(stats.Index1SE) == 0
-              lambda = 5;
+                lambda = 5;
             else
-              lambda = stats.Lambda1SE;
+                lambda = stats.Lambda1SE;
             end
-       elseif strcmp(normType,'L2')
+        elseif strcmp(normType,'L2')
             lambda = calcPenalty(xTrain',yTrainBool,nCV);
-		elseif strcmpi(normType,'SVM')
-			lambda = calcBoxConstraint(xTrain',yTrainBool,nCV);
+        elseif strcmpi(normType,'SVM')
+            lambda = calcBoxConstraint(xTrain',yTrainBool,nCV);
         end
     end
     
@@ -572,34 +621,34 @@ if doBinary
         % training set y
         yTrainBool(toRemove) = [];
         
-		link = 'logit';
+        link = 'logit';
         if strcmp(normType,'L1')
             [As(:,nSub), stats] = lassoglm(xTrain',yTrainBool,'binomial','Lambda',lambda,'alpha',alpha);
             intercepts(nSub)    = stats.Intercept;
-		elseif strcmpi(normType','L2')
+        elseif strcmpi(normType','L2')
             xTrain           = [ones(sum(size(xTrain,2)),1) xTrain'];
             out              = logRegFun(yTrainBool',xTrain',lambda);
             intercepts(nSub) = out.weights(1);
             As(:,nSub)       = out.weights(2:end);
-		elseif strcmpi(normType,'svm')
-			link = 'identity';
-			% SVMModel = fitcsvm(xTrain',yTrainBool,'KernelFunction','linear','KernelScale',kScale,'BoxConstraint',lambda,'standardize',true);
-			SVMModel = fitcsvm(xTrain',yTrainBool,'BoxConstraint',lambda);
-			%'standardize',true);				
-			% [ScoreSVMModel,Info] = fitPosterior(SVMModel);
-			intercepts(nSub) = SVMModel.Bias;
-			As(:,nSub)       = SVMModel.Beta;
-			% slopes = Info.Slope;
-			% B1 = [ScoreSVMModel.Bias+Info.Intercept;ScoreSVMModel.Beta];
-			% keyboard
+        elseif strcmpi(normType,'svm')
+            link = 'identity';
+            % SVMModel = fitcsvm(xTrain',yTrainBool,'KernelFunction','linear','KernelScale',kScale,'BoxConstraint',lambda,'standardize',true);
+            SVMModel = fitcsvm(xTrain',yTrainBool,'BoxConstraint',lambda);
+            %'standardize',true);
+            % [ScoreSVMModel,Info] = fitPosterior(SVMModel);
+            intercepts(nSub) = SVMModel.Bias;
+            As(:,nSub)       = SVMModel.Beta;
+            % slopes = Info.Slope;
+            % B1 = [ScoreSVMModel.Bias+Info.Intercept;ScoreSVMModel.Beta];
+            % keyboard
         end
-
-		%
-		% scores=(xTest')*ScoreSVMModel.Beta + ScoreSVMModel.Bias
-		%         1./(1+ exp(Info.Slope*scores + Info.Intercept))
-		%
-		%
-		% 1./(1+ exp(Info.Slope*scores + Info.Intercept))
+        
+        %
+        % scores=(xTest')*ScoreSVMModel.Beta + ScoreSVMModel.Bias
+        %         1./(1+ exp(Info.Slope*scores + Info.Intercept))
+        %
+        %
+        % 1./(1+ exp(Info.Slope*scores + Info.Intercept))
         
         % testing set
         xTest = X(~trainInds,:)';
@@ -613,9 +662,9 @@ if doBinary
         % prediction off of the mean in either the positive or negative
         % direction. This is a little weird, but I don't want it to always say
         % that when the model is empty, choose recalled.
-        if nnz(As(:,nSub)) == 0
-            yPred = yPred + (randsample([-1 1],length(yPred),true) * .0001)';
-        end
+        %if nnz(As(:,nSub)) == 0
+        %    yPred = yPred + (randsample([-1 1],length(yPred),true) * .0001)';
+        %end
         
         yPreds(:,nSub) = yPred;
     end
@@ -625,12 +674,12 @@ if doBinary
     intercept = mean(intercepts);
     
     % see if the predictions match the actual results
-	if ~strcmpi(normType,'svm')
-    	err = (yPred > mean(yTrainBool)) == Y(~trainInds);
-	else
-		err = (yPred > 0) == Y(~trainInds); 
-	end 
-	
+    if ~strcmpi(normType,'svm')
+        err = (yPred > mean(yTrainBool)) == Y(~trainInds);
+    else
+        err = (yPred > 0) == Y(~trainInds);
+    end
+    
     %     err = mean((yPreds > mean(yTrainBool)) == repmat(Y(~trainInds),1,nSub),2);
     
     % if Y is not logical, do regression

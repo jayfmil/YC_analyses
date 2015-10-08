@@ -20,7 +20,8 @@ params.timeBins = [[-999:timeStep:6000]' [(-999+timeStep-1):timeStep:6000]';1 50
 params.timeBinLabels = {'Pre','Spin','Drive1','Drive2','Drive3','Wait','Post','Enc'};
 
 % regions. If empty, use all electrodes. Choices right now are:
-%          'mtl', 'hipp', 'ec'
+%          'mtl', 'hipp', 'ec', 'all', 'ca1','ca3','dg','sub','phc','prc',
+%          'frontal','parietal','occipital','temporal','limbic'
 params.region = '';
 
 % individual model for each time bin, or all in one model
@@ -42,17 +43,27 @@ params.useCorrectedPower = 0;
 % path to power data
 params.powerPath = '/data10/scratch/jfm2/power';
 
+% In YC1/2, each item has two encoding periods. When selecting features, do
+% we use just the first period ('first'), just the second period
+% ('second'), use both but keep them as seperate observations ('both'), or
+% use both but combine them ('combine'), or use the average ('average')
+params.encPeriod = 'both';
+
 % cross validation strictness.
 %   0 = use all the data to calculate optimal lambda, and apply the model
 %       with this lamda to all cross val folds
-%   1 = Calculate a new lamda for each cross val. This *might* technically
-%       be more correct because then the test data is totall removed from
-%       the train data. This takes a lot longer.
+%   1 = Calculate a new lamda for each cross val. This is technically
+%       more correct because then the test data is totall removed from the
+%       train data (i.e., no peaking when calculating optimal penalty).
+%       This takes a lot longer.
 params.crossValStrictness = 0;
 
 % number of cross validation folds to compute lambda. If empty, will use
 % number of trials/2 folds.
 params.nCV = 10;
+
+% ADD MULTIPLE ROUNDS OF SUB SAMPLING
+% params.subSampNum = 10
 
 % use lasso (L1) normaliztion or L2 normaliztion? L1 zeros out most of the
 % weights, L2 minimizes but doesn't zero out. If L1, uses lassoglm(). If

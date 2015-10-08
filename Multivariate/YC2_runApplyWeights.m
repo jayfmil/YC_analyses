@@ -48,6 +48,9 @@ if ~isempty(poolobj)
             subjData = load(lassoFile);
             chanceData = load(chanceFile);
             YC1_params = subjData.params;
+            YC1_params.loadPower = 0;
+            YC1_params.savePower = 1;
+            YC1_params.saveOutput = 1;
             YC1_params.powerPath = params.powerPath;
             fprintf('Processing %s.\n',subjs{s})
             YC2_applyWeights(subjs{s},YC1_params,subjData,chanceData,saveDir);            
@@ -71,6 +74,7 @@ elseif isempty(poolobj)
             subjData = load(lassoFile);
             chanceData = load(chanceFile);
             YC1_params = subjData.params;
+            YC1_params.loadPower = 0;
             YC1_params.powerPath = params.powerPath;
             fprintf('Processing %s.\n',subjs{s})
             YC2_applyWeights(subjs{s},YC1_params,subjData,chanceData,saveDir);                        

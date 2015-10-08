@@ -48,10 +48,10 @@ for s = 1:length(subjs)
             % compute power
             if doPow    
                 
-%                 if isempty(gcp('nocreate'))
-%                     num_nodes = 30;mem = '12G';
-%                     open_rhino2_pool(num_nodes,mem);
-%                 end
+                 if isempty(gcp('nocreate'))
+                     num_nodes = 30;mem = '12G';
+                     open_rhino2_pool(num_nodes,mem);
+                 end
 
                 sess_events = events([events.session]==sessions(sess));
                 parfor iElec = 1:length(tal)
@@ -71,7 +71,7 @@ for s = 1:length(subjs)
     display(sprintf('completed %s',subj));
     
 end
-% delete(gcp('nocreate'));
+delete(gcp('nocreate'));
 
 
 

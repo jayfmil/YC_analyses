@@ -112,6 +112,16 @@ for s = 1:length(subjs)
     lassoData  = load(lassoFile);
     figs_subj.nElecs = length(lassoData.tal);
     
+    if ~lassoData.params.modelEachTime
+        lassoData.AUC_best = lassoData.AUC;
+        lassoData.AUC_enc = lassoData.AUC;
+        lassoData.AUC_bestEnc = lassoData.AUC;
+        lassoData.perfEnc = lassoData.perf;        
+        chanceData.perfEncAll = chanceData.perf_all;
+        chanceData.aucEncAll = chanceData.auc_all;
+        chanceData.aucBest_all = chanceData.auc_all;
+        chanceData.aucBestEnc_all = chanceData.auc_all;        
+    end
     % 
 %     p = mean(repmat(lassoData.AUC,[size(chanceData.auc_all,1), 1]) > chanceData.auc_all);
 %     maxP = max(p);

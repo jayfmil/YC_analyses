@@ -42,7 +42,7 @@ end
 % tex directory
 f = @(x,y) y{double(x)+1};
 y = {'OrigPower','CorrectedPower'};
-dataDir = fullfile(params.basePath,f(params.useCorrectedPower,y),'YC2_postStimFFT_second_best')
+dataDir = fullfile(params.basePath,f(params.useCorrectedPower,y),'YC2_postStim_both_best')
 saveDir = fullfile(dataDir,'reports');
 if ~exist(saveDir,'dir')
     mkdir(saveDir);
@@ -127,7 +127,7 @@ hipp = ~cellfun('isempty',regexpi(region,['ca1|ca2|ca3|dg|sub']))';
 mtl  = ~cellfun('isempty',regexpi(region,['amy|phc|prc|BA36|pcg']))';
 oth  = ~(ec | hipp | mtl);
 
-deltaEE(abs((deltaEE - nanmean(deltaEE))/nanstd(deltaEE)) > 3) = NaN;
+deltaEE(abs(deltaEE)>500) = NaN;
 xdata      = {deltaEE_Prob,deltaEE};
 ydata      = {deltaRR,deltaRR_bin};
 xDataNames  = {'prob','logOdds'};
@@ -135,12 +135,13 @@ yDataNames  = {'perfScore','RecChange'};
 subjStr    = {'all','good','weights'};
 xdata_perm = {deltaEE_Prob_perm,deltaEE_perm};
 ydata_perm = {deltaRR_perm,deltaRR_bin_perm};
-subjFilter = {@(x) (~isnan(x) & ~isnan(deltaRR)),@(x) (~isnan(x) & ~isnan(deltaRR) & yc1Score>.95),@(x) (~isnan(x) & ~isnan(deltaRR) &~oth)};
+subjFilter = {@(x) (~isnan(x) & ~isnan(deltaRR)),@(x) (~isnan(x) & ~isnan(deltaRR) & yc1Score>.9),@(x) (~isnan(x) & ~isnan(deltaRR) &~oth)};
 % subjFilter = {@(x) (~isnan(x) & ~isnan(deltaRR) &~oth),@(x)
 % (~isnan(x) & ~isnan(deltaRR) & yc1Score>.95 &~oth),@(x)
 % (~isnan(x) &  numNZweights>5 &~oth)};
-subjFilter = {@(x) (~isnan(x) & ~isnan(deltaRR)),@(x) (~isnan(x) & ~isnan(deltaRR) & yc1Score>.95),@(x) (~isnan(x) & ~isnan(deltaRR) &  ~oth)};
-subjFilter = {@(x) (~isnan(x) & ~isnan(deltaRR)),@(x) (~isnan(x) & ~isnan(deltaRR) & yc1Score>.95),@(x) (~isnan(x) & ~isnan(deltaRR) &  numNZweights>3)};
+subjFilter = {@(x) (~isnan(x) & ~isnan(deltaRR)),@(x) (~isnan(x) & ...
+                                                  ~isnan(deltaRR) & ...
+                                                  yc1Score>.8),@(x) (~isnan(x) & ~isnan(deltaRR) &  numNZweights>10)};
 
 %%% Plots are scatter plots of change in classifier encoding estimate post
 %%% stim and change in behavioral performance post stim. Four plots:
