@@ -1,5 +1,5 @@
-function [allErrors,allObjectLocs,allEucErrors] = YC1_loadAllSubjErrors(recalcError)
-% function [allErrors,allObjectLocs,allEucErrors] = YC1_loadAllSubjErrors(recalcError)
+function [allErrors,allObjectLocs,allEucErrors,subjVec] = YC1_loadAllSubjErrors(recalcError)
+% function [allErrors,allObjectLocs,allEucErrors,subjVec] = YC1_loadAllSubjErrors(recalcError)
 %
 % This functions loops over all the YC1 subjects in the dataset and returns
 % a vector of all the errors made and a n x 2 matrix of all the
@@ -24,8 +24,16 @@ for s = 1:length(subjs);
 end
 
 allErrors     = vertcat(errors{:});
-allEucErrors     = vertcat(eucErrors{:});
+allEucErrors  = vertcat(eucErrors{:});
 allObjectLocs = vertcat(objLocs{:});
+
+% make a vector to keep track of which entries are from which subject
+% number
+countsPerSubj = cellfun(@numel,errors);
+subjVec       = zeros(1,sum(countsPerSubj));
+subjVec(cumsum(countsPerSubj) - countsPerSubj + 1) = 1;
+subjVec = cumsum(subjVec);
+
 
 if length(allErrors) ~= length(allObjectLocs)
     keyboard
