@@ -1,5 +1,5 @@
-function [allErrors,allObjectLocs] = YC1_loadAllSubjErrors(recalcError)
-% function [allErrors,allObjectLocs] = YC1_loadAllSubjErrors(recalcError)
+function [allErrors,allObjectLocs,allEucErrors] = YC1_loadAllSubjErrors(recalcError)
+% function [allErrors,allObjectLocs,allEucErrors] = YC1_loadAllSubjErrors(recalcError)
 %
 % This functions loops over all the YC1 subjects in the dataset and returns
 % a vector of all the errors made and a n x 2 matrix of all the
@@ -15,13 +15,16 @@ subjs = get_subs('RAM_YC1');
 % loop over each subject
 errors = cell(1,length(subjs));
 objLocs = cell(1,length(subjs));
+eucErrors = cell(1,length(subjs));
+
 disp('Loading all errors.')
 for s = 1:length(subjs);    
     % process subject    
-    [errors{s},objLocs{s}] = process_subj(subjs{s},recalcError);    
+    [errors{s},eucErrors{s},objLocs{s}] = process_subj(subjs{s},recalcError);    
 end
 
 allErrors     = vertcat(errors{:});
+allEucErrors     = vertcat(eucErrors{:});
 allObjectLocs = vertcat(objLocs{:});
 
 if length(allErrors) ~= length(allObjectLocs)
@@ -29,7 +32,7 @@ if length(allErrors) ~= length(allObjectLocs)
 end
 
 
-function [errors,objLocs] = process_subj(subj,doRecalc)
+function [errors,eucErrors,objLocs] = process_subj(subj,doRecalc)
 
 
 % load events and filter to test trials
@@ -39,6 +42,7 @@ events = events(strcmp({events.type},'NAV_TEST'));
 % get all object locations and response error
 objLocs = vertcat(events.objLocs);
 respLocs = vertcat(events.respLocs);
+eucErrors = [events.respDistErr]';
 
 % calculate burgess style error metric based on distribution of possible
 % errors
