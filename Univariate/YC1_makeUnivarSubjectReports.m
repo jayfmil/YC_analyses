@@ -61,7 +61,7 @@ for s = 1:length(subjs)
     subj = subjs{s};
     subjFile = fullfile(dataDir,[subj '.mat']);
     if ~exist(subjFile,'file')
-        fprintf('Subject datar not found for %s.\n',subj)
+        fprintf('Subject data not found for %s.\n',subj)
         continue
     end    
     
@@ -88,7 +88,7 @@ for s = 1:length(subjs)
     end
     
 end
-
+keyboard
 
 good = ~cellfun('isempty',{figs.subj});
 figs = figs(good);
