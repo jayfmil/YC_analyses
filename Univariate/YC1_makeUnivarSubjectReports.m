@@ -87,7 +87,6 @@ for s = 1:length(subjs)
         subjDataAll.(f{1}) = mergestruct(subjDataAll.(f{1}),subjData.res.(f{1}));
     end
     
-end
     
     fprintf('Creating plots for %s.\n',subj);
         
