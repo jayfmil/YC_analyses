@@ -45,18 +45,40 @@ if ~exist('figDir','dir')
 end
 
 % store group information
-nTrialsAll = NaN(length(subjs),1);
-perf_all   = NaN(length(subjs),size(params.timeBins,1));
-perf_p_all = NaN(length(subjs),size(params.timeBins,1));
-auc_all    = NaN(length(subjs),size(params.timeBins,1));
-auc_p_all  = NaN(length(subjs),size(params.timeBins,1));
-quarts_all = NaN(size(params.timeBins,1),4,length(subjs));
-best_time  = NaN(length(subjs),1);
+% nTrialsAll = NaN(length(subjs),1);
+% perf_all   = NaN(length(subjs),size(params.timeBins,1));
+% perf_p_all = NaN(length(subjs),size(params.timeBins,1));
+% auc_all    = NaN(length(subjs),size(params.timeBins,1));
+% auc_p_all  = NaN(length(subjs),size(params.timeBins,1));
+% quarts_all = NaN(size(params.timeBins,1),4,length(subjs));
+% best_time  = NaN(length(subjs),1);
 
 % will hold figure paths for latex report
 figs = [];
+subjDataAll =  [];
 for s = 1:length(subjs)                
+    
     subj = subjs{s};
+    subjFile = fullfile(dataDir,[subj '.mat']);
+    if ~exist(subjFile,'file')
+        fprintf('Subject datar not found for %s.\n',subj)
+        continue
+    end    
+    
+
+    
+    subjData = load(subjFile);
+    if s == 1
+       fields = fieldnames(subjData.res);
+       for f = fields'
+          subjDataAll.(f{1}) = []; 
+       end
+    end    
+    
+    subjDataAll = mergestruct(subjDataAll,subjData)
+    
+end
+    
     fprintf('Creating plots for %s.\n',subj);
         
     % will subject specific figure paths
@@ -600,13 +622,21 @@ fprintf(fid,'\\end{document}\n\n\n');
 
 function sout = mergestruct(struct1,struct2)
 
+if isempty(struct1) & ~isempty(struct2)
+    sout = struct2;
+    return
+elseif ~isempty(struct1) & isempty(struct2)
+    sout = struct1;
+    return
+end
+
 fields1 = fieldnames(struct1);
 fields2 = fieldnames(struct2);
 
 if isequal(fields1,fields2)
     sout = cell2struct(fields1,fields1,1);
     for f = 1:length(fields1)
-        sout.(fields1(f)) = horzcat(struct1.(fields1(f)),struct2.(fields1(f)));       
+        sout.(fields1{f}) = horzcat(struct1.(fields1{f}),struct2.(fields1{f}));       
     end
 end
 
