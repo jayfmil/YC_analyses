@@ -66,16 +66,26 @@ for s = 1:length(subjs)
     end    
     
 
-    
+    % load subejct data
     subjData = load(subjFile);
-    if s == 1
+    
+    % if we haven't done it yet, initialze structure to hold concatenated
+    % data from all subjects
+    if isempty(subjDataAll)
        fields = fieldnames(subjData.res);
-       for f = fields'
+       for f = fields'           
           subjDataAll.(f{1}) = []; 
+          subfields = fieldnames(subjData.res.(f{1}));
+          for subf = subfields'
+              subjDataAll.(f{1}).(subf{1}) = [];
+          end
        end
     end    
     
-    subjDataAll = mergestruct(subjDataAll,subjData)
+    % merge current subject data into larger struct
+    for f = fields' 
+        subjDataAll.(f{1}) = mergestruct(subjDataAll.(f{1}),subjData.res.(f{1}));
+    end
     
 end
     
