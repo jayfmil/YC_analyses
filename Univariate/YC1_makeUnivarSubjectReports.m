@@ -92,6 +92,7 @@ for f = 1:length(fields)
     [~,pR(f)] = ttest(-subjDataAll.(fields{f}).r);
     semR(f)   = nanstd(subjDataAll.(fields{f}).r)/sqrt(length(subjDataAll.(fields{f}).r)-1);
 end
+clf
 bar(find(meanR>0),meanR(meanR>0),'linewidth',3,'FaceColor',[150 23 31]/255);
 hold on
 bar(find(meanR<0),meanR(meanR<0),'linewidth',3,'FaceColor',[61 89 171]/255);
