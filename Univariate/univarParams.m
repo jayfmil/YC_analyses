@@ -2,6 +2,7 @@ function params = univarParams()
 
 % frequency bins to use
 params.freqBins = [1 3;3 9;40 70;70 200];
+params.freqBinLabels = {'LowTheta','HighTheta','Gamma','HFA'};
 
 % time points
 params.timeBins = [1 5000];

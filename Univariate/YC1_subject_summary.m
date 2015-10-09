@@ -122,54 +122,41 @@ fprintf('Calculating average power for %d %s elecs.\n',length(tal),region)
 powerData = loadAllPower(tal,subj,events,params.freqBins,params.timeBins,powParams,eventsToUse,params);
 powerData = permute(powerData,[3 1 4 2]);
 
-keyboard
+
 
 
 
 
 % initialize everything
 %if isrow(elecs);elecs = elecs';end
-powCond1ByElec = NaN(length(config.distributedParams.freQ),size(elecs,1),'single');
-powCond2ByElec = NaN(length(config.distributedParams.freQ),size(elecs,1),'single');
-powLTA = NaN(size(elecs,1),sum(cond1)+sum(cond2));
-powHTA = NaN(size(elecs,1),sum(cond1)+sum(cond2));
-powG = NaN(size(elecs,1),sum(cond1)+sum(cond2));
-powHFA = NaN(size(elecs,1),sum(cond1)+sum(cond2));
-rLTA =  NaN(size(elecs,1),1);
-pLTA =  NaN(size(elecs,1),1);
-rHTA =  NaN(size(elecs,1),1);
-pHTA =  NaN(size(elecs,1),1);
-rG =  NaN(size(elecs,1),1);
-pG =  NaN(size(elecs,1),1);
-rHFA =  NaN(size(elecs,1),1);
-pHFA =  NaN(size(elecs,1),1);
-statsLTA = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
-statsHTA = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
-statsG = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
-statsHFA = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
-tagNames = cell(1,size(elecs,1));
+% powCond1ByElec = NaN(length(config.distributedParams.freQ),size(elecs,1),'single');
+% powCond2ByElec = NaN(length(config.distributedParams.freQ),size(elecs,1),'single');
+% powLTA = NaN(size(elecs,1),sum(cond1)+sum(cond2));
+% powHTA = NaN(size(elecs,1),sum(cond1)+sum(cond2));
+% powG = NaN(size(elecs,1),sum(cond1)+sum(cond2));
+% powHFA = NaN(size(elecs,1),sum(cond1)+sum(cond2));
+% rLTA =  NaN(size(elecs,1),1);
+% pLTA =  NaN(size(elecs,1),1);
+% rHTA =  NaN(size(elecs,1),1);
+% pHTA =  NaN(size(elecs,1),1);
+% rG =  NaN(size(elecs,1),1);
+% pG =  NaN(size(elecs,1),1);
+% rHFA =  NaN(size(elecs,1),1);
+% pHFA =  NaN(size(elecs,1),1);
+% statsLTA = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
+% statsHTA = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
+% statsG = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
+% statsHFA = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
+% tagNames = cell(1,size(elecs,1));
 
 % loop over each electrode in region
-for e = 1:size(elecs,1)
-    elecNum = elecs(e,:);
-    tagNames{e} = tal(ismember(vertcat(tal.channel),elecNum,'rows')).tagName;
-    
-    % load power for all sessions. Power should aleady have been
-    % created or else error
-    if ~useResids
-        pow  = loadPow_local(subj,elecNum,config,events);
-    else
-        if e == 1
-            eventsToUse = cond1|cond2;
-            cond1 = ana_func(events(eventsToUse), 1);
-            cond2 = ana_func(events(eventsToUse), 0);
-        end
-        pow = loadResids_locs(subj,elecNum,cond1|cond2);
-    end
-    
-    % use only time bins of interest
-    pow(:,~tInds,:) = NaN;
-    
+for e = 1:size(powerData,1)
+
+    for f = 1:size(powerData,2)
+        
+        pow = powerData(e,f,:);
+        keyboard
+        
     % corr for low theta
     test_pow_LTA = nanmean(squeeze(nanmean(pow(fIndLTA,:,cond1|cond2),2)),1);
     bad = isnan(er) | isnan(test_pow_LTA);
@@ -238,6 +225,7 @@ for e = 1:size(elecs,1)
     % mean power spect for electrode
     powCond1ByElec(:,e) = nanmean(pow(:,cond1),2);
     powCond2ByElec(:,e) = nanmean(pow(:,cond2),2);
+    end
 end
 
 % save it to file
