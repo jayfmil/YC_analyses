@@ -49,7 +49,11 @@ function YC1_univarStats(subj,params,saveDir)
 
 
 % load tal structure
-tal = getBipolarSubjElecs(subj,params.doBipol,1,params.excludeEpiElecs);
+try
+    tal = getBipolarSubjElecs(subj,params.doBipol,1,params.excludeEpiElecs);
+catch
+    return
+end
 tal = filterTalByRegion(tal,params.region);
 if isempty(tal)
     fprintf('No %s electrode for %s.\n',params.region,subj)
