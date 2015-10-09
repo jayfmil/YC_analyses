@@ -77,18 +77,7 @@ thresh = median(er);
 cond1 = er < thresh;
 cond2 = er >= thresh;
 
-% % update the recalled field
-% class1 = find([events.testError]<thresh);
-% [events(class1).recalled] = deal(1);
-% class2 = find([events.testError]>=thresh);
-% [events(class2).recalled] = deal(0);
-
-
-% % conditions of interest
-% cond1 = params.ana_func(events, 1);
-% cond2 = params.ana_func(events, 0);
-% er = [events(cond1|cond2).testError];
-
+% see if we have enough events
 if sum(cond1) < 5
     fprintf('Only %d events for %s in cond1 using %s. Skipping subject.\n', sum(cond1),subj,func2str(ana_func))
     return
@@ -99,6 +88,7 @@ if sum(cond2) < 5
     return
 end
 
+% load the power for this region
 region = params.region;
 if isempty(region)
     region = 'all';
@@ -106,9 +96,16 @@ end
 fprintf('Calculating average power for %d %s elecs.\n',length(tal),region)
 powerData = loadAllPower(tal,subj,events,params.freqBins,params.timeBins,powParams,eventsToUse,params);
 powerData = permute(powerData,[3 4 1 2]);
+nElecs = size(powerData,2);
 
-
-
+% initial structure to hold results
+res = cell2struct(cell(1,length(params.freqBinLabels)),params.freqBinLabels,2);
+for field = params.freqBinLabels
+    res.(field{1}) = struct('r',NaN(1,nElecs),'pCorr',NaN(1,nElecs),...
+                            'tstat',NaN(1,nElecs),'sd',NaN(1,nElecs),...
+                            'df',NaN(1,nElecs),'p_ttest',NaN(1,nElecs),...
+                            'meanCond1',NaN(1,nElecs),'meanCond2',NaN(1,nElecs));                        
+end
 
 
 
@@ -137,38 +134,32 @@ powerData = permute(powerData,[3 4 1 2]);
 % loop over each electrode in region
 for e = 1:size(powerData,2)
 
+    % and each frequency
     for f = 1:size(powerData,3)
         
-        pow = powerData(:,e,f)';
-        bad = isnan(er) | isnan(pow);
-        [r,p] = corr(er(~bad)', pow(~bad)'); 
-        [~,p,~,s] = ttest2(pow(cond1),pow(cond2));
+        % field name to save in res structure
+        field = params.freqBinLabels{f};
         
+        % power for this elec and freq
+        pow = powerData(:,e,f)';
+        
+        % correlation between power and performance
+        bad = isnan(er) | isnan(pow);
+        [res.(field).r(e),res.(field).pCorr(e)] = corr(er(~bad)', pow(~bad)'); 
+        
+        % ttest between power in each condition
+        [~,p,~,s] = ttest2(pow(cond1),pow(cond2));
+        res.(field).tstat(e) = s.tstat;
+        res.(field).sd(e) = s.sd;
+        res.(field).df(e) = s.df;
+        res.(field).p_ttest = p;
+        
+        % mean power in each condition
+        res.(field).meanCond1 = nanmean(pow(cond1));
+        res.(field).meanCond2 = nanmean(pow(cond2));
         
         keyboard
-        
-%     % corr for low theta
-%     test_pow_LTA = nanmean(squeeze(nanmean(pow(fIndLTA,:,cond1|cond2),2)),1);
-%     
-%     [rLTA(e),pLTA(e)] = corr(er(~bad)', test_pow_LTA(~bad)');
-%     powLTA(e,:) = test_pow_LTA;
-%     
-%     % corr for high theta
-%     test_pow_HTA = nanmean(squeeze(nanmean(pow(fIndHTA,:,cond1|cond2),2)),1);
-%     bad = isnan(er) | isnan(test_pow_HTA);
-%     [rHTA(e),pHTA(e)] = corr(er(~bad)', test_pow_HTA(~bad)');
-%     powHTA(e,:) = test_pow_HTA;
-%     
-%     % corr for gamma
-%     test_pow_G = nanmean(squeeze(nanmean(pow(fIndG,:,cond1|cond2),2)),1);
-%     bad = isnan(er) | isnan(test_pow_G);
-%     [rG(e),pG(e)] = corr(er(~bad)', test_pow_G(~bad)');
-%     powG(e,:) = test_pow_G;
-%     
-%     % corr for HFA
-%     test_pow_HFA = nanmean(squeeze(nanmean(pow(fIndHFA,:,cond1|cond2),2)),1);
-%     bad = isnan(er) | isnan(test_pow_HFA);
-%     [rHFA(e),pHFA(e)] = corr(er(~bad)', test_pow_HFA(~bad)');
+
 %     powHFA(e,:) = test_pow_HFA;
     
     % average across time
