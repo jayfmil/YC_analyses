@@ -1,156 +1,78 @@
-function YC1_subject_summary(subjs,anas,ana_func,pool)
-
+function YC1_subject_summary(subjs,params)
+%function YC1_subject_summary(subjs)
+ %
+ %
+ %
  
-% analysis settings
-% -----------------
-
-if ~exist('anas','var') || isempty(anas)
-
-    anas = {};
-    ana_funcs = {};
-    
-    anas{end+1} = 'correct_incorrect';
-    ana_funcs{end+1} = @correctFilter;
-    
-else
-    ana_funcs = {str2func(ana_func)};
+ 
+ % use default params if none given
+if ~exist('params','var') || isempty(params)
+    params = univarParams();
 end
 
-
-for a = 1:length(ana_funcs)
-    
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %%% TOM: Path is set here %%%
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    
-    % save directory
-    f = @(x,y) y{double(x)+1};
-    saveDir = fullfile('/data10/scratch/jfm2/YC1/group',anas{a});
-    if ~exist(saveDir,'dir')
-        mkdir(saveDir);
-    end
-    
-    
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %%% TOM: I don't know if switching this to bipolar will work %%%
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    
-    % do bipolar
-    bipol = 1;
-    
-    % use residuals from regression
-    useResids = 0;
-    
-    % get list of YC subjects
-    if ~exist('subjs','var') || isempty(subjs)
-        subjs = get_subs('RAM_YC1');
-        subjs = subjs(~strcmp(subjs,'R1025P'));
-    end
-
-    ana_func = ana_funcs{a};
-
-    if exist('pool','var')
-        matlabpool(pool,length(subjs)+1)        
-        tic
-        parfor s = 1:length(subjs)
-            fprintf('Processing %s.\n',subjs{s})
-            save_pow_in_region(subjs{s},bipol,useResids,ana_func,saveDir);
-        end
-        toc
-        matlabpool close
-        toc
-    else
-        for s = 1:length(subjs)
-            fprintf('Processing %s.\n',subjs{s})
-            save_pow_in_region(subjs{s},bipol,useResids,ana_func,saveDir);
-
-        end
-    end
+% save directory
+f = @(x,y) y{double(x)+1};
+y = {'OrigPower','CorrectedPower'};
+saveDir = fullfile(params.basePath,f(params.useCorrectedPower,y));
+if ~exist(saveDir,'dir')
+    mkdir(saveDir);
 end
 
-function save_pow_in_region(subj,bipol,useResids,ana_func,saveDir)
+% get list of YC subjects if non given
+if ~exist('subjs','var') || isempty(subjs)
+    subjs = get_subs('RAM_YC1');
+end
+
+% see if this was submitted with an open pool. If so, parallel on the level
+% of subjects. Otherwise, will loop over subjects one by one.
+poolobj = gcp('nocreate');
+if ~isempty(poolobj)
+    parfor s = 1:length(subjs)
+        fprintf('Processing %s.\n',subjs{s})
+        YC1_univarStats(subjs{s},params,saveDir);
+    end
+else    
+    for s = 1:length(subjs)
+        fprintf('Processing %s.\n',subjs{s})
+        YC1_univarStats(subjs{s},params,saveDir);
+    end
+end
+ 
+function YC1_univarStats(subj,params,saveDir)
+ 
+
 
 % load tal structure
-tal = getBipolarSubjElecs(subj,bipol,1);
-
-[hipp_elecs, ec_elecs, mtl_elecs] = deal([]);
-
-% load subject localizations. This info should also be in the tal struct
-% now
-locs = getLocalization(subj);
-if ~isfield(locs,'tag')
-  fprintf('localization missing for %s\n',subj)
-  return
-end
-
-if bipol
-  pairs = cellfun('length',{locs.channel})==2;
-  locs = locs(pairs);
-end
-
-% filter for hipp
-hipp_tal = locs(~cellfun('isempty',regexpi({locs.tag},['hipp|CA1|CA3|DG|sub'])));
-hipp_elecs = vertcat(hipp_tal.channel);
-
-% filter for ec
-ec_tal = locs(~cellfun('isempty',regexpi({locs.tag},['ec'])));
-ec_elecs = vertcat(ec_tal.channel);
-
-% filter for all mtl
-mtl_tal = locs(~cellfun('isempty',regexpi({locs.tag},['HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc'])));
-mtl_elecs = vertcat(mtl_tal.channel);
-
-if isempty(mtl_elecs)
+tal = getBipolarSubjElecs(subj,params.doBipol,1,params.excludeEpiElecs);
+tal = filterTalByRegion(tal,params.region);
+if isempty(tal)
+    fprintf('No %s electrode for %s.\n',params.region,subj)
     return
 end
 
-% also do lobes
-% surface_elecs = tal(~strcmp({tal.eType},'D'));
-other_elecs = tal(~ismember(vertcat(tal.channel),[hipp_elecs; ec_elecs; mtl_elecs],'rows'));
-lobes = {other_elecs.Loc2};
-temporal_elecs = vertcat(other_elecs(strcmp(lobes, 'Temporal Lobe')).channel);
-occipital_elecs = vertcat(other_elecs(strcmp(lobes, 'Occipital Lobe')).channel);
-frontal_elecs = vertcat(other_elecs(strcmp(lobes, 'Frontal Lobe')).channel);
-parietal_elecs = vertcat(other_elecs(strcmp(lobes, 'Parietal Lobe')).channel);
-limbic_elecs = vertcat(other_elecs(strcmp(lobes, 'Limbic Lobe')).channel);
-
-% load events so we can filter into our conditions of interest
-config = RAM_config('RAM_YC1');
+% load power parameters
+powParams = load(fullfile(params.powerPath,'params.mat'));
 
 % Setting time bins for convenience:
-tEnds = (config.distributedParams.timeWin:...
-    config.distributedParams.timeStep:...
-    config.postMS+config.priorMS)-config.priorMS;
-tStarts = tEnds - config.distributedParams.timeWin + 1;
-config.distributedParams.timeBins = [tStarts' tEnds'];
+tEnds     = (powParams.params.pow.timeWin:powParams.params.pow.timeStep:powParams.params.eeg.durationMS)+powParams.params.eeg.offsetMS;
+tStarts   = tEnds - powParams.params.pow.timeWin+1;
+powParams.timeBins = [tStarts' tEnds'];
 
 % load events
-[events] = RAM_loadEvents(subj,[],'RAM_YC1','events', config);
+events = get_sub_events('RAM_YC1',subj);
 
 % add the test error to the learning trials
-testInd = strcmp({events.type},'NAV_TEST');
-recEvents = events(testInd);
-[events.testError] = deal(NaN);
-[events.recalled] = deal(NaN);
-sessVec = [events.session];
-trialVec = [events.blocknum];
-for rec = 1:length(recEvents);
-  session = recEvents(rec).session;  
-  trial = recEvents(rec).blocknum;
-  err = recEvents(rec).respPerformanceFactor;
-  ind = sessVec == session & trialVec == trial;
-  [events(ind).testError] = deal(err);
-end
+events  = addErrorField(events);
 
-% filter between good and bad
-thresh = median([recEvents.respPerformanceFactor]);
+% filter to events of interest
+eventsToUse = params.eventFilter(events);
+thresh = median([events(eventsToUse).testError]);  
 
 % update the recalled field
 class1 = find([events.testError]<thresh);
 [events(class1).recalled] = deal(1);
 class2 = find([events.testError]>=thresh);
 [events(class2).recalled] = deal(0);
-
 
 % LTA freqs
 [~,fInd_start] = min(abs(1 - config.distributedParams.freQ));
@@ -176,7 +98,6 @@ fIndHFA = fInd_start:fInd_end;
 cond1 = ana_func(events, 1);
 cond2 = ana_func(events, 0);
 er = [events(cond1|cond2).testError];
-
 
 if sum(cond1) < 5
     fprintf('Only %d events for %s in cond1 using %s. Skipping subject.\n', sum(cond1),subj,func2str(ana_func))
@@ -449,23 +370,26 @@ else
 end
 
 
-function doNothing(varargin)
-% GIVE ERROR. RAM_loadPow requires a power creation function. If this
-% code is executed, it is because the power for the subject/session hasn't
-% been computed yet. I don't want to compute power here.
+function events = addErrorField(events)
+% add testError field
+% add inner field (1 = inner region, 0 = outer region)
 
-error('POWER NOT COMPUTED YET')
-
-
-function eventsMask = correctFilter(events, isCorrect)     
-
-encInd = strcmp({events.type},'NAV_LEARN') | strcmp({events.type}, ...
-                                                  'NAV_LEARN_HARD');
-if ~isCorrect
-  eventsMask = [events.recalled]==0 & encInd;
-else
-  eventsMask = [events.recalled]==1 & encInd;
+testInd = strcmp({events.type},'NAV_TEST');
+recEvents = events(testInd);
+[events.testError] = deal(NaN);
+[events.recalled] = deal(NaN);
+[events.inner] = deal(NaN);
+sessVec = [events.session];
+trialVec = [events.blocknum];
+for rec = 1:length(recEvents);
+    session = recEvents(rec).session;
+    trial = recEvents(rec).blocknum;
+    err = recEvents(rec).respPerformanceFactor;
+    ind = sessVec == session & trialVec == trial;
+    [events(ind).testError] = deal(err);
+    [events(ind).inner] = deal(abs(recEvents(rec).objLocs(1)) < 568/30 && abs(recEvents(rec).objLocs(2)) < 7);
 end
+
 
 
 
