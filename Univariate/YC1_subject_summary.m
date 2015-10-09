@@ -118,7 +118,7 @@ region = params.region;
 if isempty(region)
     region = 'all';
 end
-fprintf('Calculating average power for %d %d elecs.\n',length(tal),region)
+fprintf('Calculating average power for %d %s elecs.\n',length(tal),region)
 powerData = loadAllPower(tal,subj,events,params.freqBins,params.timeBins,powParams,eventsToUse,params);
 powerData = permute(powerData,[3 1 4 2]);
 
