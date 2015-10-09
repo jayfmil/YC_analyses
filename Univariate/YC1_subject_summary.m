@@ -106,29 +106,6 @@ for field = params.freqBinLabels
                             'df',NaN(1,nElecs),'p_ttest',NaN(1,nElecs),...
                             'meanCond1',NaN(1,nElecs),'meanCond2',NaN(1,nElecs));                        
 end
-
-
-
-% initialize everything
-%if isrow(elecs);elecs = elecs';end
-% powCond1ByElec = NaN(length(config.distributedParams.freQ),size(elecs,1),'single');
-% powCond2ByElec = NaN(length(config.distributedParams.freQ),size(elecs,1),'single');
-% powLTA = NaN(size(elecs,1),sum(cond1)+sum(cond2));
-% powHTA = NaN(size(elecs,1),sum(cond1)+sum(cond2));
-% powG = NaN(size(elecs,1),sum(cond1)+sum(cond2));
-% powHFA = NaN(size(elecs,1),sum(cond1)+sum(cond2));
-% rLTA =  NaN(size(elecs,1),1);
-% pLTA =  NaN(size(elecs,1),1);
-% rHTA =  NaN(size(elecs,1),1);
-% pHTA =  NaN(size(elecs,1),1);
-% rG =  NaN(size(elecs,1),1);
-% pG =  NaN(size(elecs,1),1);
-% rHFA =  NaN(size(elecs,1),1);
-% pHFA =  NaN(size(elecs,1),1);
-% statsLTA = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
-% statsHTA = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
-% statsG = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
-% statsHFA = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
 % tagNames = cell(1,size(elecs,1));
 
 % loop over each electrode in region
@@ -157,24 +134,14 @@ for e = 1:size(powerData,2)
         % mean power in each condition
         res.(field).meanCond1 = nanmean(pow(cond1));
         res.(field).meanCond2 = nanmean(pow(cond2));
-        
-        
 
-%     powHFA(e,:) = test_pow_HFA;
-    
-  
-    % mean power spect for electrode
-%     powCond1ByElec(:,e) = nanmean(pow(:,cond1),2);
-%     powCond2ByElec(:,e) = nanmean(pow(:,cond2),2);
     end
 end
 keyboard
 
 % save it to file
-save(fname,'powCond1ByElec','powCond2ByElec',...
-    'statsLTA','statsHTA','statsG','statsHFA','tagNames',...
-    'rLTA','pLTA','rHTA','pHTA','er','powLTA','powHTA',...
-    'rG','pG','rHFA','pHFA','powG','powHFA')
+fname = fullfile(saveDir,[subj '.mat']);
+save(fname,'res')
 
 
 

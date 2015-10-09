@@ -37,11 +37,8 @@ params.saveOutput = 1;
 % true
 params.overwrite = 0;
 
-% load prebinned power
-params.loadPower = 0;
-
 % exclude epileptic electrodes?
-params.excludeEpiElecs = 1;
+params.excludeEpiElecs = 0;
 
 % permute the Y, usually in the process of creating a chance distribution
 params.doPermute = 0;
