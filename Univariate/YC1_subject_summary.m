@@ -51,101 +51,101 @@ function YC1_univarStats(subj,params,saveDir)
 % load tal structure
 try
     tal = getBipolarSubjElecs(subj,params.doBipol,1,params.excludeEpiElecs);
-catch
-    return
-end
-tal = filterTalByRegion(tal,params.region);
-if isempty(tal)
-    fprintf('No %s electrode for %s.\n',params.region,subj)
-    return
-end
-
-% load power parameters
-powParams = load(fullfile(params.powerPath,'params.mat'));
-
-% Setting time bins for convenience:
-tEnds     = (powParams.params.pow.timeWin:powParams.params.pow.timeStep:powParams.params.eeg.durationMS)+powParams.params.eeg.offsetMS;
-tStarts   = tEnds - powParams.params.pow.timeWin+1;
-powParams.timeBins = [tStarts' tEnds'];
-
-% load events
-events = get_sub_events('RAM_YC1',subj);
-
-% add the test error to the learning trials
-events  = addErrorField(events);
-
-% filter to events of interest
-eventsToUse = params.eventFilter(events);
-er = [events(eventsToUse).testError];
-thresh = median(er);
-cond1 = er < thresh;
-cond2 = er >= thresh;
-
-% see if we have enough events
-if sum(cond1) < 5
-    fprintf('Only %d events for %s in cond1 using %s. Skipping subject.\n', sum(cond1),subj,func2str(ana_func))
-    return
-end
-
-if sum(cond2) < 5
-    fprintf('Only %d events for %s in cond2 %s. Skipping subject.\n', sum(cond2),subj,func2str(ana_func))
-    return
-end
-
-% load the power for this region
-region = params.region;
-if isempty(region)
-    region = 'all';
-end
-fprintf('Calculating average power for %d %s elecs.\n',length(tal),region)
-powerData = loadAllPower(tal,subj,events,params.freqBins,params.timeBins,powParams,eventsToUse,params);
-powerData = permute(powerData,[3 4 1 2]);
-nElecs = size(powerData,2);
-
-% initial structure to hold results
-res = cell2struct(cell(1,length(params.freqBinLabels)),params.freqBinLabels,2);
-for field = params.freqBinLabels
-    res.(field{1}) = struct('r',NaN(1,nElecs),'pCorr',NaN(1,nElecs),...
-                            'tstat',NaN(1,nElecs),'sd',NaN(1,nElecs),...
-                            'df',NaN(1,nElecs),'p_ttest',NaN(1,nElecs),...
-                            'meanCond1',NaN(1,nElecs),'meanCond2',NaN(1,nElecs));                        
-end
-% tagNames = cell(1,size(elecs,1));
-
-% loop over each electrode in region
-for e = 1:size(powerData,2)
-
-    % and each frequency
-    for f = 1:size(powerData,3)
-        
-        % field name to save in res structure
-        field = params.freqBinLabels{f};
-        
-        % power for this elec and freq
-        pow = powerData(:,e,f)';
-        
-        % correlation between power and performance
-        bad = isnan(er) | isnan(pow);
-        [res.(field).r(e),res.(field).pCorr(e)] = corr(er(~bad)', pow(~bad)'); 
-        
-        % ttest between power in each condition
-        [~,p,~,s] = ttest2(pow(cond1),pow(cond2));
-        res.(field).tstat(e) = s.tstat;
-        res.(field).sd(e) = s.sd;
-        res.(field).df(e) = s.df;
-        res.(field).p_ttest(e) = p;
-        
-        % mean power in each condition
-        res.(field).meanCond1 = nanmean(pow(cond1));
-        res.(field).meanCond2 = nanmean(pow(cond2));
-
+    tal = filterTalByRegion(tal,params.region);
+    if isempty(tal)
+        fprintf('No %s electrode for %s.\n',params.region,subj)
+        return
     end
+    
+    % load power parameters
+    powParams = load(fullfile(params.powerPath,'params.mat'));
+    
+    % Setting time bins for convenience:
+    tEnds     = (powParams.params.pow.timeWin:powParams.params.pow.timeStep:powParams.params.eeg.durationMS)+powParams.params.eeg.offsetMS;
+    tStarts   = tEnds - powParams.params.pow.timeWin+1;
+    powParams.timeBins = [tStarts' tEnds'];
+    
+    % load events
+    events = get_sub_events('RAM_YC1',subj);
+    
+    % add the test error to the learning trials
+    events  = addErrorField(events);
+    
+    % filter to events of interest
+    eventsToUse = params.eventFilter(events);
+    er = [events(eventsToUse).testError];
+    thresh = median(er);
+    cond1 = er < thresh;
+    cond2 = er >= thresh;
+    
+    % see if we have enough events
+    if sum(cond1) < 5
+        fprintf('Only %d events for %s in cond1 using %s. Skipping subject.\n', sum(cond1),subj,func2str(ana_func))
+        return
+    end
+    
+    if sum(cond2) < 5
+        fprintf('Only %d events for %s in cond2 %s. Skipping subject.\n', sum(cond2),subj,func2str(ana_func))
+        return
+    end
+    
+    % load the power for this region
+    region = params.region;
+    if isempty(region)
+        region = 'all';
+    end
+    fprintf('Calculating average power for %d %s elecs.\n',length(tal),region)
+    powerData = loadAllPower(tal,subj,events,params.freqBins,params.timeBins,powParams,eventsToUse,params);
+    powerData = permute(powerData,[3 4 1 2]);
+    nElecs = size(powerData,2);
+    
+    % initial structure to hold results
+    res = cell2struct(cell(1,length(params.freqBinLabels)),params.freqBinLabels,2);
+    for field = params.freqBinLabels
+        res.(field{1}) = struct('r',NaN(1,nElecs),'pCorr',NaN(1,nElecs),...
+            'tstat',NaN(1,nElecs),'sd',NaN(1,nElecs),...
+            'df',NaN(1,nElecs),'p_ttest',NaN(1,nElecs),...
+            'meanCond1',NaN(1,nElecs),'meanCond2',NaN(1,nElecs));
+    end
+    % tagNames = cell(1,size(elecs,1));
+    
+    % loop over each electrode in region
+    for e = 1:size(powerData,2)
+        
+        % and each frequency
+        for f = 1:size(powerData,3)
+            
+            % field name to save in res structure
+            field = params.freqBinLabels{f};
+            
+            % power for this elec and freq
+            pow = powerData(:,e,f)';
+            
+            % correlation between power and performance
+            bad = isnan(er) | isnan(pow);
+            [res.(field).r(e),res.(field).pCorr(e)] = corr(er(~bad)', pow(~bad)');
+            
+            % ttest between power in each condition
+            [~,p,~,s] = ttest2(pow(cond1),pow(cond2));
+            res.(field).tstat(e) = s.tstat;
+            res.(field).sd(e) = s.sd;
+            res.(field).df(e) = s.df;
+            res.(field).p_ttest(e) = p;
+            
+            % mean power in each condition
+            res.(field).meanCond1 = nanmean(pow(cond1));
+            res.(field).meanCond2 = nanmean(pow(cond2));
+            
+        end
+    end
+    
+    % save it to file
+    fname = fullfile(saveDir,[subj '.mat']);
+    save(fname,'res','tal')
+catch
+    fprintf('Error processing %s.\n',subj)
+    return
 end
-
-% save it to file
-fname = fullfile(saveDir,[subj '.mat']);
-save(fname,'res','tal')
-
 
 
 function powerData = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse,params)
