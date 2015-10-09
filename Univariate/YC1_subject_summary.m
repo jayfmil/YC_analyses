@@ -63,7 +63,6 @@ powParams = load(fullfile(params.powerPath,'params.mat'));
 tEnds     = (powParams.params.pow.timeWin:powParams.params.pow.timeStep:powParams.params.eeg.durationMS)+powParams.params.eeg.offsetMS;
 tStarts   = tEnds - powParams.params.pow.timeWin+1;
 powParams.timeBins = [tStarts' tEnds'];
-freqs = powParams.params.pow.freqs;
 
 % load events
 events = get_sub_events('RAM_YC1',subj);
@@ -73,38 +72,22 @@ events  = addErrorField(events);
 
 % filter to events of interest
 eventsToUse = params.eventFilter(events);
-thresh = median([events(eventsToUse).testError]);
+er = [events(eventsToUse).testError];
+thresh = median(er);
+cond1 = [events.testError] < thresh;
+cond2 = [events.testError] >= thresh;
 
-% update the recalled field
-class1 = find([events.testError]<thresh);
-[events(class1).recalled] = deal(1);
-class2 = find([events.testError]>=thresh);
-[events(class2).recalled] = deal(0);
+% % update the recalled field
+% class1 = find([events.testError]<thresh);
+% [events(class1).recalled] = deal(1);
+% class2 = find([events.testError]>=thresh);
+% [events(class2).recalled] = deal(0);
 
-% % LTA freqs
-% [~,fInd_start] = min(abs(1 - freqs));
-% [~,fInd_end] = min(abs(3 - freqs));
-% fIndLTA = fInd_start:fInd_end;
-% 
-% % HTA freqs
-% [~,fInd_start] = min(abs(3 - freqs));
-% [~,fInd_end] = min(abs(9 - freqs));
-% fIndHTA = fInd_start:fInd_end;
-% 
-% % GAMMA freqs
-% [~,fInd_start] = min(abs(40 - freqs));
-% [~,fInd_end] = min(abs(70 - freqs));
-% fIndG = fInd_start:fInd_end;
-% 
-% % HFA freqs
-% [~,fInd_start] = min(abs(70 - freqs));
-% [~,fInd_end] = min(abs(200 - freqs));
-% fIndHFA = fInd_start:fInd_end;
 
-% conditions of interest
-cond1 = params.ana_func(events, 1);
-cond2 = params.ana_func(events, 0);
-er = [events(cond1|cond2).testError];
+% % conditions of interest
+% cond1 = params.ana_func(events, 1);
+% cond2 = params.ana_func(events, 0);
+% er = [events(cond1|cond2).testError];
 
 if sum(cond1) < 5
     fprintf('Only %d events for %s in cond1 using %s. Skipping subject.\n', sum(cond1),subj,func2str(ana_func))
@@ -154,34 +137,39 @@ powerData = permute(powerData,[3 4 1 2]);
 % loop over each electrode in region
 for e = 1:size(powerData,2)
 
-    for f = 1:size(powerData,1)
+    for f = 1:size(powerData,3)
         
-        pow = powerData(:,f,e);
+        pow = powerData(:,e,f)';
+        bad = isnan(er) | isnan(pow);
+        [r,p] = corr(er(~bad)', pow(~bad)'); 
+        [~,p,~,s] = ttest2(pow(cond1),pow(cond2));
+        
+        
         keyboard
         
-    % corr for low theta
-    test_pow_LTA = nanmean(squeeze(nanmean(pow(fIndLTA,:,cond1|cond2),2)),1);
-    bad = isnan(er) | isnan(test_pow_LTA);
-    [rLTA(e),pLTA(e)] = corr(er(~bad)', test_pow_LTA(~bad)');
-    powLTA(e,:) = test_pow_LTA;
-    
-    % corr for high theta
-    test_pow_HTA = nanmean(squeeze(nanmean(pow(fIndHTA,:,cond1|cond2),2)),1);
-    bad = isnan(er) | isnan(test_pow_HTA);
-    [rHTA(e),pHTA(e)] = corr(er(~bad)', test_pow_HTA(~bad)');
-    powHTA(e,:) = test_pow_HTA;
-    
-    % corr for gamma
-    test_pow_G = nanmean(squeeze(nanmean(pow(fIndG,:,cond1|cond2),2)),1);
-    bad = isnan(er) | isnan(test_pow_G);
-    [rG(e),pG(e)] = corr(er(~bad)', test_pow_G(~bad)');
-    powG(e,:) = test_pow_G;
-    
-    % corr for HFA
-    test_pow_HFA = nanmean(squeeze(nanmean(pow(fIndHFA,:,cond1|cond2),2)),1);
-    bad = isnan(er) | isnan(test_pow_HFA);
-    [rHFA(e),pHFA(e)] = corr(er(~bad)', test_pow_HFA(~bad)');
-    powHFA(e,:) = test_pow_HFA;
+%     % corr for low theta
+%     test_pow_LTA = nanmean(squeeze(nanmean(pow(fIndLTA,:,cond1|cond2),2)),1);
+%     
+%     [rLTA(e),pLTA(e)] = corr(er(~bad)', test_pow_LTA(~bad)');
+%     powLTA(e,:) = test_pow_LTA;
+%     
+%     % corr for high theta
+%     test_pow_HTA = nanmean(squeeze(nanmean(pow(fIndHTA,:,cond1|cond2),2)),1);
+%     bad = isnan(er) | isnan(test_pow_HTA);
+%     [rHTA(e),pHTA(e)] = corr(er(~bad)', test_pow_HTA(~bad)');
+%     powHTA(e,:) = test_pow_HTA;
+%     
+%     % corr for gamma
+%     test_pow_G = nanmean(squeeze(nanmean(pow(fIndG,:,cond1|cond2),2)),1);
+%     bad = isnan(er) | isnan(test_pow_G);
+%     [rG(e),pG(e)] = corr(er(~bad)', test_pow_G(~bad)');
+%     powG(e,:) = test_pow_G;
+%     
+%     % corr for HFA
+%     test_pow_HFA = nanmean(squeeze(nanmean(pow(fIndHFA,:,cond1|cond2),2)),1);
+%     bad = isnan(er) | isnan(test_pow_HFA);
+%     [rHFA(e),pHFA(e)] = corr(er(~bad)', test_pow_HFA(~bad)');
+%     powHFA(e,:) = test_pow_HFA;
     
     % average across time
     pow = squeeze(nanmean(pow,2));
