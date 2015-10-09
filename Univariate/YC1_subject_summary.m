@@ -74,8 +74,8 @@ events  = addErrorField(events);
 eventsToUse = params.eventFilter(events);
 er = [events(eventsToUse).testError];
 thresh = median(er);
-cond1 = [events(eventsToUse).testError] < thresh;
-cond2 = [events(eventsToUse).testError] >= thresh;
+cond1 = er < thresh;
+cond2 = er >= thresh;
 
 % % update the recalled field
 % class1 = find([events.testError]<thresh);
