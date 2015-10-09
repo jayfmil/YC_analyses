@@ -45,16 +45,9 @@ if ~exist('figDir','dir')
 end
 
 % store group information
-% nTrialsAll = NaN(length(subjs),1);
-% perf_all   = NaN(length(subjs),size(params.timeBins,1));
-% perf_p_all = NaN(length(subjs),size(params.timeBins,1));
-% auc_all    = NaN(length(subjs),size(params.timeBins,1));
-% auc_p_all  = NaN(length(subjs),size(params.timeBins,1));
-% quarts_all = NaN(size(params.timeBins,1),4,length(subjs));
-% best_time  = NaN(length(subjs),1);
 
-% will hold figure paths for latex report
-figs = [];
+% This loop loads the data from each subject and concatenates all subjects
+% in to one large structure
 subjDataAll =  [];
 for s = 1:length(subjs)                
     
@@ -63,10 +56,9 @@ for s = 1:length(subjs)
     if ~exist(subjFile,'file')
         fprintf('Subject data not found for %s.\n',subj)
         continue
-    end    
-    
+    end        
 
-    % load subejct data
+    % load subject data
     subjData = load(subjFile);
     
     % if we haven't done it yet, initialze structure to hold concatenated
@@ -85,9 +77,35 @@ for s = 1:length(subjs)
     % merge current subject data into larger struct
     for f = fields' 
         subjDataAll.(f{1}) = mergestruct(subjDataAll.(f{1}),subjData.res.(f{1}));
-    end
-    
+    end    
 end
+
+% now that all the data is loaded, plot stuff..
+% bar plot with corr coeff for each freq range
+meanR = NaN(1,length(fields));
+semR  = NaN(1,length(fields));
+pR    = NaN(1,length(fields));
+for f = 1:length(fields)
+    % note: I'm flipping the sign so that positive correlations indicate
+    % better performance
+    meanR(f)  = nanmean(-subjDataAll.(fields{f}).r);
+    [~,pR(f)] = ttest(-subjDataAll.(fields{f}).r);
+    semR(f)   = nanstd(subjDataAll.(fields{f}).r)/sqrt(length(subjDataAll.(fields{f}).r)-1);
+end
+bar(find(meanR>0),meanR(meanR>0),'linewidth',3,'FaceColor',[150 23 31]/255);
+hold on
+bar(find(meanR<0),meanR(meanR<0),'linewidth',3,'FaceColor',[61 89 171]/255);
+errorbar(1:f,meanR,semR*1.96,'k','linewidth',3','linestyle','none')
+set(gca,'xtick',1:f)
+set(gca,'xticklabel',fields')
+grid on
+set(gca,'gridlinestyle',':')
+ylabel('Mean Pearson Coef.','fontsize',20);
+set(gca,'fontsize',20)
+
+fname = fullfile(figdir,'corrByFreq.eps');
+print('-depcs2','-loose',fname)
+
 keyboard
 
 good = ~cellfun('isempty',{figs.subj});
