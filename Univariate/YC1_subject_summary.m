@@ -137,11 +137,10 @@ for e = 1:size(powerData,2)
 
     end
 end
-keyboard
 
 % save it to file
 fname = fullfile(saveDir,[subj '.mat']);
-save(fname,'res')
+save(fname,'res','tal')
 
 
 
