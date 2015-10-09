@@ -104,7 +104,7 @@ ylabel('Mean Pearson Coef.','fontsize',20);
 set(gca,'fontsize',20)
 
 fname = fullfile(figDir,'corrByFreq.eps');
-print('-depcs2','-loose',fname)
+print('-depsc2','-loose',fname)
 
 keyboard
 return 
