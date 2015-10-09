@@ -10,6 +10,11 @@ if ~exist('params','var') || isempty(params)
     params = univarParams();
 end
 
+if size(params.timeBins,1) > 1
+    fprintf('Multiple time bins not supported\n')
+    return
+end
+
 % save directory
 f = @(x,y) y{double(x)+1};
 y = {'OrigPower','CorrectedPower'};
@@ -39,7 +44,6 @@ else
 end
 
 function YC1_univarStats(subj,params,saveDir)
-
 
 
 % load tal structure
@@ -110,13 +114,16 @@ if sum(cond2) < 5
     return
 end
 
-
-freqBins      = params.freqBins;
-timeBins      = params.timeBins;
-    
+region = params.regions;
+if isempty(region)
+    region = 'all';
+end
+fprintf('Calculating average power for %d %d elecs.\n',length(tal),region)
 powerData = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse,params);
+powerData = permute(powerData,[3 1 4 2]);
+
 keyboard
-fprintf('Calculating average power for %d occipital elecs.\n',length(elecs))
+
 
 
 
