@@ -152,62 +152,23 @@ for e = 1:size(powerData,2)
         res.(field).tstat(e) = s.tstat;
         res.(field).sd(e) = s.sd;
         res.(field).df(e) = s.df;
-        res.(field).p_ttest = p;
+        res.(field).p_ttest(e) = p;
         
         % mean power in each condition
         res.(field).meanCond1 = nanmean(pow(cond1));
         res.(field).meanCond2 = nanmean(pow(cond2));
         
-        keyboard
+        
 
 %     powHFA(e,:) = test_pow_HFA;
     
-    % average across time
-    pow = squeeze(nanmean(pow,2));
-    
-    % t-test cond1 vs cond2 low theta
-    [~,p,~,s] = ttest2(nanmean(pow(fIndLTA,cond1)),nanmean(pow(fIndLTA,cond2)));
-    statsLTA(e).tstat = s.tstat;
-    statsLTA(e).sd = s.sd;
-    statsLTA(e).df = s.df;
-    statsLTA(e).p = p;
-    statsLTA(e).meanCond1 = nanmean(nanmean(pow(fIndLTA,cond1)));
-    statsLTA(e).meanCond2 = nanmean(nanmean(pow(fIndLTA,cond2)));
-    
-    
-    % t-test cond1 vs cond2 high theta
-    [~,p,~,s] = ttest2(nanmean(pow(fIndHTA,cond1)),nanmean(pow(fIndHTA,cond2)));
-    statsHTA(e).tstat = s.tstat;
-    statsHTA(e).sd = s.sd;
-    statsHTA(e).df = s.df;
-    statsHTA(e).p = p;
-    statsHTA(e).meanCond1 = nanmean(nanmean(pow(fIndHTA,cond1)));
-    statsHTA(e).meanCond2 = nanmean(nanmean(pow(fIndHTA,cond2)));
-    
-    
-    % t-test cond1 vs cond2 gamma
-    [~,p,~,s] = ttest2(nanmean(pow(fIndG,cond1)),nanmean(pow(fIndG,cond2)));
-    statsG(e).tstat = s.tstat;
-    statsG(e).sd = s.sd;
-    statsG(e).df = s.df;
-    statsG(e).p = p;
-    statsG(e).meanCond1 = nanmean(nanmean(pow(fIndLTA,cond1)));
-    statsG(e).meanCond2 = nanmean(nanmean(pow(fIndLTA,cond2)));
-    
-    % t-test cond1 vs cond2 hfa
-    [~,p,~,s] = ttest2(nanmean(pow(fIndHFA,cond1)),nanmean(pow(fIndHFA,cond2)));
-    statsHFA(e).tstat = s.tstat;
-    statsHFA(e).sd = s.sd;
-    statsHFA(e).df = s.df;
-    statsHFA(e).p = p;
-    statsHFA(e).meanCond1 = nanmean(nanmean(pow(fIndHTA,cond1)));
-    statsHFA(e).meanCond2 = nanmean(nanmean(pow(fIndHTA,cond2)));
-    
+  
     % mean power spect for electrode
-    powCond1ByElec(:,e) = nanmean(pow(:,cond1),2);
-    powCond2ByElec(:,e) = nanmean(pow(:,cond2),2);
+%     powCond1ByElec(:,e) = nanmean(pow(:,cond1),2);
+%     powCond2ByElec(:,e) = nanmean(pow(:,cond2),2);
     end
 end
+keyboard
 
 % save it to file
 save(fname,'powCond1ByElec','powCond2ByElec',...
