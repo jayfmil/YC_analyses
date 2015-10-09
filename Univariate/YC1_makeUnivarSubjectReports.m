@@ -103,10 +103,11 @@ set(gca,'gridlinestyle',':')
 ylabel('Mean Pearson Coef.','fontsize',20);
 set(gca,'fontsize',20)
 
-fname = fullfile(figdir,'corrByFreq.eps');
+fname = fullfile(figDir,'corrByFreq.eps');
 print('-depcs2','-loose',fname)
 
 keyboard
+return 
 
 good = ~cellfun('isempty',{figs.subj});
 figs = figs(good);
