@@ -18,7 +18,9 @@ end
 % save directory
 f = @(x,y) y{double(x)+1};
 y = {'OrigPower','CorrectedPower'};
-saveDir = fullfile(params.basePath,f(params.useCorrectedPower,y),params.region);
+region = params.region;
+if isempty(region);region = 'all';end
+saveDir = fullfile(params.basePath,f(params.useCorrectedPower,y),region);
 if ~exist(saveDir,'dir')
     mkdir(saveDir);
 end
@@ -120,7 +122,7 @@ if isempty(region)
 end
 fprintf('Calculating average power for %d %s elecs.\n',length(tal),region)
 powerData = loadAllPower(tal,subj,events,params.freqBins,params.timeBins,powParams,eventsToUse,params);
-powerData = permute(powerData,[3 1 4 2]);
+powerData = permute(powerData,[3 4 1 2]);
 
 
 
@@ -150,11 +152,11 @@ powerData = permute(powerData,[3 1 4 2]);
 % tagNames = cell(1,size(elecs,1));
 
 % loop over each electrode in region
-for e = 1:size(powerData,1)
+for e = 1:size(powerData,2)
 
-    for f = 1:size(powerData,2)
+    for f = 1:size(powerData,1)
         
-        pow = powerData(e,f,:);
+        pow = powerData(:,f,e);
         keyboard
         
     % corr for low theta
