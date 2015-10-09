@@ -13,7 +13,7 @@ end
 % save directory
 f = @(x,y) y{double(x)+1};
 y = {'OrigPower','CorrectedPower'};
-saveDir = fullfile(params.basePath,f(params.useCorrectedPower,y));
+saveDir = fullfile(params.basePath,f(params.useCorrectedPower,y),params.region);
 if ~exist(saveDir,'dir')
     mkdir(saveDir);
 end
