@@ -114,7 +114,7 @@ if sum(cond2) < 5
     return
 end
 
-region = params.regions;
+region = params.region;
 if isempty(region)
     region = 'all';
 end
