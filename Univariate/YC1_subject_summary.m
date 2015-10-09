@@ -1,8 +1,13 @@
 function YC1_subject_summary(subjs,params)
 %function YC1_subject_summary(subjs)
 %
+% Univariate analyses correlating power and performance in YC1.
 %
+% Inputs:   subj - cell array of subjects to use (if empty, use all)
+%         params - parameters to use, most importantly, what frequencies
+%                  and time bin to use (if empty, use univarParams()).
 %
+% Outputs: none, saves results to params.basePath
 
 
 % use default params if none given
@@ -45,8 +50,14 @@ else
     end
 end
 
-function YC1_univarStats(subj,params,saveDir)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+function YC1_univarStats(subj,params,saveDir)
+% function YC1_univarStats(subj,params,saveDir)
+%
+% For a given subject, loads power for electrodes in the specified region.
+% Bins into specified time and frequencies. Correlates power with
+% performance in the task.
 
 % load tal structure
 try
