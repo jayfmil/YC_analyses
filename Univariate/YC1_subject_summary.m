@@ -1,11 +1,11 @@
 function YC1_subject_summary(subjs,params)
 %function YC1_subject_summary(subjs)
- %
- %
- %
- 
- 
- % use default params if none given
+%
+%
+%
+
+
+% use default params if none given
 if ~exist('params','var') || isempty(params)
     params = univarParams();
 end
@@ -31,15 +31,15 @@ if ~isempty(poolobj)
         fprintf('Processing %s.\n',subjs{s})
         YC1_univarStats(subjs{s},params,saveDir);
     end
-else    
+else
     for s = 1:length(subjs)
         fprintf('Processing %s.\n',subjs{s})
         YC1_univarStats(subjs{s},params,saveDir);
     end
 end
- 
+
 function YC1_univarStats(subj,params,saveDir)
- 
+
 
 
 % load tal structure
@@ -57,6 +57,7 @@ powParams = load(fullfile(params.powerPath,'params.mat'));
 tEnds     = (powParams.params.pow.timeWin:powParams.params.pow.timeStep:powParams.params.eeg.durationMS)+powParams.params.eeg.offsetMS;
 tStarts   = tEnds - powParams.params.pow.timeWin+1;
 powParams.timeBins = [tStarts' tEnds'];
+freqs = powParams.params.pow.freqs;
 
 % load events
 events = get_sub_events('RAM_YC1',subj);
@@ -66,7 +67,7 @@ events  = addErrorField(events);
 
 % filter to events of interest
 eventsToUse = params.eventFilter(events);
-thresh = median([events(eventsToUse).testError]);  
+thresh = median([events(eventsToUse).testError]);
 
 % update the recalled field
 class1 = find([events.testError]<thresh);
@@ -74,25 +75,25 @@ class1 = find([events.testError]<thresh);
 class2 = find([events.testError]>=thresh);
 [events(class2).recalled] = deal(0);
 
-% LTA freqs
-[~,fInd_start] = min(abs(1 - config.distributedParams.freQ));
-[~,fInd_end] = min(abs(3 - config.distributedParams.freQ));
-fIndLTA = fInd_start:fInd_end;
-
-% HTA freqs
-[~,fInd_start] = min(abs(3 - config.distributedParams.freQ));
-[~,fInd_end] = min(abs(9 - config.distributedParams.freQ));
-fIndHTA = fInd_start:fInd_end;
-
-% GAMMA freqs
-[~,fInd_start] = min(abs(40 - config.distributedParams.freQ));
-[~,fInd_end] = min(abs(70 - config.distributedParams.freQ));
-fIndG = fInd_start:fInd_end;
-
-% HFA freqs
-[~,fInd_start] = min(abs(70 - config.distributedParams.freQ));
-[~,fInd_end] = min(abs(200 - config.distributedParams.freQ));
-fIndHFA = fInd_start:fInd_end;
+% % LTA freqs
+% [~,fInd_start] = min(abs(1 - freqs));
+% [~,fInd_end] = min(abs(3 - freqs));
+% fIndLTA = fInd_start:fInd_end;
+% 
+% % HTA freqs
+% [~,fInd_start] = min(abs(3 - freqs));
+% [~,fInd_end] = min(abs(9 - freqs));
+% fIndHTA = fInd_start:fInd_end;
+% 
+% % GAMMA freqs
+% [~,fInd_start] = min(abs(40 - freqs));
+% [~,fInd_end] = min(abs(70 - freqs));
+% fIndG = fInd_start:fInd_end;
+% 
+% % HFA freqs
+% [~,fInd_start] = min(abs(70 - freqs));
+% [~,fInd_end] = min(abs(200 - freqs));
+% fIndHFA = fInd_start:fInd_end;
 
 % conditions of interest
 cond1 = ana_func(events, 1);
@@ -109,266 +110,188 @@ if sum(cond2) < 5
     return
 end
 
-% time window of interest
-tInds = config.distributedParams.timeBins(:,1) > 1 & ...
-        config.distributedParams.timeBins(:,2) <= 4000;
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% TOM: Here is is set to only do hippocampus %%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+freqBins      = params.freqBins;
+timeBins      = params.timeBins;
     
-% load power for a region
-for roi = {'hipp'};%,'ec','mtl','frontal','parietal','temporal','occipital','limbic'}
-        
-    % filter electrodes by current region
-    switch roi{1}
-        case 'hipp'
-            elecs = hipp_elecs;
-            if isempty(elecs)
-                fprintf('No hipp electrodes for %s.\n',subj)
-                continue
-            end
-            fprintf('Calculating average power for %d hipp elecs.\n',length(elecs))
-            fname = fullfile(saveDir,[subj,'_hipp_pow']);
-            saveHippDist = true;
-        case 'ec'
-            elecs = ec_elecs;
-            if isempty(elecs)
-                fprintf('No EC electrodes for %s.\n',subj)
-                continue
-            end            
-            fprintf('Calculating average power for %d EC elecs.\n',length(elecs))            
-            fname = fullfile(saveDir,[subj,'_ec_pow']);
-        case 'mtl'
-            elecs = mtl_elecs;
-            if isempty(elecs)
-                fprintf('No MTL electrodes for %s.\n',subj)
-                continue
-            end            
-            fprintf('Calculating average power for %d MTL elecs.\n',length(elecs))            
-            fname = fullfile(saveDir,[subj,'_mtl_pow']);
-        case 'frontal'
-            elecs = frontal_elecs;
-            if isempty(elecs)
-                fprintf('No frontal surface electrodes for %s.\n',subj)
-                continue
-            end            
-            fprintf('Calculating average power for %d frontal elecs.\n',length(elecs))            
-            fname = fullfile(saveDir,[subj,'_frontal_pow']);
-        case 'temporal'
-            elecs = temporal_elecs;
-            if isempty(elecs)
-                fprintf('No temporal surface electrodes for %s.\n',subj)
-                continue
-            end            
-            fprintf('Calculating average power for %d temporal elecs.\n',length(elecs))            
-            fname = fullfile(saveDir,[subj,'_temporal_pow']);
-        case 'occipital'
-            elecs = occipital_elecs;
-            if isempty(elecs)
-                fprintf('No surface occipital electrodes for %s.\n',subj)
-                continue
-            end            
-            fprintf('Calculating average power for %d occipital elecs.\n',length(elecs))            
-            fname = fullfile(saveDir,[subj,'_occipital_pow']);
-        case 'parietal'
-            elecs = parietal_elecs;
-            if isempty(elecs)
-                fprintf('No surface parietal electrodes for %s.\n',subj)
-                continue
-            end            
-            fprintf('Calculating average power for %d parietal elecs.\n',length(elecs))            
-            fname = fullfile(saveDir,[subj,'_parietal_pow']);          
-        case 'limbic'
-            elecs = limbic_elecs;
-            if isempty(elecs)
-                fprintf('No surface limbic electrodes for %s.\n',subj)
-                continue
-            end            
-            fprintf('Calculating average power for %d limbic elecs.\n',length(elecs))            
-            fname = fullfile(saveDir,[subj,'_limbic_pow']);                    
-        otherwise
-            disp('UNKNOWN ROI')
-            fname = [];
-            continue
-    end                   
-    
-    % initialize everything
-    %if isrow(elecs);elecs = elecs';end
-    powCond1ByElec = NaN(length(config.distributedParams.freQ),size(elecs,1),'single');
-    powCond2ByElec = NaN(length(config.distributedParams.freQ),size(elecs,1),'single');    
-    powLTA = NaN(size(elecs,1),sum(cond1)+sum(cond2));    
-    powHTA = NaN(size(elecs,1),sum(cond1)+sum(cond2));    
-    powG = NaN(size(elecs,1),sum(cond1)+sum(cond2));    
-    powHFA = NaN(size(elecs,1),sum(cond1)+sum(cond2));    
-    rLTA =  NaN(size(elecs,1),1);
-    pLTA =  NaN(size(elecs,1),1);
-    rHTA =  NaN(size(elecs,1),1);
-    pHTA =  NaN(size(elecs,1),1);
-    rG =  NaN(size(elecs,1),1);
-    pG =  NaN(size(elecs,1),1);
-    rHFA =  NaN(size(elecs,1),1);
-    pHFA =  NaN(size(elecs,1),1);
-    statsLTA = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
-    statsHTA = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
-    statsG = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
-    statsHFA = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
-    tagNames = cell(1,size(elecs,1));
-    
-    % loop over each electrode in region
-    for e = 1:size(elecs,1)
-        elecNum = elecs(e,:);
-        tagNames{e} = tal(ismember(vertcat(tal.channel),elecNum,'rows')).tagName;
+powerData = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse,params);
+keyboard
+fprintf('Calculating average power for %d occipital elecs.\n',length(elecs))
 
-        % load power for all sessions. Power should aleady have been
-        % created or else error
-        if ~useResids
-            pow  = loadPow_local(subj,elecNum,config,events);
-        else
-            if e == 1     
-                eventsToUse = cond1|cond2;
-                cond1 = ana_func(events(eventsToUse), 1);
-                cond2 = ana_func(events(eventsToUse), 0);                            
-            end
-            pow = loadResids_locs(subj,elecNum,cond1|cond2);
+
+
+% initialize everything
+%if isrow(elecs);elecs = elecs';end
+powCond1ByElec = NaN(length(config.distributedParams.freQ),size(elecs,1),'single');
+powCond2ByElec = NaN(length(config.distributedParams.freQ),size(elecs,1),'single');
+powLTA = NaN(size(elecs,1),sum(cond1)+sum(cond2));
+powHTA = NaN(size(elecs,1),sum(cond1)+sum(cond2));
+powG = NaN(size(elecs,1),sum(cond1)+sum(cond2));
+powHFA = NaN(size(elecs,1),sum(cond1)+sum(cond2));
+rLTA =  NaN(size(elecs,1),1);
+pLTA =  NaN(size(elecs,1),1);
+rHTA =  NaN(size(elecs,1),1);
+pHTA =  NaN(size(elecs,1),1);
+rG =  NaN(size(elecs,1),1);
+pG =  NaN(size(elecs,1),1);
+rHFA =  NaN(size(elecs,1),1);
+pHFA =  NaN(size(elecs,1),1);
+statsLTA = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
+statsHTA = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
+statsG = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
+statsHFA = struct('tstat',[],'df',[],'sd',[],'p',[],'meanCond1',[],'meanCond2',[]);
+tagNames = cell(1,size(elecs,1));
+
+% loop over each electrode in region
+for e = 1:size(elecs,1)
+    elecNum = elecs(e,:);
+    tagNames{e} = tal(ismember(vertcat(tal.channel),elecNum,'rows')).tagName;
+    
+    % load power for all sessions. Power should aleady have been
+    % created or else error
+    if ~useResids
+        pow  = loadPow_local(subj,elecNum,config,events);
+    else
+        if e == 1
+            eventsToUse = cond1|cond2;
+            cond1 = ana_func(events(eventsToUse), 1);
+            cond2 = ana_func(events(eventsToUse), 0);
         end
-              
-        % use only time bins of interest
-        pow(:,~tInds,:) = NaN;
-                
-        % corr for low theta
-        test_pow_LTA = nanmean(squeeze(nanmean(pow(fIndLTA,:,cond1|cond2),2)),1);        
-        bad = isnan(er) | isnan(test_pow_LTA);
-        [rLTA(e),pLTA(e)] = corr(er(~bad)', test_pow_LTA(~bad)');
-        powLTA(e,:) = test_pow_LTA;
-
-        % corr for high theta
-        test_pow_HTA = nanmean(squeeze(nanmean(pow(fIndHTA,:,cond1|cond2),2)),1);
-        bad = isnan(er) | isnan(test_pow_HTA);
-        [rHTA(e),pHTA(e)] = corr(er(~bad)', test_pow_HTA(~bad)');
-        powHTA(e,:) = test_pow_HTA;
-
-        % corr for gamma
-        test_pow_G = nanmean(squeeze(nanmean(pow(fIndG,:,cond1|cond2),2)),1);
-        bad = isnan(er) | isnan(test_pow_G);
-        [rG(e),pG(e)] = corr(er(~bad)', test_pow_G(~bad)');
-        powG(e,:) = test_pow_G;
-
-        % corr for HFA
-        test_pow_HFA = nanmean(squeeze(nanmean(pow(fIndHFA,:,cond1|cond2),2)),1);
-        bad = isnan(er) | isnan(test_pow_HFA);
-        [rHFA(e),pHFA(e)] = corr(er(~bad)', test_pow_HFA(~bad)');
-        powHFA(e,:) = test_pow_HFA;
-
-        % average across time
-        pow = squeeze(nanmean(pow,2));  
-        
-        % t-test cond1 vs cond2 low theta        
-        [~,p,~,s] = ttest2(nanmean(pow(fIndLTA,cond1)),nanmean(pow(fIndLTA,cond2)));
-        statsLTA(e).tstat = s.tstat;
-        statsLTA(e).sd = s.sd;
-        statsLTA(e).df = s.df;
-        statsLTA(e).p = p;
-        statsLTA(e).meanCond1 = nanmean(nanmean(pow(fIndLTA,cond1)));
-        statsLTA(e).meanCond2 = nanmean(nanmean(pow(fIndLTA,cond2)));
-        
-
-        % t-test cond1 vs cond2 high theta
-        [~,p,~,s] = ttest2(nanmean(pow(fIndHTA,cond1)),nanmean(pow(fIndHTA,cond2)));
-        statsHTA(e).tstat = s.tstat;
-        statsHTA(e).sd = s.sd;
-        statsHTA(e).df = s.df;
-        statsHTA(e).p = p;     
-        statsHTA(e).meanCond1 = nanmean(nanmean(pow(fIndHTA,cond1)));
-        statsHTA(e).meanCond2 = nanmean(nanmean(pow(fIndHTA,cond2)));                
-
-
-        % t-test cond1 vs cond2 gamma
-        [~,p,~,s] = ttest2(nanmean(pow(fIndG,cond1)),nanmean(pow(fIndG,cond2)));
-        statsG(e).tstat = s.tstat;
-        statsG(e).sd = s.sd;
-        statsG(e).df = s.df;
-        statsG(e).p = p;
-        statsG(e).meanCond1 = nanmean(nanmean(pow(fIndLTA,cond1)));
-        statsG(e).meanCond2 = nanmean(nanmean(pow(fIndLTA,cond2)));
-
-        % t-test cond1 vs cond2 hfa
-        [~,p,~,s] = ttest2(nanmean(pow(fIndHFA,cond1)),nanmean(pow(fIndHFA,cond2)));
-        statsHFA(e).tstat = s.tstat;
-        statsHFA(e).sd = s.sd;
-        statsHFA(e).df = s.df;
-        statsHFA(e).p = p;
-        statsHFA(e).meanCond1 = nanmean(nanmean(pow(fIndHTA,cond1)));
-        statsHFA(e).meanCond2 = nanmean(nanmean(pow(fIndHTA,cond2)));
-
-        % mean power spect for electrode
-        powCond1ByElec(:,e) = nanmean(pow(:,cond1),2);
-        powCond2ByElec(:,e) = nanmean(pow(:,cond2),2);
+        pow = loadResids_locs(subj,elecNum,cond1|cond2);
     end
     
-    % save it to file
-        save(fname,'powCond1ByElec','powCond2ByElec',...            
-            'statsLTA','statsHTA','statsG','statsHFA','tagNames',...
-             'rLTA','pLTA','rHTA','pHTA','er','powLTA','powHTA',...
-             'rG','pG','rHFA','pHFA','powG','powHFA')
+    % use only time bins of interest
+    pow(:,~tInds,:) = NaN;
     
-end
-
-function pow = loadPow_local(subj,elecNum,config,events)
-[distOut] = RAM_dist_func(subj,[],elecNum,'RAM_YC1','events', 0, ...
-    @doNothing, config.distributedFunctionLabel, config.distributedParams, 1, 1, events);
-
-sessInds = distOut.sessInds;
-subjMean = distOut.meanBasePow;
-subjStd = distOut.stdBasePow;
-subjPow = distOut.pow;
-
-% a couple sessions weren't zscored, so do it here. I should double
-% check that this is right
-if isempty(subjStd)
-    fprintf('power not zscored for %s\n',subj)
+    % corr for low theta
+    test_pow_LTA = nanmean(squeeze(nanmean(pow(fIndLTA,:,cond1|cond2),2)),1);
+    bad = isnan(er) | isnan(test_pow_LTA);
+    [rLTA(e),pLTA(e)] = corr(er(~bad)', test_pow_LTA(~bad)');
+    powLTA(e,:) = test_pow_LTA;
     
-    sI = unique(sessInds);
-    zpow = NaN(size(subjPow));
-    for s = 1:length(sI)
-        inds = sessInds == sI(s);
-        subjMean = nanmean(squeeze(nanmean(subjPow(:,:,inds), ...
-            2)),2);
-        subjMean = repmat(subjMean,[1 size(subjPow,2), size(subjPow,3)]);
-        
-        subjStd = nanstd(squeeze(nanmean(subjPow(:,:,inds), ...
-            2)),[],2);
-        subjStd = repmat(subjStd,[1 size(subjPow,2), size(subjPow,3)]);
-        zpow(:,:,inds) = (subjPow(:,:,inds) - subjMean).*subjStd;
-        
+    % corr for high theta
+    test_pow_HTA = nanmean(squeeze(nanmean(pow(fIndHTA,:,cond1|cond2),2)),1);
+    bad = isnan(er) | isnan(test_pow_HTA);
+    [rHTA(e),pHTA(e)] = corr(er(~bad)', test_pow_HTA(~bad)');
+    powHTA(e,:) = test_pow_HTA;
+    
+    % corr for gamma
+    test_pow_G = nanmean(squeeze(nanmean(pow(fIndG,:,cond1|cond2),2)),1);
+    bad = isnan(er) | isnan(test_pow_G);
+    [rG(e),pG(e)] = corr(er(~bad)', test_pow_G(~bad)');
+    powG(e,:) = test_pow_G;
+    
+    % corr for HFA
+    test_pow_HFA = nanmean(squeeze(nanmean(pow(fIndHFA,:,cond1|cond2),2)),1);
+    bad = isnan(er) | isnan(test_pow_HFA);
+    [rHFA(e),pHFA(e)] = corr(er(~bad)', test_pow_HFA(~bad)');
+    powHFA(e,:) = test_pow_HFA;
+    
+    % average across time
+    pow = squeeze(nanmean(pow,2));
+    
+    % t-test cond1 vs cond2 low theta
+    [~,p,~,s] = ttest2(nanmean(pow(fIndLTA,cond1)),nanmean(pow(fIndLTA,cond2)));
+    statsLTA(e).tstat = s.tstat;
+    statsLTA(e).sd = s.sd;
+    statsLTA(e).df = s.df;
+    statsLTA(e).p = p;
+    statsLTA(e).meanCond1 = nanmean(nanmean(pow(fIndLTA,cond1)));
+    statsLTA(e).meanCond2 = nanmean(nanmean(pow(fIndLTA,cond2)));
+    
+    
+    % t-test cond1 vs cond2 high theta
+    [~,p,~,s] = ttest2(nanmean(pow(fIndHTA,cond1)),nanmean(pow(fIndHTA,cond2)));
+    statsHTA(e).tstat = s.tstat;
+    statsHTA(e).sd = s.sd;
+    statsHTA(e).df = s.df;
+    statsHTA(e).p = p;
+    statsHTA(e).meanCond1 = nanmean(nanmean(pow(fIndHTA,cond1)));
+    statsHTA(e).meanCond2 = nanmean(nanmean(pow(fIndHTA,cond2)));
+    
+    
+    % t-test cond1 vs cond2 gamma
+    [~,p,~,s] = ttest2(nanmean(pow(fIndG,cond1)),nanmean(pow(fIndG,cond2)));
+    statsG(e).tstat = s.tstat;
+    statsG(e).sd = s.sd;
+    statsG(e).df = s.df;
+    statsG(e).p = p;
+    statsG(e).meanCond1 = nanmean(nanmean(pow(fIndLTA,cond1)));
+    statsG(e).meanCond2 = nanmean(nanmean(pow(fIndLTA,cond2)));
+    
+    % t-test cond1 vs cond2 hfa
+    [~,p,~,s] = ttest2(nanmean(pow(fIndHFA,cond1)),nanmean(pow(fIndHFA,cond2)));
+    statsHFA(e).tstat = s.tstat;
+    statsHFA(e).sd = s.sd;
+    statsHFA(e).df = s.df;
+    statsHFA(e).p = p;
+    statsHFA(e).meanCond1 = nanmean(nanmean(pow(fIndHTA,cond1)));
+    statsHFA(e).meanCond2 = nanmean(nanmean(pow(fIndHTA,cond2)));
+    
+    % mean power spect for electrode
+    powCond1ByElec(:,e) = nanmean(pow(:,cond1),2);
+    powCond2ByElec(:,e) = nanmean(pow(:,cond2),2);
+end
+
+% save it to file
+save(fname,'powCond1ByElec','powCond2ByElec',...
+    'statsLTA','statsHTA','statsG','statsHFA','tagNames',...
+    'rLTA','pLTA','rHTA','pHTA','er','powLTA','powHTA',...
+    'rG','pG','rHFA','pHFA','powG','powHFA')
+
+
+
+function powerData = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse,params)
+
+nFreqs = size(freqBins,1);
+nTimes = size(timeBins,1);
+nEvents = sum(eventsToUse);
+nElecs = length(tal);
+powerData = NaN(nFreqs,nTimes,nEvents,nElecs);
+
+% when loading power, use either original power or power with effect of
+% trial number removed.
+powField = 'pow';
+if params.useCorrectedPower
+    powField = 'powCorr';
+end
+for e = 1:nElecs
+    elecNum = tal(e).channel;
+    
+    basePath  = '/data10/scratch/jfm2/RAM/biomarker/power/';
+    subjPath  = fullfile(basePath,subj);
+    sessions = unique([events.session]);
+    subjPow  = [];
+    for s = 1:length(sessions)
+        fname = fullfile(subjPath,'RAM_YC1_events',num2str(sessions(s)),[num2str(elecNum(1)),'-',num2str(elecNum(2)),'.mat']);
+        sessPow = load(fname);
+        subjPow = cat(3,subjPow,sessPow.sessOutput.(powField));
     end
-    subjPow = zpow;
-end
-
-% if this happens, the events and power do not correspond
-if size(subjPow,3) ~= length(events)
-    keyboard
-end
-
-% replace time periods outside of each event with nans
-pow = subjPow;
-
-function [pow] = loadResids_locs(subj,elecNum,eventsToUse)
-
-basePath  = '/data10/scratch/jfm2/YC1/multi/power/regress/';
-subjPath  = fullfile(basePath,subj);
-fname     = sprintf('%s_elec_%d-%d_residuals.mat',subj,elecNum(1),elecNum(2));
-
-if ~exist(fullfile(subjPath,fname),'file')
-    error('Residuals file %s not found.\n',fname)
-else
-    elecData = load(fullfile(subjPath,fname));
-    pow = permute(elecData.resid,[3 2 1]);
-    if size(elecData.resid,1) ~= sum(eventsToUse)
-        keyboard
+    
+    if length(eventsToUse) ~= size(subjPow,3)
+        fprintf('Number of events does not match size of power matrix for %s!.\n',subj)
+        return
     end
+    subjPow = subjPow(:,:,eventsToUse);
+    
+    % average frequencies
+    if nFreqs ~= length(powParams.params.pow.freqs)
+        tmpPower = NaN(nFreqs,size(subjPow,2),size(subjPow,3));
+        for f = 1:nFreqs
+            fInds = powParams.params.pow.freqs >= freqBins(f,1) & powParams.params.pow.freqs < freqBins(f,2);
+            tmpPower(f,:,:) = nanmean(subjPow(fInds,:,:),1);
+        end
+        subjPow = tmpPower;
+    end
+    
+    % average times
+    tmpPower = NaN(nFreqs,nTimes,size(subjPow,3));
+    for t = 1:nTimes
+        tInds = powParams.timeBins(:,1) >= timeBins(t,1) & powParams.timeBins(:,2) <= timeBins(t,2);
+        tmpPower(:,t,:) = nanmean(subjPow(:,tInds,:),2);
+    end
+    powerData(:,:,:,e) = tmpPower;
 end
-
 
 function events = addErrorField(events)
 % add testError field

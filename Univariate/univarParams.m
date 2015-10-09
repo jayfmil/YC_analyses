@@ -16,6 +16,7 @@ params.region = '';
 
 % filter to events of interest
 params.eventFilter = @(events)allEncodingEvents(events);
+params.ana_func    = @correctFilter;
 params.basePath    = '/data10/scratch/jfm2/YC1/uni';
 
 % save out binned power to mat file?
