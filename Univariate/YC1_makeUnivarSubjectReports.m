@@ -310,7 +310,7 @@ fields2 = fieldnames(struct2);
 if isequal(fields1,fields2)
     sout = cell2struct(fields1,fields1,1);
     for f = 1:length(fields1)
-        if struct1.(fields1{f}) > 2
+        if ndims(struct1.(fields1{f})) > 2
             sout.(fields1{f}) = cat(3,struct1.(fields1{f}),struct2.(fields1{f}));       
         else
             sout.(fields1{f}) = horzcat(struct1.(fields1{f}),struct2.(fields1{f}));       
