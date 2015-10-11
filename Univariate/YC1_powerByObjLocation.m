@@ -90,8 +90,8 @@ try
     
     % also bin response error by region of evironment
     objLocs = vertcat(events(eventsToUse).objLocs);
-    edgesX=linspace(4,28.4,params.numXBins+1);
-    edgesY=linspace(4,14,params.numYBins+1);
+    edgesX=linspace(0,28.4,params.numXBins+1);
+    edgesY=linspace(0,14,params.numYBins+1);
     [~,xBin] = histc(abs(objLocs(:,1)),edgesX);
     [~,yBin] = histc(abs(objLocs(:,2)),edgesY);
     
