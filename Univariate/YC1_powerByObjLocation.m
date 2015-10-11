@@ -156,6 +156,7 @@ try
 %             res.(field).diffMap(:,:,e) = diffMap;
             
             % ttest and correlation for objects by bin of environment
+            ind = sub2ind([params.numEnvBins params.numEnvBins],xBin,yBin);
             diffMap = NaN(params.numEnvBins,params.numEnvBins);
             diffMapCorr = NaN(params.numEnvBins,params.numEnvBins);
             uniqInds = unique(ind);
