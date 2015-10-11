@@ -150,6 +150,13 @@ try
             diffMap(1:(params.numEnvBins^2)) = powByLoc(:,1) - powByLoc(:,2);
             res.(field).diffMap(:,:,e) = diffMap;
             
+            diffMapCorr = NaN(params.numEnvBins,params.numEnvBins);
+            uniqInds = unique(inds);
+            for bin = uniqInds
+                [r] = corr(er(ind(ind==bin))',pow(ind(ind==bin))');
+                diffMapCorr(ind(ind==bin)) = r;
+            end
+            
             % correlation between power and performance
             bad = isnan(er) | isnan(pow);
             [res.(field).r(e),res.(field).pCorr(e)] = corr(er(~bad)', pow(~bad)');
