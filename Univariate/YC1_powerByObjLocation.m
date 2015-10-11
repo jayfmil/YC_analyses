@@ -90,9 +90,10 @@ try
     
     % also bin response error by region of evironment
     objLocs = vertcat(events(eventsToUse).objLocs);
-    edges=linspace(-28.4,28.4,params.numEnvBins+1);
-    [~,xBin] = histc(objLocs(:,1),edges);
-    [~,yBin] = histc(objLocs(:,2),edges);
+    edgesX=linspace(-28.4,28.4,params.numXBins+1);
+    edgesY=linspace(-14,14,params.numYBins+1);
+    [~,xBin] = histc(objLocs(:,1),edgesX);
+    [~,yBin] = histc(objLocs(:,2),edgesY);
     
     
     thresh = median(er);
@@ -127,8 +128,8 @@ try
             'tstat',NaN(1,nElecs),'sd',NaN(1,nElecs),...
             'df',NaN(1,nElecs),'p_ttest',NaN(1,nElecs),...
             'meanCond1',NaN(1,nElecs),'meanCond2',NaN(1,nElecs),...
-            'diffMap',NaN(params.numEnvBins,params.numEnvBins,nElecs),...
-            'diffMapCorr',NaN(params.numEnvBins,params.numEnvBins,nElecs));
+            'diffMap',NaN(params.numXBins,params.numYBins,nElecs),...
+            'diffMapCorr',NaN(params.numXBins,params.numYBins,nElecs));
     end
     % tagNames = cell(1,size(elecs,1));
     
@@ -156,9 +157,9 @@ try
 %             res.(field).diffMap(:,:,e) = diffMap;
             
             % ttest and correlation for objects by bin of environment
-            ind = sub2ind([params.numEnvBins params.numEnvBins],xBin,yBin);
-            diffMap = NaN(params.numEnvBins,params.numEnvBins);
-            diffMapCorr = NaN(params.numEnvBins,params.numEnvBins);
+            ind = sub2ind([params.numXBins params.numYBins],xBin,yBin);
+            diffMap = NaN(params.numXBins,params.numYBins);
+            diffMapCorr = NaN(params.numXBins,params.numYBins);
             uniqInds = unique(ind);
             for bin = uniqInds'
                 
