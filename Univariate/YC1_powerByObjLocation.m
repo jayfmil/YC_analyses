@@ -84,7 +84,11 @@ try
     
     % filter to events of interest
     eventsToUse = params.eventFilter(events);
+    
+    % response error for each trial
     er = [events(eventsToUse).testError];
+    
+    % also bin response error by region of evironment
     objLocs = vertcat(events(eventsToUse).objLocs);
     edges=linspace(-28.4,28.4,params.numEnvBins+1);
     [~,xBin] = histc(objLocs(:,1),edges);
@@ -123,7 +127,8 @@ try
             'tstat',NaN(1,nElecs),'sd',NaN(1,nElecs),...
             'df',NaN(1,nElecs),'p_ttest',NaN(1,nElecs),...
             'meanCond1',NaN(1,nElecs),'meanCond2',NaN(1,nElecs),...
-            'diffMap',NaN(params.numEnvBins,params.numEnvBins,nElecs));
+            'diffMap',NaN(params.numEnvBins,params.numEnvBins,nElecs),...
+            'diffMapCorr',NaN(params.numEnvBins,params.numEnvBins,nElecs));
     end
     % tagNames = cell(1,size(elecs,1));
     
@@ -140,22 +145,32 @@ try
             pow = powerData(:,e,f)';
             
             % get the mean error for each bin
-            ind = sub2ind([params.numEnvBins params.numEnvBins],xBin,yBin);
-            powByLoc = NaN(params.numEnvBins^2,2);
-            m = grpstats(pow(cond1),ind(cond1));
-            powByLoc(unique(ind(cond1)),1) = m;
-            m2 = grpstats(pow(cond2),ind(cond2));
-            powByLoc(unique(ind(cond2)),2) = m2;
-            diffMap = NaN(params.numEnvBins,params.numEnvBins);
-            diffMap(1:(params.numEnvBins^2)) = powByLoc(:,1) - powByLoc(:,2);
-            res.(field).diffMap(:,:,e) = diffMap;
+%             ind = sub2ind([params.numEnvBins params.numEnvBins],xBin,yBin);
+%             powByLoc = NaN(params.numEnvBins^2,2);
+%             m = grpstats(pow(cond1),ind(cond1));
+%             powByLoc(unique(ind(cond1)),1) = m;
+%             m2 = grpstats(pow(cond2),ind(cond2));
+%             powByLoc(unique(ind(cond2)),2) = m2;
+%             diffMap = NaN(params.numEnvBins,params.numEnvBins);
+%             diffMap(1:(params.numEnvBins^2)) = powByLoc(:,1) - powByLoc(:,2);
+%             res.(field).diffMap(:,:,e) = diffMap;
             
+            % ttest and correlation for objects by bin of environment
+            diffMap = NaN(params.numEnvBins,params.numEnvBins);
             diffMapCorr = NaN(params.numEnvBins,params.numEnvBins);
-            uniqInds = unique(inds);
-            for bin = uniqInds
-                [r] = corr(er(ind(ind==bin))',pow(ind(ind==bin))');
+            uniqInds = unique(ind);
+            for bin = uniqInds'
+                
+                % corr
+                [r] = corr(er(ind==bin)',pow(ind==bin)');
                 diffMapCorr(ind(ind==bin)) = r;
+                
+                % ttest
+                [~,~,~,s] = ttest2(pow(ind==bin & cond1'),pow(ind==bin & cond2'));
+                diffMap(ind(ind==bin)) = s.tstat;
             end
+            res.(field).diffMapCorr(:,:,e) = diffMapCorr;
+            res.(field).diffMap(:,:,e) = diffMap;
             
             % correlation between power and performance
             bad = isnan(er) | isnan(pow);
