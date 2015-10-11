@@ -7,6 +7,9 @@ params.freqBinLabels = {'LowTheta','HighTheta','Gamma','HFA'};
 % time points
 params.timeBins = [1 5000];
 
+% number of bins to divide environment
+numEnvBins = 8;
+
 % do bipolar
 params.doBipol = 1;
 

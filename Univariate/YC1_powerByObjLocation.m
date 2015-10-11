@@ -85,6 +85,12 @@ try
     % filter to events of interest
     eventsToUse = params.eventFilter(events);
     er = [events(eventsToUse).testError];
+    objLocs = vertcat(events(eventsToUse).objLocs);
+    edges=linspace(-28.4,28.4,params.numEnvBins+1);
+    [~,xBin] = histc(objLocs(:,1),edges);
+    [~,yBin] = histc(objLocs(:,2),edges);
+    
+    
     thresh = median(er);
     cond1 = er < thresh;
     cond2 = er >= thresh;
@@ -116,7 +122,8 @@ try
         res.(field{1}) = struct('r',NaN(1,nElecs),'pCorr',NaN(1,nElecs),...
             'tstat',NaN(1,nElecs),'sd',NaN(1,nElecs),...
             'df',NaN(1,nElecs),'p_ttest',NaN(1,nElecs),...
-            'meanCond1',NaN(1,nElecs),'meanCond2',NaN(1,nElecs));
+            'meanCond1',NaN(1,nElecs),'meanCond2',NaN(1,nElecs),...
+            'diffMap',NaN(params.numEnvBins,params.numEnvBins,nElecs));
     end
     % tagNames = cell(1,size(elecs,1));
     
@@ -131,6 +138,17 @@ try
             
             % power for this elec and freq
             pow = powerData(:,e,f)';
+            
+            % get the mean error for each bin
+            ind = sub2ind([params.numEnvBins params.numEnvBins],xBin,yBin);
+            powByLoc = NaN(params.numEnvBins^2,2);
+            m = grpstats(pow(cond1),ind(cond1));
+            powByLoc(unique(ind(cond1)),1) = m;
+            m2 = grpstats(pow(cond2),ind(cond2));
+            powByLoc(unique(ind(cond2)),2) = m2;
+            diffMap = NaN(params.numEnvBins,params.numEnvBins);
+            diffMap(1:(params.numEnvBins^2)) = powByLoc(:,1) - powByLoc(:,2);
+            res.(field).diffMap(:,:,e) = diffMap;
             
             % correlation between power and performance
             bad = isnan(er) | isnan(pow);
