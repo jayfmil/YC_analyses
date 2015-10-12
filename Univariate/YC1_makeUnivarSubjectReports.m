@@ -85,13 +85,30 @@ end
 meanR = NaN(1,length(fields));
 semR  = NaN(1,length(fields));
 pR    = NaN(1,length(fields));
+
+meanRinner = NaN(1,length(fields));
+semRinner  = NaN(1,length(fields));
+
+meanRouter = NaN(1,length(fields));
+semRouter  = NaN(1,length(fields));
+
 for f = 1:length(fields)
     % note: I'm flipping the sign so that positive correlations indicate
     % better performance
     meanR(f)  = nanmean(-subjDataAll.(fields{f}).r);
     [~,pR(f)] = ttest(-subjDataAll.(fields{f}).r);
     semR(f)   = nanstd(subjDataAll.(fields{f}).r)/sqrt(length(subjDataAll.(fields{f}).r)-1);
+    
+    meanROuterInner = nanmean(-subjDataAll.(fields{f}).rOuterInner,3);
+    semROuterInner = nanstd(subjDataAll.(fields{f}).rOuterInner,0,3)/sqrt(size(subjDataAll.(fields{f}).rOuterInner,3)-1);
+    
+    meanRinner(f) = meanROuterInner(2);
+    semRinner(f) = semROuterInner(2);
+    
+    meanRouter(f) = meanROuterInner(2);
+    semRouter(f) = semROuterInner(2);    
 end
+figure(1)
 clf
 bar(find(meanR>0),meanR(meanR>0),'linewidth',3,'FaceColor',[150 23 31]/255);
 hold on
@@ -104,8 +121,34 @@ set(gca,'gridlinestyle',':')
 ylabel('Mean Pearson Coef.','fontsize',20);
 set(gca,'fontsize',20)
 
-fname = fullfile(figDir,'corrByFreq.eps');
-print('-depsc2','-loose',fname)
+figure(2)
+clf
+bar(find(meanRinner>0),meanRinner(meanRinner>0),'linewidth',3,'FaceColor',[150 23 31]/255);
+hold on
+bar(find(meanRinner<0),meanRinner(meanRinner<0),'linewidth',3,'FaceColor',[61 89 171]/255);
+errorbar(1:f,meanRinner,semRinner*1.96,'k','linewidth',3','linestyle','none')
+set(gca,'xtick',1:f)
+set(gca,'xticklabel',fields')
+grid on
+set(gca,'gridlinestyle',':')
+ylabel('Mean Pearson Coef.','fontsize',20);
+set(gca,'fontsize',20)
+
+figure(2)
+clf
+bar(find(meanRouter>0),meanRouter(meanRouter>0),'linewidth',3,'FaceColor',[150 23 31]/255);
+hold on
+bar(find(meanRouter<0),meanRouter(meanRouter<0),'linewidth',3,'FaceColor',[61 89 171]/255);
+errorbar(1:f,meanRouter,semRouter*1.96,'k','linewidth',3','linestyle','none')
+set(gca,'xtick',1:f)
+set(gca,'xticklabel',fields')
+grid on
+set(gca,'gridlinestyle',':')
+ylabel('Mean Pearson Coef.','fontsize',20);
+set(gca,'fontsize',20)
+
+% fname = fullfile(figDir,'corrByFreq.eps');
+% print('-depsc2','-loose',fname)
 
 keyboard
 return 
