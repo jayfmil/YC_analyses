@@ -95,7 +95,10 @@ try
     [~,xBin] = histc(abs(objLocs(:,1)),edgesX);
     [~,yBin] = histc(abs(objLocs(:,2)),edgesY);
     
+    % also bin by inner or outer band
+    isInnerBand = [events(eventsToUse).isInnerBand];
     
+    % good and bad binary
     thresh = median(er);
     cond1 = er < thresh;
     cond2 = er >= thresh;
@@ -129,7 +132,8 @@ try
             'df',NaN(1,nElecs),'p_ttest',NaN(1,nElecs),...
             'meanCond1',NaN(1,nElecs),'meanCond2',NaN(1,nElecs),...
             'diffMap',NaN(params.numXBins,params.numYBins,nElecs),...
-            'diffMapCorr',NaN(params.numXBins,params.numYBins,nElecs));
+            'diffMapCorr',NaN(params.numXBins,params.numYBins,nElecs),...
+            'rOuterInner',NaN(1,2,nElecs),'tOuterInner',NaN(1,2,nElecs));
     end
     % tagNames = cell(1,size(elecs,1));
     
@@ -174,8 +178,16 @@ try
             res.(field).diffMapCorr(:,:,e) = diffMapCorr;
             res.(field).diffMap(:,:,e) = diffMap;
             
-            % correlation between power and performance
+            % ttest and correlation for inner outer band
             bad = isnan(er) | isnan(pow);
+            for band = 1:2                                
+                res(field).rOuterInner(1,band,e) = corr(er(~bad & isInnerBand == band-1)',pow(~bad & isInnerBand == band-1)');
+                [~,~,~,s] = ttest2(pow(cond1 & ~isInnerBand),pow(cond2 & isInnerBand));
+                res(field).tOuterInner(1,band,e) = s.tstat;
+            end                
+            
+            % correlation between power and performance
+            
             [res.(field).r(e),res.(field).pCorr(e)] = corr(er(~bad)', pow(~bad)');
             
             % ttest between power in each condition
@@ -262,7 +274,7 @@ recEvents = events(testInd);
 [events.testError] = deal(NaN);
 [events.recalled] = deal(NaN);
 [events.inner] = deal(NaN);
-[events.innerOuterBand] = deal(NaN);
+[events.isInnerBand] = deal(NaN);
 sessVec = [events.session];
 trialVec = [events.blocknum];
 for rec = 1:length(recEvents);
@@ -272,7 +284,7 @@ for rec = 1:length(recEvents);
     ind = sessVec == session & trialVec == trial;
     [events(ind).testError] = deal(err);
     [events(ind).inner] = deal(abs(recEvents(rec).objLocs(1)) < 568/30 && abs(recEvents(rec).objLocs(2)) < 7);
-    [events(ind).innerOuterBand] = deal(abs(recEvents(rec).objLocs(1)) < 14);
+    [events(ind).isInnerBand] = deal(abs(recEvents(rec).objLocs(1)) < 14);
 end
 
 
