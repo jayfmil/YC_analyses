@@ -105,8 +105,8 @@ for f = 1:length(fields)
     meanRinner(f) = meanROuterInner(2);
     semRinner(f) = semROuterInner(2);
     
-    meanRouter(f) = meanROuterInner(2);
-    semRouter(f) = semROuterInner(2);    
+    meanRouter(f) = meanROuterInner(1);
+    semRouter(f) = semROuterInner(1);    
 end
 figure(1)
 clf
@@ -134,7 +134,7 @@ set(gca,'gridlinestyle',':')
 ylabel('Mean Pearson Coef.','fontsize',20);
 set(gca,'fontsize',20)
 
-figure(2)
+figure(3)
 clf
 bar(find(meanRouter>0),meanRouter(meanRouter>0),'linewidth',3,'FaceColor',[150 23 31]/255);
 hold on
