@@ -181,9 +181,9 @@ try
             % ttest and correlation for inner outer band
             bad = isnan(er) | isnan(pow);
             for band = 1:2                                
-                res(field).rOuterInner(1,band,e) = corr(er(~bad & isInnerBand == band-1)',pow(~bad & isInnerBand == band-1)');
+                res.(field).rOuterInner(1,band,e) = corr(er(~bad & isInnerBand == band-1)',pow(~bad & isInnerBand == band-1)');
                 [~,~,~,s] = ttest2(pow(cond1 & ~isInnerBand),pow(cond2 & isInnerBand));
-                res(field).tOuterInner(1,band,e) = s.tstat;
+                res.(field).tOuterInner(1,band,e) = s.tstat;
             end                
             
             % correlation between power and performance
