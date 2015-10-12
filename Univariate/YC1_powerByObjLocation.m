@@ -262,6 +262,7 @@ recEvents = events(testInd);
 [events.testError] = deal(NaN);
 [events.recalled] = deal(NaN);
 [events.inner] = deal(NaN);
+[events.innerOuterBand] = deal(NaN);
 sessVec = [events.session];
 trialVec = [events.blocknum];
 for rec = 1:length(recEvents);
@@ -271,6 +272,7 @@ for rec = 1:length(recEvents);
     ind = sessVec == session & trialVec == trial;
     [events(ind).testError] = deal(err);
     [events(ind).inner] = deal(abs(recEvents(rec).objLocs(1)) < 568/30 && abs(recEvents(rec).objLocs(2)) < 7);
+    [events(ind).innerOuterBand] = deal(abs(recEvents(rec).objLocs(1)) < 14);
 end
 
 
