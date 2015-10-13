@@ -155,7 +155,7 @@ try
             diffMapCorr = NaN(params.numXBins,params.numYBins);
             uniqInds = unique(ind);
             for bin = uniqInds'
-                sc
+                
                 % corr
                 [r] = corr(er(ind==bin)',pow(ind==bin)');
                 diffMapCorr(ind(ind==bin)) = r;
