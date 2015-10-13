@@ -133,7 +133,8 @@ try
             'meanCond1',NaN(1,nElecs),'meanCond2',NaN(1,nElecs),...
             'diffMap',NaN(params.numXBins,params.numYBins,nElecs),...
             'diffMapCorr',NaN(params.numXBins,params.numYBins,nElecs),...
-            'rOuterInner',NaN(1,2,nElecs),'tOuterInner',NaN(1,2,nElecs));
+            'rOuterInner',NaN(1,2,nElecs),'tOuterInner',NaN(1,2,nElecs),...
+            'tal',NaN(3,nElecs));
     end
     % tagNames = cell(1,size(elecs,1));
     
@@ -188,6 +189,12 @@ try
             % mean power in each condition
             res.(field).meanCond1 = nanmean(pow(cond1));
             res.(field).meanCond2 = nanmean(pow(cond2));
+            
+            % keep track of electrode x,y,z
+            x = tal(e).avgSurf.x;
+            y = tal(e).avgSurf.y;
+            z = tal(e).avgSurf.z;
+            res.(field).tal(:,e) = [x y z]';
             
         end
     end
