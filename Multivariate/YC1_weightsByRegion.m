@@ -179,9 +179,12 @@ for s = 1:length(subjs)
         %% FIGURE 4 - mean absolute weights by region for each time        
         labels = params.timeBinLabels;
         if isempty(labels);labels=repmat({''},1,size(params.timeBins,1));end      
-        regions     = {'H','EC','MTL','TC','FC','OC','PC','X'};
+        regions     = {'H','EC','MTL','CA1','CA3','DG','SUB','PHC','PRC','TC','FC','OC','PC','X'};
         fieldsToUse = {'meanWeightsPerTimeHipp','meanWeightsPerTimeEC',...
-            'meanWeightsPerTimeMTL','meanWeightsPerTimeTC',...
+            'meanWeightsPerTimeMTL','meanWeightsPerTimeCA1',...
+            'meanWeightsPerTimeCA3','meanWeightsPerTimeDG',...
+            'meanWeightsPerTimeSub','meanWeightsPerTimePHC',...
+            'meanWeightsPerTimePRC','meanWeightsPerTimeTC',...                        
             'meanWeightsPerTimeFC','meanWeightsPerTimeOC',...
             'meanWeightsPerTimePC','meanWeightsPerTimeOth'};
         
@@ -509,6 +512,12 @@ end
 hipp_elecs    = ~cellfun('isempty',regexpi({tal.locTag},['CA1|CA3|DG|sub']));
 ec_elecs      = ~cellfun('isempty',regexpi({tal.locTag},['ec|erc']));
 mtl_elecs     = ~cellfun('isempty',regexpi({tal.locTag},['HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc']));
+ca1_elecs     = ~cellfun('isempty',regexpi({tal.locTag},['ca1']));
+ca3_elecs     = ~cellfun('isempty',regexpi({tal.locTag},['ca3']));
+dg_elecs      = ~cellfun('isempty',regexpi({tal.locTag},['dg']));
+sub_elecs     = ~cellfun('isempty',regexpi({tal.locTag},['sub']));
+phc_elecs     = ~cellfun('isempty',regexpi({tal.locTag},['phc']));
+prc_elecs     = ~cellfun('isempty',regexpi({tal.locTag},['prc']));
 frontal_elecs = strcmp({tal.Loc2},'Frontal Lobe');
 occ_elecs     = strcmp({tal.Loc2},'Occipital Lobe');
 par_elecs     = strcmp({tal.Loc2},'Parietal Lobe');
@@ -556,6 +565,15 @@ out.meanWeightsPerTime     = meanWeightsPerTime;
 out.meanWeightsPerTimeHipp = meanWeightsPerTime(:,hipp_elecs,:);
 out.meanWeightsPerTimeEC   = meanWeightsPerTime(:,ec_elecs,:);
 out.meanWeightsPerTimeMTL  = meanWeightsPerTime(:,mtl_elecs,:);
+
+out.meanWeightsPerTimeCA1  = meanWeightsPerTime(:,ca1_elecs,:);
+out.meanWeightsPerTimeCA3  = meanWeightsPerTime(:,ca3_elecs,:);
+out.meanWeightsPerTimeDG   = meanWeightsPerTime(:,dg_elecs,:);
+out.meanWeightsPerTimeSub  = meanWeightsPerTime(:,sub_elecs,:);
+out.meanWeightsPerTimePHC  = meanWeightsPerTime(:,phc_elecs,:);
+out.meanWeightsPerTimePRC  = meanWeightsPerTime(:,prc_elecs,:);
+
+
 out.meanWeightsPerTimeFC   = meanWeightsPerTime(:,frontal_elecs,:);
 out.meanWeightsPerTimeOC   = meanWeightsPerTime(:,occ_elecs,:);
 out.meanWeightsPerTimePC   = meanWeightsPerTime(:,par_elecs,:);
@@ -567,9 +585,11 @@ elec_order = [find(hipp_elecs) find(ec_elecs) find(mtl_elecs) ...
               find(par_elecs) find(other_elecs)];
 out.meanWeightsPerTimeSort = meanWeightsPerTime(:,elec_order,:);
 
-regions     = {'H','EC','MTL','TC','FC','OC','PC','X'};
+regions     = {'H','EC','MTL','CA1','CA3','DG','SUB','PHC','PRC','TC','FC','OC','PC','X'};
 regionCount = sum([hipp_elecs' ec_elecs' ...
-    mtl_elecs' temp_elecs' frontal_elecs'...
+    mtl_elecs' ca1_elecs' ca3_elecs' ...
+    dg_elecs' sub_elecs' phc_elecs' prc_elecs' ...
+    temp_elecs' frontal_elecs'...
     occ_elecs' par_elecs' other_elecs']);
 noElecs     = regionCount == 0;
 

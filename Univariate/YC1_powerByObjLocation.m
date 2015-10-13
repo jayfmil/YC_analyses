@@ -148,25 +148,14 @@ try
             
             % power for this elec and freq
             pow = powerData(:,e,f)';
-            
-            % get the mean error for each bin
-%             ind = sub2ind([params.numEnvBins params.numEnvBins],xBin,yBin);
-%             powByLoc = NaN(params.numEnvBins^2,2);
-%             m = grpstats(pow(cond1),ind(cond1));
-%             powByLoc(unique(ind(cond1)),1) = m;
-%             m2 = grpstats(pow(cond2),ind(cond2));
-%             powByLoc(unique(ind(cond2)),2) = m2;
-%             diffMap = NaN(params.numEnvBins,params.numEnvBins);
-%             diffMap(1:(params.numEnvBins^2)) = powByLoc(:,1) - powByLoc(:,2);
-%             res.(field).diffMap(:,:,e) = diffMap;
-            
+                        
             % ttest and correlation for objects by bin of environment
             ind = sub2ind([params.numXBins params.numYBins],xBin,yBin);
             diffMap = NaN(params.numXBins,params.numYBins);
             diffMapCorr = NaN(params.numXBins,params.numYBins);
             uniqInds = unique(ind);
             for bin = uniqInds'
-                
+                sc
                 % corr
                 [r] = corr(er(ind==bin)',pow(ind==bin)');
                 diffMapCorr(ind(ind==bin)) = r;
@@ -186,8 +175,7 @@ try
                 res.(field).tOuterInner(1,band,e) = s.tstat;
             end                
             
-            % correlation between power and performance
-            
+            % correlation between power and performance            
             [res.(field).r(e),res.(field).pCorr(e)] = corr(er(~bad)', pow(~bad)');
             
             % ttest between power in each condition
