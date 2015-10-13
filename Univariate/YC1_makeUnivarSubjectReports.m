@@ -110,29 +110,33 @@ for f = 1:length(fields)
 end
 figure(1)
 clf
-bar(find(meanR>0),meanR(meanR>0),'linewidth',3,'FaceColor',[150 23 31]/255);
+bar(find(meanR>0),meanR(meanR>0),'linewidth',4,'FaceColor',[150 23 31]/255);
 hold on
-bar(find(meanR<0),meanR(meanR<0),'linewidth',3,'FaceColor',[61 89 171]/255);
-errorbar(1:f,meanR,semR*1.96,'k','linewidth',3','linestyle','none')
+bar(find(meanR<0),meanR(meanR<0),'linewidth',4,'FaceColor',[61 89 171]/255);
+errorbar(1:f,meanR,semR*1.96,'k','linewidth',4','linestyle','none')
 set(gca,'xtick',1:f)
 set(gca,'xticklabel',fields')
 grid on
 set(gca,'gridlinestyle',':')
-ylabel('Mean Pearson Coef.','fontsize',20);
-set(gca,'fontsize',20)
+ylabel('Mean Pearson Coef.','fontsize',24);
+set(gca,'fontsize',24)
+fname = fullfile(figDir,'corrByFreq.eps');
+print('-depsc2','-loose',fname)
+keyboard
+return
 
 figure(2)
 clf
-bar(find(meanRinner>0),meanRinner(meanRinner>0),'linewidth',3,'FaceColor',[150 23 31]/255);
+bar(find(meanRinner>0),meanRinner(meanRinner>0),'linewidth',4,'FaceColor',[150 23 31]/255);
 hold on
-bar(find(meanRinner<0),meanRinner(meanRinner<0),'linewidth',3,'FaceColor',[61 89 171]/255);
-errorbar(1:f,meanRinner,semRinner*1.96,'k','linewidth',3','linestyle','none')
+bar(find(meanRinner<0),meanRinner(meanRinner<0),'linewidth',4,'FaceColor',[61 89 171]/255);
+errorbar(1:f,meanRinner,semRinner*1.96,'k','linewidth',4','linestyle','none')
 set(gca,'xtick',1:f)
 set(gca,'xticklabel',fields')
 grid on
 set(gca,'gridlinestyle',':')
-ylabel('Mean Pearson Coef.','fontsize',20);
-set(gca,'fontsize',20)
+ylabel('Mean Pearson Coef.','fontsize',24);
+set(gca,'fontsize',24)
 
 figure(3)
 clf
