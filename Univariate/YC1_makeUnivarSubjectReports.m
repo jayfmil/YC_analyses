@@ -118,8 +118,8 @@ set(gca,'xtick',1:f)
 set(gca,'xticklabel',fields')
 grid on
 set(gca,'gridlinestyle',':')
-ylabel('Mean Pearson Coef.','fontsize',24);
-set(gca,'fontsize',24)
+ylabel('Mean Pearson Coef.','fontsize',28);
+set(gca,'fontsize',28)
 set(gca,'xlim',[0 length(meanR)+1])
 set(gca,'xticklabel',{'0-3','3-9','40-70','70-200'})
 fname = fullfile(figDir,'corrByFreq.eps');
