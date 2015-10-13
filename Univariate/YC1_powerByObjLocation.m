@@ -191,9 +191,9 @@ try
             res.(field).meanCond2 = nanmean(pow(cond2));
             
             % keep track of electrode x,y,z
-            x = tal(e).avgSurf.x;
-            y = tal(e).avgSurf.y;
-            z = tal(e).avgSurf.z;
+            x = tal(e).avgSurf.x_snap;
+            y = tal(e).avgSurf.y_snap;
+            z = tal(e).avgSurf.z_snap;
             res.(field).tal(:,e) = [x y z]';
             
         end
