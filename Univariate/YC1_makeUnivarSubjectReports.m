@@ -103,6 +103,10 @@ for f = 1:length(fields)
 end
 
 % Figure 1: average correlation for each freq band for all trials
+freqs=num2cell(params.freqBins,2);
+f = @(x) strcat(num2str(x(1)),'-',num2str(x(2)));
+freqStr = cellfun(f,freqs,'uniformoutput',false);
+
 figure(1)
 clf
 bar(find(meanR>0),meanR(meanR>0),'linewidth',4,'FaceColor',[150 23 31]/255);
@@ -116,7 +120,8 @@ set(gca,'gridlinestyle',':')
 ylabel('Mean Pearson Coef.','fontsize',26);
 set(gca,'fontsize',26)
 set(gca,'xlim',[0 length(meanR)+1])
-set(gca,'xticklabel',{'0-3','3-9','40-70','70-200'})
+% set(gca,'xticklabel',{'1-3','3-9','40-70','70-200'})
+set(gca,'xticklabel',freqStr)
 fname = fullfile(figDir,'corrByFreq.eps');
 print('-depsc2','-loose',fname)
 
@@ -128,7 +133,7 @@ hold on
 bar(find(meanRinner<0),meanRinner(meanRinner<0),'linewidth',4,'FaceColor',[61 89 171]/255);
 errorbar(1:f,meanRinner,semRinner*1.96,'k','linewidth',4','linestyle','none')
 set(gca,'xtick',1:f)
-set(gca,'xticklabel',fields')
+set(gca,'xticklabel',freqStr)
 grid on
 set(gca,'gridlinestyle',':')
 ylabel('Mean Pearson Coef.','fontsize',26);
@@ -145,7 +150,7 @@ hold on
 bar(find(meanRouter<0),meanRouter(meanRouter<0),'linewidth',3,'FaceColor',[61 89 171]/255);
 errorbar(1:f,meanRouter,semRouter*1.96,'k','linewidth',3','linestyle','none')
 set(gca,'xtick',1:f)
-set(gca,'xticklabel',fields')
+set(gca,'xticklabel',freqStr)
 grid on
 set(gca,'gridlinestyle',':')
 ylabel('Mean Pearson Coef.','fontsize',26);
