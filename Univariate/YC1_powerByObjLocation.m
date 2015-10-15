@@ -131,10 +131,13 @@ try
             'tstat',NaN(1,nElecs),'sd',NaN(1,nElecs),...
             'df',NaN(1,nElecs),'p_ttest',NaN(1,nElecs),...
             'meanCond1',NaN(1,nElecs),'meanCond2',NaN(1,nElecs),...
-            'diffMap',NaN(params.numXBins,params.numYBins,nElecs),...
-            'diffMapCorr',NaN(params.numXBins,params.numYBins,nElecs),...
-            'rOuterInner',NaN(1,2,nElecs),'tOuterInner',NaN(1,2,nElecs),...
+            'rInner',NaN(1,nElecs),'tInner',NaN(1,nElecs),...
+            'rOuter',NaN(1,nElecs),'tOuter',NaN(1,nElecs),...
             'tal',NaN(3,nElecs));
+%            'diffMap',NaN(params.numXBins,params.numYBins,nElecs),...
+%            'diffMapCorr',NaN(params.numXBins,params.numYBins,nElecs),...
+
+
     end
     % tagNames = cell(1,size(elecs,1));
     
@@ -165,16 +168,18 @@ try
                 [~,~,~,s] = ttest2(pow(ind==bin & cond1'),pow(ind==bin & cond2'));
                 diffMap(ind(ind==bin)) = s.tstat;
             end
-            res.(field).diffMapCorr(:,:,e) = diffMapCorr;
-            res.(field).diffMap(:,:,e) = diffMap;
+           % res.(field).diffMapCorr(:,:,e) = diffMapCorr;
+           % res.(field).diffMap(:,:,e) = diffMap;
             
             % ttest and correlation for inner outer band
             bad = isnan(er) | isnan(pow);
-            for band = 1:2                                
-                res.(field).rOuterInner(1,band,e) = corr(er(~bad & isInnerBand == band-1)',pow(~bad & isInnerBand == band-1)');
-                [~,~,~,s] = ttest2(pow(cond1 & ~isInnerBand),pow(cond2 & isInnerBand));
-                res.(field).tOuterInner(1,band,e) = s.tstat;
-            end                
+            res.(field).rInner(e) = corr(er(~bad & isInnerBand)',pow(~bad & isInnerBand)');
+            res.(field).rOuter(e) = corr(er(~bad & ~isInnerBand)',pow(~bad & ~isInnerBand)');
+            
+            [~,~,~,s] = ttest2(pow(cond1 & isInnerBand),pow(cond2 & isInnerBand));
+            res.(field).tInner(1,e) = s.tstat;
+            [~,~,~,s] = ttest2(pow(cond1 & ~isInnerBand),pow(cond2 & ~isInnerBand));
+            res.(field).tOuter(1,e) = s.tstat;
             
             % correlation between power and performance            
             [res.(field).r(e),res.(field).pCorr(e)] = corr(er(~bad)', pow(~bad)');

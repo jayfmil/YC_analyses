@@ -99,14 +99,21 @@ for f = 1:length(fields)
     [~,pR(f)] = ttest(-subjDataAll.(fields{f}).r);
     semR(f)   = nanstd(subjDataAll.(fields{f}).r)/sqrt(length(subjDataAll.(fields{f}).r)-1);
     
-    meanROuterInner = nanmean(-subjDataAll.(fields{f}).rOuterInner,3);
-    semROuterInner = nanstd(subjDataAll.(fields{f}).rOuterInner,0,3)/sqrt(size(subjDataAll.(fields{f}).rOuterInner,3)-1);
+
+    meanRinner(f)  = nanmean(-subjDataAll.(fields{f}).rInner);
+    semRinner(f)   = nanstd(subjDataAll.(fields{f}).rInner)/sqrt(length(subjDataAll.(fields{f}).rInner)-1);
+
+    meanRouter(f)  = nanmean(-subjDataAll.(fields{f}).rOuter);
+    semRouter(f)   = nanstd(subjDataAll.(fields{f}).rOuter)/sqrt(length(subjDataAll.(fields{f}).rOuter)-1);
+
+   % meanROuterInner = nanmean(-subjDataAll.(fields{f}).rOuterInner,3);
+   % semROuterInner = nanstd(subjDataAll.(fields{f}).rOuterInner,0,3)/sqrt(size(subjDataAll.(fields{f}).rOuterInner,3)-1);
     
-    meanRinner(f) = meanROuterInner(2);
-    semRinner(f) = semROuterInner(2);
+   % meanRinner(f) = meanROuterInner(2);
+   % semRinner(f) = semROuterInner(2);
     
-    meanRouter(f) = meanROuterInner(1);
-    semRouter(f) = semROuterInner(1);    
+   % meanRouter(f) = meanROuterInner(1);
+   % semRouter(f) = semROuterInner(1);    
 end
 figure(1)
 clf
@@ -125,7 +132,6 @@ set(gca,'xticklabel',{'0-3','3-9','40-70','70-200'})
 fname = fullfile(figDir,'corrByFreq.eps');
 print('-depsc2','-loose',fname)
 
-return
 
 figure(2)
 clf
@@ -139,6 +145,8 @@ grid on
 set(gca,'gridlinestyle',':')
 ylabel('Mean Pearson Coef.','fontsize',24);
 set(gca,'fontsize',24)
+fname = fullfile(figDir,'corrByFreqInner.eps');
+print('-depsc2','-loose',fname)
 
 figure(3)
 clf
@@ -153,6 +161,9 @@ set(gca,'gridlinestyle',':')
 ylabel('Mean Pearson Coef.','fontsize',20);
 set(gca,'fontsize',20)
 
+fname = fullfile(figDir,'corrByFreqOuter.eps');
+print('-depsc2','-loose',fname)
+return
 % fname = fullfile(figDir,'corrByFreq.eps');
 % print('-depsc2','-loose',fname)
 
@@ -359,7 +370,7 @@ fields2 = fieldnames(struct2);
 if isequal(fields1,fields2)
     sout = cell2struct(fields1,fields1,1);
     for f = 1:length(fields1)
-        if ndims(struct1.(fields1{f})) > 2
+        if ndims(struct1.(fields1{f})) > 2 | ndims(struct2.(fields1{f})) > 2
             sout.(fields1{f}) = cat(3,struct1.(fields1{f}),struct2.(fields1{f}));       
         else
             sout.(fields1{f}) = horzcat(struct1.(fields1{f}),struct2.(fields1{f}));       

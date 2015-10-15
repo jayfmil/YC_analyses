@@ -26,9 +26,9 @@ parfor s = 1:length(subjs)
         timeStep = 250;
         params.timeBins = [[-999:timeStep:0]' [(-999+timeStep-1):timeStep:0]'];
         params.timeBinLabels = strread(num2str(1:size(params.timeBins,1)),'%s')';
-        %     parmas.freqBins = [[1:50]' [1:50]'];
+        params.freqBins = [[1:50]' [1:50]'];
         params.nCV = 10;
-        params.basePath = '/data10/scratch/jfm2/YC1/multi/lambdaSearchPre';
+        params.basePath = '/data10/scratch/jfm2/YC1/multi/lambdaSearchPre50';
         params.saveOutput = 0;
         
         % save directory

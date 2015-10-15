@@ -40,6 +40,17 @@ if length(allErrors) ~= length(allObjectLocs)
 end
 
 
+%errs = NaN(61,31);
+%for x = -30:30
+%    for y = -15:15        
+%        near = sqrt((allObjectLocs(:,1) - x).^2 + (allObjectLocs(:,2) ...
+%                                                   - y).^2) < 10;
+%        errs(x+31,y+16) = mean(allErrors(near));        
+%    end
+%end
+%keyboard
+
+
 function [errors,eucErrors,objLocs] = process_subj(subj,doRecalc)
 
 
