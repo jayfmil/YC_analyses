@@ -104,8 +104,8 @@ end
 
 % Figure 1: average correlation for each freq band for all trials
 freqs=num2cell(params.freqBins,2);
-f = @(x) strcat(num2str(x(1)),'-',num2str(x(2)));
-freqStr = cellfun(f,freqs,'uniformoutput',false);
+fun = @(x) strcat(num2str(x(1)),'-',num2str(x(2)));
+freqStr = cellfun(fun,freqs,'uniformoutput',false);
 
 figure(1)
 clf
