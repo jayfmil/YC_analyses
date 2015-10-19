@@ -257,13 +257,16 @@ for e = 1:nElecs
     end    
     subjPow = subjPow(:,:,eventsToUse);
     
+        
     % average frequencies
-    tmpPower = NaN(nFreqs,size(subjPow,2),size(subjPow,3));
-    for f = 1:nFreqs
-        fInds = powParams.params.pow.freqs >= freqBins(f,1) & powParams.params.pow.freqs < freqBins(f,2);
-        tmpPower(f,:,:) = nanmean(subjPow(fInds,:,:),1);
+    if nFreqs ~= length(powParams.params.pow.freqs)
+        tmpPower = NaN(nFreqs,size(subjPow,2),size(subjPow,3));
+        for f = 1:nFreqs
+            fInds = powParams.params.pow.freqs >= freqBins(f,1) & powParams.params.pow.freqs < freqBins(f,2);
+            tmpPower(f,:,:) = nanmean(subjPow(fInds,:,:),1);
+        end
+        subjPow = tmpPower;
     end
-    subjPow = tmpPower;
     
     % average times
     tmpPower = NaN(nFreqs,nTimes,size(subjPow,3));
