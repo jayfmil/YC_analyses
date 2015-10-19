@@ -1,4 +1,4 @@
-function YC1_runMulti_searchLambda
+function YC1_runMulti_searchLambda(subjs)
 %
 %
 %
@@ -12,7 +12,10 @@ function YC1_runMulti_searchLambda
 
 
 % get subjects
-subjs  = get_subs('RAM_YC1');
+% get list of YC subjects if non given
+if ~exist('subjs','var') || isempty(subjs)
+    subjs = get_subs('RAM_YC1');
+end
 
 parfor s = 1:length(subjs)
     try
