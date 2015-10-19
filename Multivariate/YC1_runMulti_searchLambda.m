@@ -3,12 +3,12 @@ function YC1_runMulti_searchLambda
 %
 %
 
-if isunix && ~ismac
-    p = gcp('nocreate');
-    if isempty(p)
-        open_rhino2_pool(50,'12G');
-    end
-end
+% if isunix && ~ismac
+%     p = gcp('nocreate');
+%     if isempty(p)
+%         open_rhino2_pool(50,'12G');
+%     end
+% end
 
 
 % get subjects
@@ -16,17 +16,13 @@ subjs  = get_subs('RAM_YC1');
 
 parfor s = 1:length(subjs)
     try
-        % possible lambda value
+        % possible lambda values
         lambdas = logspace(log10(.01),log10(1),25);
         
         % get basic parameters
         params = multiParams();
-        params.modelEachTime = 0;
-        
-        timeStep = 1000;
-        params.timeBins = [[-999:timeStep:6000]' [(-999+timeStep-1):timeStep:6000]'];
-        params.timeBinLabels = strread(num2str(1:size(params.timeBins,1)),'%s')';
-        %     parmas.freqBins = [[1:50]' [1:50]'];
+        params.modelEachTime = 1;
+        params.alpha = .1;
         params.nCV = 10;
         params.basePath = '/data10/scratch/jfm2/YC1/multi/lambdaSearch';
         params.saveOutput = 0;
@@ -39,7 +35,7 @@ parfor s = 1:length(subjs)
             mkdir(saveDir);
         end
         
-        aucs = NaN(1,length(lambdas));
+        aucs = NaN(length(lambdas),size(params.timeBins,1));
         for l = 1:length(lambdas)
             
             if l == 1
@@ -48,10 +44,10 @@ parfor s = 1:length(subjs)
             else
                 params.savePower = 0;
                 params.loadPower = 1;
-            end
+            end 
             
-            params.lambda = lambdas(l);
-            [~,aucs(l)] = YC1_runMulti_subj(subjs{s},params,saveDir)
+            params.lambda = repmat(lambdas(l),1,size(params.timeBins,1));
+            [~,aucs(l,:)] = YC1_runMulti_subj(subjs{s},params,saveDir)
             
         end
         
