@@ -43,6 +43,11 @@ try
     % add the test error to the learning trials
     events  = addErrorField(events);
     
+    % this is stupid
+    if strcmp(subj,'R1047D')
+        [events.stimLeads] = deal('LOTD3-LOTD4');
+    end    
+    
     % The level of analysis is unique stim locations
     stimLeads   = unique({events.stimLeads});
     res = [];
@@ -213,15 +218,16 @@ powField = 'pow';
 if params.useCorrectedPower
     powField = 'powCorr';
 end
+
 for e = 1:nElecs
     elecNum = tal(e).channel;
     
-    basePath  = '/data10/scratch/jfm2/RAM/biomarker/power/';
+    basePath  = params.powerPath;%'/data10/scratch/jfm2/RAM/biomarker/power/';
     subjPath  = fullfile(basePath,subj);
     sessions = unique([events.session]);
     subjPow  = [];
     for s = 1:length(sessions)
-        fname = fullfile(subjPath,'RAM_YC2_events',num2str(sessions(s)),[num2str(elecNum(1)),'-',num2str(elecNum(2)),'.mat']);
+        fname = fullfile(subjPath,'RAM_YC2_events',num2str(sessions(s)),[num2str(elecNum(1)),'-',num2str(elecNum(2)),'_pre.mat']);
         sessPow = load(fname);
         subjPow = cat(3,subjPow,sessPow.sessOutput.(powField));
     end
@@ -233,20 +239,22 @@ for e = 1:nElecs
     subjPow = subjPow(:,:,eventsToUse);
     
     % average frequencies
-    tmpPower = NaN(nFreqs,size(subjPow,2),size(subjPow,3));
-    for f = 1:nFreqs
+    if nFreqs ~= length(powParams.params.pow.freqs)
+      tmpPower = NaN(nFreqs,size(subjPow,2),size(subjPow,3));
+      for f = 1:nFreqs
         fInds = powParams.params.pow.freqs >= freqBins(f,1) & powParams.params.pow.freqs < freqBins(f,2);
         tmpPower(f,:,:) = nanmean(subjPow(fInds,:,:),1);
+      end
+      subjPow = tmpPower;
     end
-    subjPow = tmpPower;
     
     % average times
-    tmpPower = NaN(nFreqs,nTimes,size(subjPow,3));
-    for t = 1:nTimes
-        tInds = powParams.timeBins(:,1) >= timeBins(t,1) & powParams.timeBins(:,2) < timeBins(t,2);
-        tmpPower(:,t,:) = nanmean(subjPow(:,tInds,:),2);
-    end
-    powerData(:,:,:,e) = tmpPower;
+%     tmpPower = NaN(nFreqs,nTimes,size(subjPow,3));
+%     for t = 1:nTimes
+%         tInds = powParams.timeBins(:,1) >= timeBins(t,1) & powParams.timeBins(:,2) < timeBins(t,2);
+%         tmpPower(:,t,:) = nanmean(subjPow(:,tInds,:),2);
+%     end
+    powerData(:,:,:,e) = subjPow;
 end
 
 
