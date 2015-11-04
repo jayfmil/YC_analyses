@@ -144,17 +144,27 @@ for s = 1:length(subjs)
     
     % now for timebin to average encoding interval
     perf_pEnc              = mean(repmat([lassoData.res.perfEnc],size(chanceData.perfEncAll,1),1) > chanceData.perfEncAll);
-    auc_pEnc               = mean(repmat([lassoData.res.AUC_enc],size(chanceData.aucEncAll,1),1) > chanceData.aucEncAll);
-    aucBest_pEnc           = mean(repmat([lassoData.resBest.AUC_enc],size(chanceData.aucBestEnc_all,1),1) > chanceData.aucBestEnc_all);
+%    perf_pEnc              = perf_p
+   auc_pEnc               = mean(repmat([lassoData.res.AUC_enc],size(chanceData.aucEncAll,1),1) > chanceData.aucEncAll);
+%auc_pEnc = auc_p;
+   aucBest_pEnc           = mean(repmat([lassoData.resBest.AUC_enc],size(chanceData.aucBestEnc_all,1),1) > chanceData.aucBestEnc_all);
+%aucBest_pEnc = auc_p;
     perfEnc_p_all(s,:)     = perf_pEnc;
     aucEnc_p_all(s,:)      = auc_pEnc;
     aucBestEnc_p_all(s,:)  = aucBest_pEnc;
     perfEnc_all(s,:)       = [lassoData.res.perfEnc];
+%perfEnc_all(s,:) = lassoData.perf;
     aucEnc_all(s,:)        = [lassoData.res.AUC_enc];
+%aucEnc_all(s,:) = lassoData.AUC;
     aucBestEnc_all(s,:)    = [lassoData.resBest.AUC_enc];
+%aucBestEnc_all(s,:) = lassoData.AUC;
     lassoData.perfEnc      = [lassoData.res.perfEnc];
+%lassoData.perfEnc = lassoData.perf;
     lassoData.AUC_enc      = [lassoData.res.AUC_enc];
-            
+%lassoData.AUC_enc = lassoData.AUC;
+%lassoData.res.yPredEnc = lassoData.res.yPred;            
+%lassoData.resBest.yPred = lassoData.res.yPred;            
+%lassoData.resBest.yPredEnc = lassoData.res.yPred;            
     % recalled vs not recalled vector
     rec       = vertcat(lassoData.Y);
     for t = 1:length(lassoData.res)

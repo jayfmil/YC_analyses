@@ -1,4 +1,4 @@
-function YC1_makeUnivarSubjectReports(subjs,params)
+function YC1_makeCorrPlots(subjs,params)
 % function YC1_makeUnivarSubjectReports(subjs,params)
 %
 % Inputs:
@@ -158,7 +158,7 @@ set(gca,'fontsize',26)
 set(gca,'xlim',[0 length(meanR)+1])
 fname = fullfile(figDir,'corrByFreqOuter.eps');
 print('-depsc2','-loose',fname)
-
+keyboard
 
 function sout = mergestruct(struct1,struct2)
 

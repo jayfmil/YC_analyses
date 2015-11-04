@@ -39,10 +39,10 @@ if ~exist('overwrite','var') || isempty(overwrite)
     overwrite = true;
 end
 
-% tex directory
+% tex directory 
 f = @(x,y) y{double(x)+1};
 y = {'OrigPower','CorrectedPower'};
-dataDir = fullfile(params.basePath,f(params.useCorrectedPower,y),'YC2_postStimFFT_second_best')
+dataDir = fullfile(params.basePath,f(params.useCorrectedPower,y),'YC2_postStimFFT_both_best')
 saveDir = fullfile(dataDir,'reports');
 if ~exist(saveDir,'dir')
     mkdir(saveDir);
@@ -81,6 +81,7 @@ logOddsNonStim_perm    = [];
 logOddsStim_perm       = [];
 stimPerf_perm          = [];
 nonStimPerf_perm       = [];
+aucs                   = [];
 
 % will hold figure paths for latex report
 figs = [];
@@ -111,6 +112,7 @@ for s = 1:length(subjs)
         logOddsStim_perm      = [logOddsStim_perm;subjData.res(r).logOddsStim_perm]; 
         stimPerf_perm         = [stimPerf_perm;subjData.res(r).stimPerf_perm]; 
         nonStimPerf_perm      = [nonStimPerf_perm;subjData.res(r).nonStimPerf_perm]; 
+        aucs                  = [aucs;subjData.res(r).AUC];
         
         stimAnat = subjData.res(r).stimAnat;
         if isempty(subjData.res(r).stimAnat)
@@ -127,7 +129,8 @@ hipp = ~cellfun('isempty',regexpi(region,['ca1|ca2|ca3|dg|sub']))';
 mtl  = ~cellfun('isempty',regexpi(region,['amy|phc|prc|BA36|pcg']))';
 oth  = ~(ec | hipp | mtl);
 
-deltaEE(abs((deltaEE - nanmean(deltaEE))/nanstd(deltaEE)) > 3) = NaN;
+keyboard
+deltaEE(abs((deltaEE - nanmean(deltaEE))/nanstd(deltaEE)) > 1) = NaN;
 xdata      = {deltaEE_Prob,deltaEE};
 ydata      = {deltaRR,deltaRR_bin};
 xDataNames  = {'prob','logOdds'};
@@ -140,8 +143,9 @@ subjFilter = {@(x) (~isnan(x) & ~isnan(deltaRR)),@(x) (~isnan(x) & ~isnan(deltaR
 % (~isnan(x) & ~isnan(deltaRR) & yc1Score>.95 &~oth),@(x)
 % (~isnan(x) &  numNZweights>5 &~oth)};
 subjFilter = {@(x) (~isnan(x) & ~isnan(deltaRR)),@(x) (~isnan(x) & ~isnan(deltaRR) & yc1Score>.95),@(x) (~isnan(x) & ~isnan(deltaRR) &  ~oth)};
-subjFilter = {@(x) (~isnan(x) & ~isnan(deltaRR)),@(x) (~isnan(x) & ~isnan(deltaRR) & yc1Score>.95),@(x) (~isnan(x) & ~isnan(deltaRR) &  numNZweights>3)};
-
+subjFilter = {@(x) (~isnan(x) & ~isnan(deltaRR)),@(x) (~isnan(x) & ~isnan(deltaRR) & yc1Score>.975),@(x) (~isnan(x) & ~isnan(deltaRR) &  numNZweights>10)};
+% subjFilter = {@(x) (~isnan(x) & ~isnan(deltaRR)),@(x) (~isnan(x) & ~isnan(deltaRR) & yc1Score>.95),@(x) (~isnan(x) & ~isnan(deltaRR) &  abs(deltaEE)<250)};
+% subjFilter = {@(x) (~isnan(x) & ~isnan(deltaRR)),@(x) (~isnan(x) & ~isnan(deltaRR) & yc1Score>.95),@(x) (~isnan(x) & ~isnan(deltaRR) &  aucs > .63)}; 
 %%% Plots are scatter plots of change in classifier encoding estimate post
 %%% stim and change in behavioral performance post stim. Four plots:
 %
@@ -150,7 +154,7 @@ subjFilter = {@(x) (~isnan(x) & ~isnan(deltaRR)),@(x) (~isnan(x) & ~isnan(deltaR
 % 3-4: percent change in classifier log odds for all subjects and just
 %      subjects with good YC1 decoding
 figure(1)
-figs = [];
+figs = []; 
 
 for xDataType = 1:2
     x = xdata{xDataType};

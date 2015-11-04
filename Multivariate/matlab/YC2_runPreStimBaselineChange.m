@@ -12,6 +12,15 @@ if ~exist('params','var') || isempty(params)
     params = multiParams();
 end
 
+
+% use first stim event, second stim event, or both?
+stimToUse = 'first'
+
+% YC time period to use (pick one of the timeBinLabels in params, or choose
+% 'best'
+timeToUse = 'best'
+
+
 % save directory
 f = @(x,y) y{double(x)+1};
 y = {'OrigPower','CorrectedPower'};
@@ -51,7 +60,7 @@ if ~isempty(poolobj)
             YC1_params = subjData.params;
             YC1_params.powerPath = params.powerPath;
             fprintf('Processing %s.\n',subjs{s})
-            YC2_preStimBaselineChange(subjs{s},YC1_params,subjData,chanceData,saveDir);            
+            YC2_preStimBaselineChange(subjs{s},YC1_params,subjData,chanceData,saveDir,stimToUse);            
         end
     end
 elseif isempty(poolobj)
@@ -74,7 +83,7 @@ elseif isempty(poolobj)
             YC1_params = subjData.params;
             YC1_params.powerPath = params.powerPath;
             fprintf('Processing %s.\n',subjs{s})
-            res=YC2_preStimBaselineChange(subjs{s},YC1_params,subjData,chanceData,saveDir);      
+            res=YC2_preStimBaselineChange(subjs{s},YC1_params,subjData,chanceData,saveDir,stimToUse);      
             
         end
     end

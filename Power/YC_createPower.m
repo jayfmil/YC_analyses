@@ -46,16 +46,16 @@ params.eeg.offsetMS     = -1000;
 params.eeg.bufferMS     = 2000;
 params.eeg.filtfreq     = [58 62];
 params.eeg.filttype     = 'stop';
-params.eeg.filtorder    = 1;
+params.eeg.filtorder    = 4;
 params.eeg.sampFreq     = 500;
 params.eeg.kurtThr      = 4;
-params.pow.freqs        = logspace(log10(1),log10(200),50);
+params.pow.freqs        = logspace(log10(3),log10(120),12);
 params.pow.logTrans     = 1;
 params.pow.type         = 'wavelet';
-params.pow.wavenum      = 7;
-params.pow.timeWin      = 100;
-params.pow.timeStep     = 100;
-params.pow.freqBins     = logspace(log10(1),log10(200),50);
+params.pow.wavenum      = 5;
+params.pow.timeWin      = 20;
+params.pow.timeStep     = 20;
+params.pow.freqBins     = logspace(log10(3),log10(120),12);
 
 % for fft slep power
 params.pow.bandwidth    = 2;
@@ -70,7 +70,7 @@ params.eventsYC1        = @(events)strcmp({events.type},'NAV_LEARN') | strcmp({e
 
 % If YC2, use all non-stim learning trials to zscore
 params.eventsYC2        = @(events)[events.isStim]==0&(strcmp({events.type},'NAV_LEARN') | strcmp({events.type},'NAV_LEARN_HARD'));
-params.savedir          = '/data10/scratch/jfm2/power';
+params.savedir          = '/data10/scratch/jfm2/powerStandardParams';
 cd_mkdir(params.savedir); save(['params_',task,'.mat'],'params');
 
 % compute powers
@@ -101,8 +101,8 @@ computePower(task,subjs,params,fileExt)
 
 %%%% create YC2 pre stim power with fft_slep method
 params.pow.type         = 'fft_slep';
-params.eeg.offsetMS     = -900;
-params.eeg.durationMS   = 800;
+params.eeg.offsetMS     = -2000;
+params.eeg.durationMS   = 1900;
 
 
 cd_mkdir(params.savedir); save(['params_pre_',task,'.mat'],'params');

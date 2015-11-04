@@ -1,4 +1,4 @@
-function YC1_runMulti_searchLambda(subjs)
+function YC1_runMulti_searchLambda(subjs,initialParams,lambdas)
 %
 %
 %
@@ -17,17 +17,21 @@ if ~exist('subjs','var') || isempty(subjs)
     subjs = get_subs('RAM_YC1');
 end
 
+if ~exist('initialParams','var') || isempty(initialParams)
+    initialParams = multiParams();
+end
+
+if ~exist('lambdas','var') || isempty(lambdas)
+    lambdas = logspace(log10(.01),log10(2),25);
+end
+
 parfor s = 1:length(subjs)
     try
-        % possible lambda values
-        lambdas = logspace(log10(.01),log10(1),25);
         
         % get basic parameters
-        params = multiParams();
-        params.modelEachTime = 1;
-        params.alpha = .1;
-        params.nCV = 10;
-        params.basePath = '/data10/scratch/jfm2/YC1/multi/lambdaSearch';
+        params = initialParams;
+        params.modelEachTime = 1;        
+        params.nCV = 10;                
         params.saveOutput = 0;
         
         % save directory
@@ -52,8 +56,12 @@ parfor s = 1:length(subjs)
             params.lambda = repmat(lambdas(l),1,size(params.timeBins,1));
             [~,aucs(l,:)] = YC1_runMulti_subj(subjs{s},params,saveDir)
             
+        fname = fullfile(saveDir,[subjs{s} '_aucs.mat']);
+        parsave(fname,aucs);
         end
-        
+
+
+
         % find lambda with best performance, rerun and save output
         [~,ind]           = max(aucs);
         lambda            = lambdas(ind);
@@ -63,3 +71,7 @@ parfor s = 1:length(subjs)
         YC1_runMulti_subj(subjs{s},params,saveDir);
     end
 end
+
+function parsave(fname,aucs)
+% Because you can't save files directly in parfor loop
+save(fname,'aucs')

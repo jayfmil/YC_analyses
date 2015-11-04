@@ -1,4 +1,4 @@
-function YC1_powerByObjLocation(subjs,params)
+function YC1_calcPowPerfCorr(subjs,params)
 %function YC1_subject_summary(subjs)
 %
 % Univariate analyses correlating power and performance in YC1.
@@ -283,8 +283,8 @@ for rec = 1:length(recEvents);
     err = recEvents(rec).respPerformanceFactor;
     ind = sessVec == session & trialVec == trial;
     [events(ind).testError] = deal(err);
-    [events(ind).inner] = deal(abs(recEvents(rec).objLocs(1)) < 568/30 && abs(recEvents(rec).objLocs(2)) < 7);
-    [events(ind).isInnerBand] = deal(abs(recEvents(rec).objLocs(1)) < 14);
+    [events(ind).isInnerBand] = deal(abs(recEvents(rec).objLocs(1)) < 20.0818 && abs(recEvents(rec).objLocs(2)) < 9.8995);
+%     [events(ind).isInnerBand] = deal(abs(recEvents(rec).objLocs(1)) < 14);
 end
 
 

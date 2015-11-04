@@ -1,4 +1,4 @@
-function [res] = YC2_postStimBaselineChange_working(subj,params,yc1Data,chanceData,stimToUse,timeToUse,saveDir)
+function [res] = YC2_preStimBaselineChange(subj,params,yc1Data,chanceData,saveDir,stimToUse)
 % function [] = YC2_applyWeights(subj,params,saveDir)
 %
 % Inputs:
@@ -28,14 +28,17 @@ try
     % look up the anatomical location
     talAll = getBipolarSubjElecs(subj,1);
     
-    % load power parameters
-    %%%% WE ARE PROBABLY GOING TO NEED SEPERATE YC1 AND YC2 params?
+    % load power parameters    
     powParams = load(fullfile(params.powerPath,'params.mat'));
     
     % Setting time bins for convenience
     tEnds     = (powParams.params.pow.timeWin:powParams.params.pow.timeStep:powParams.params.eeg.durationMS)+powParams.params.eeg.offsetMS;
     tStarts   = tEnds - powParams.params.pow.timeWin+1;
     powParams.timeBins = [tStarts' tEnds'];
+    
+     % load yc1 events
+    eventsYC1 = get_sub_events('RAM_YC1',subj);
+    yc1thresh = median([eventsYC1(strcmp({eventsYC1.type},'NAV_TEST')).respPerformanceFactor]);      
     
     % load events
     events = get_sub_events('RAM_YC2',subj);
@@ -46,7 +49,7 @@ try
     % this is stupid
     if strcmp(subj,'R1047D')
         [events.stimLeads] = deal('LOTD3-LOTD4');
-    end
+    end    
     
     % The level of analysis is unique stim locations
     stimLeads   = unique({events.stimLeads});
@@ -73,155 +76,165 @@ try
                 eventsToUse(firstIdx) = false;
             end
         end
-                       
-        % load post stimulation and matched non-stim power for these events       
-        powerData = loadAllPower(yc1Tal,subj,events,params.freqBins,[5100 7000],powParams,eventsToUse,params);
+                     
+        
+        % load pre stimulation and matched non-stim power for these events        
+        powerData = loadAllPower(yc1Tal,subj,events,params.freqBins,[-1000 -100],powParams,eventsToUse,params);
         powerData = permute(powerData,[3 1 2 4]);
         
         % indices of stim and non-stim trials
         stimEvents    = [events(eventsToUse).isStim]==1;
         nonStimEvents = [events(eventsToUse).isStim]==0;
         
-        [resTmp,postProb] = computePostStimStats(powerData,yc1Data,chanceData,stimEvents,nonStimEvents,events,eventsToUse,timeToUse);                
-        res(stimLoc).deltaRR         = resTmp.deltaRR;
-        res(stimLoc).deltaRR_bin     = resTmp.deltaRR_binary;
-        res(stimLoc).yc1Score        = resTmp.yc1Score;
-        res(stimLoc).postProbStim    = resTmp.postProbStim;
-        res(stimLoc).logOddsStim     = resTmp.logOddsStim;
-        res(stimLoc).postProbNonStim = resTmp.postProbNonStim;
-        res(stimLoc).logOddsNonStim  = resTmp.logOddsNonStim;
-        res(stimLoc).deltaEE         = resTmp.deltaEE;
-        res(stimLoc).deltaEE_Prob    = resTmp.deltaEE_Prob;
-        res(stimLoc).stimPerf        = resTmp.stimPerf;
-        res(stimLoc).nonStimPerf     = resTmp.nonStimPerf;
-        res(stimLoc).numNZweights    = resTmp.numNZweights;
+        % compute stim effects
+        [resTmp] = computePostStimStats(powerData,yc1Data,chanceData,stimEvents,nonStimEvents,events,eventsToUse,yc1thresh);
+        res(stimLoc).deltaRR               = resTmp.deltaRR;
+        res(stimLoc).deltaRR_bin           = resTmp.deltaRR_binary;
+        res(stimLoc).yc1Score              = resTmp.yc1Score;        
+        res(stimLoc).numNZweights          = resTmp.numNZweights;
+        res(stimLoc).nonStimBaselineChange = resTmp.nonStimBaselineChange;
+        res(stimLoc).stimBaselineChange    = resTmp.stimBaselineChange;
+        res(stimLoc).nonStimBaselineChangeDist = resTmp.nonStimBaselineChangeDist;
+        res(stimLoc).stimBaselineChangeDist    = resTmp.stimBaselineChangeDist;        
+        res(stimLoc).AUC                   = resTmp.AUC;
                         
         % Do 1000 permutattion of stim non-stim labels
-        nIters = 1000;
         stimLabels           = [events(eventsToUse).isStim];
-        deltaEE_perm         = NaN(1,nIters);
-        deltaEE_Prob_perm    = NaN(1,nIters);
-        postProbStim_perm    = NaN(1,nIters);
-        postProbNonStim_perm = NaN(1,nIters);
-        logOddsStim_perm     = NaN(1,nIters);
-        logOddsNonStim_perm  = NaN(1,nIters);
-        deltaRR_perm         = NaN(1,nIters);
-        deltaRR_bin_perm     = NaN(1,nIters);
-        stimPerf_perm        = NaN(1,nIters);
-        nonStimPerf_perm     = NaN(1,nIters);
+        deltaRR_perm         = NaN(1000,3);
+        deltaRR_bin_perm     = NaN(1000,3);
+
         
-        for i = 1:nIters              
-            fprintf('Processing %s: stim region: %s, %s (%d of %d). Permuation %d of %d.\n',subj,res(stimLoc).stimAnat,res(stimLoc).stimTagName,stimLoc,length(stimLeads),i,nIters)
-            
-            if any(strcmp({'first','second'},stimToUse))
-                stimLabelsRand  = stimLabels(randperm(length(stimLabels)));
-            else
-                Ytmp           = reshape(stimLabels,2,[]);
-                randOrder      = randperm(length(Ytmp));
-                stimLabelsRand = reshape(Ytmp(:,randOrder),[],1);
-            end                        
+        for i = 1:1000              
+            fprintf('Processing %s: stim region: %s, %s (%d of %d). Permuation %d of 1000.\n',subj,res(stimLoc).stimAnat,res(stimLoc).stimTagName,stimLoc,length(stimLeads),i)
+            Ytmp           = reshape(stimLabels,2,[]);
+            randOrder      = randperm(length(Ytmp));
+            stimLabelsRand = reshape(Ytmp(:,randOrder),[],1);
             stimEvents     = stimLabelsRand == 1;
-            nonStimEvents  = stimLabelsRand == 0;            
+            nonStimEvents  = stimLabelsRand == 0;
             
             % this is inefficient, don't need to redo glmval each time...
-            resTmp = computePostStimStats(powerData,yc1Data,chanceData,stimEvents,nonStimEvents,events,eventsToUse,timeToUse);              
-            deltaEE_perm(i)         = resTmp.deltaEE;
-            deltaEE_Prob_perm(i)    = resTmp.deltaEE_Prob;
-            deltaRR_perm(i)         = resTmp.deltaRR;
-            deltaRR_bin_perm(i)         = resTmp.deltaRR_binary;
-            postProbStim_perm(i)    = nanmean(resTmp.postProbStim);
-            postProbNonStim_perm(i) = nanmean(resTmp.postProbNonStim);
-            logOddsStim_perm(i)     = resTmp.logOddsStim;
-            logOddsNonStim_perm(i)  = resTmp.logOddsNonStim;
-            stimPerf_perm(i)        = nanmean(resTmp.stimPerf);
-            nonStimPerf_perm(i)     = nanmean(resTmp.nonStimPerf);
+            resTmp = computePostStimStats(powerData,yc1Data,chanceData,stimEvents,nonStimEvents,events,eventsToUse,yc1thresh);              
+            
+            deltaRR_perm(i,:)         = resTmp.deltaRR;
+            deltaRR_bin_perm(i,:)     = resTmp.deltaRR_binary;          
         end
-        res(stimLoc).deltaEE_perm         = deltaEE_perm;
-        res(stimLoc).deltaEE_Prob_perm    = deltaEE_Prob_perm;
+       
         res(stimLoc).deltaRR_perm         = deltaRR_perm;
         res(stimLoc).deltaRR_bin_perm     = deltaRR_bin_perm;
-        res(stimLoc).postProbStim_perm    = postProbStim_perm;
-        res(stimLoc).postProbNonStim_perm = postProbNonStim_perm;
-        res(stimLoc).logOddsStim_perm     = logOddsStim_perm;
-        res(stimLoc).logOddsNonStim_perm  = logOddsNonStim_perm;         
-        res(stimLoc).stimPerf_perm        = stimPerf_perm;
-        res(stimLoc).nonStimPerf_perm     = nonStimPerf_perm;
+       
         
         
     end            
 
-    fname = fullfile(saveDir,[subj '_YC2_postStimChange.mat']);
+    fname = fullfile(saveDir,[subj '_YC2_preStimChange.mat']);
     save(fname,'res');
 catch e
-    fname = fullfile(saveDir,[subj '_YC2_postStimChange_error.mat']);
+    fname = fullfile(saveDir,[subj '_YC2_preStimChange_error.mat']);
     save(fname,'e')
 end
 
-function [res,postProb] = computePostStimStats(powerData,yc1Data,chanceData,stimEvents,nonStimEvents,events,eventsToUse,timeToUse)
+function [res] = computePostStimStats(powerData,yc1Data,chanceData,stimEvents,nonStimEvents,events,eventsToUse,yc1thresh)
 % following Youssef's terminology, compute recall relative to
 % non-stim baseline. He uses percent recall, here I use performance
 % factor change
 res = [];
-testErrors  = [events(eventsToUse).testError];
-res.stimPerf    = 1-testErrors(stimEvents);
-res.nonStimPerf = 1-testErrors(nonStimEvents);
-res.deltaRR = 100*((mean(res.stimPerf)-mean(res.nonStimPerf))/mean(res.nonStimPerf));
+
+
 
 % also make binary
-recalled = testErrors<median(testErrors);
-res.deltaRR_binary = 100*((mean(recalled(stimEvents))-mean(recalled(nonStimEvents)))/mean(recalled(nonStimEvents)));
+recalled = [events(eventsToUse).testError] < median([events(eventsToUse).testError]);
+% recalled = [events(eventsToUse).testError] < yc1thresh;
+testErrors  = 1-[events(eventsToUse).testError];
 
 % size of feature matrix
 nElecs = size(powerData,4);
 nFreqs = size(powerData,2);
 
-% Choose most significnat timebin from YC1. Instead of looping
-% over all times? If we have a tie, use most sig with highest AUC
-if yc1Data.params.doBinary
-    field_all = 'auc_all';
-    field     = 'AUC';
-    link      = 'logit';
-else
-    field_all = 'r_all';
-    field     = 'r';
-    link      = 'identity';
-end
-p = mean(repmat(yc1Data.(field),[size(chanceData.(field_all),1), 1]) > chanceData.(field_all));
-if strcmpi(timeToUse,'best')    
-    maxP = max(p);
-    AUC = yc1Data.(field);
-    AUC(p~=maxP) = NaN;
-    [~,timeToUse] = max(AUC);
-    res.yc1Score = maxP;
-else
-    timeToUse    = strcmpi(yc1Data.params.timeBinLabels,timeToUse);
-    res.yc1Score = p(timeToUse);
-end
+% Choose most significnat timebin from YC1
+p = mean(repmat(yc1Data.AUC,[size(chanceData.auc_all,1), 1]) > chanceData.auc_all);
+maxP = max(p);
+AUC = yc1Data.AUC;
+AUC(p~=maxP) = NaN;
+[~,timeToUse] = max(AUC);
+res.yc1Score = maxP;
+
+
+% ALWAYS USE ENC PERIOD. MAKE THIS AN OPTION
+% timeToUse    = strcmpi(yc1Data.params.timeBinLabels,'pre');
+% res.yc1Score = p(timeToUse);
+res.AUC = AUC(timeToUse);
 
 % average weights across all across all YC1 training folds
-A                = nanmean(horzcat(yc1Data.res(timeToUse).A{:}),2);
-intercept        = nanmean([yc1Data.res(timeToUse).intercept{:}]);
+A                = mean(horzcat(yc1Data.res(timeToUse).A{:}),2);
+intercept        = mean([yc1Data.res(timeToUse).intercept{:}]);
 res.numNZweights = nnz(A);
 
 % predict YC1 time bin weights applied to YC2 time bin
 B1 = [intercept;A];
 
-% predict with YC1 time bin weights applied to YC2 post period
+% predict with YC1 time bin weights applied to YC2 pre period
 X = reshape(squeeze(powerData(:,:,1,:)),size(powerData,1),nFreqs*nElecs);
-postProb = glmval(B1,X,link);
+preProb = glmval(B1,X,'logit');
 
-% convert probability to log-odds, for both stim and non-stim
-postProbStim        = postProb(stimEvents);
-res.postProbStim    = postProbStim(~isnan(postProbStim));
-res.logOddsStim     = nanmean(log(res.postProbStim./(1-res.postProbStim)));
-postProbNonStim     = postProb(nonStimEvents);
-res.postProbNonStim = postProbNonStim(~isnan(postProbNonStim));
-res.logOddsNonStim  = nanmean(log(res.postProbNonStim./(1-res.postProbNonStim)));
+% convert probabilities to log odds and sort
+preProb = log(preProb./(1-preProb));
+[preProbSort,inds] = sort(preProb);
+stimEventsSort = stimEvents(inds);
+testErrorsSort = testErrors(inds);
+recSort = recalled(inds);
 
-% following Youssef's terminology, compute Encoding Efficiency
-% change
-res.deltaEE      = 100*((res.logOddsStim-res.logOddsNonStim)/abs(res.logOddsNonStim));
-res.deltaEE_Prob = 100*((nanmean(res.postProbStim)-nanmean(res.postProbNonStim))/abs(nanmean(res.postProbNonStim)));
+% baseline performance (non stim performance)
+baselinePerf     = mean(recalled(nonStimEvents));
+baselinePerfDist = mean(testErrors(nonStimEvents));
+
+% now bin the sorted recall vector
+bins  = [0 round(length(preProbSort)/3) * [1:2] length(preProbSort)];
+start = bins(1:end-1) + 1;
+stop  = bins(2:end);
+deltaRR = NaN(1,length(stop));
+deltaRR_binary = NaN(1,length(stop));
+
+nonStimBaselineChange = NaN(1,length(stop));
+stimBaselineChange = NaN(1,length(stop));
+nonStimBaselineChangeDist = NaN(1,length(stop));
+stimBaselineChangeDist = NaN(1,length(stop));
+
+%res.deltaRR_binary = 100*((mean(recalled(stimEvents))-mean(recalled(nonStimEvents)))/mean(recalled(nonStimEvents)));
+
+for r = 1:length(stop)
+    
+    probBin = preProbSort(start(r):stop(r));
+    stimBin = stimEventsSort(start(r):stop(r));
+    testErrorsBin = testErrorsSort(start(r):stop(r));
+    recBin = recSort(start(r):stop(r));
+    
+    preProbStimBin = probBin(stimBin);
+    preProbNonStimBin = probBin(~stimBin);
+    
+    testErrorsStimBin = testErrorsBin(stimBin);
+    testErrorsNonStimBin = testErrorsBin(~stimBin);
+    
+    recStimBin = recBin(stimBin);
+    recNonStimBin = recBin(~stimBin);    
+    
+    deltaRR(r) = 100*((nanmean(testErrorsStimBin) - nanmean(testErrorsNonStimBin))/nanmean(testErrorsNonStimBin));
+    deltaRR_binary(r) = 100*((nanmean(recStimBin) - nanmean(recNonStimBin))/nanmean(recNonStimBin));   
+        
+    nonStimBaselineChange(r) = 100*((nanmean(recNonStimBin)-baselinePerf)/baselinePerf);   
+    stimBaselineChange(r) = 100*((nanmean(recStimBin)-baselinePerf)/baselinePerf);
+    
+    nonStimBaselineChangeDist(r) = 100*((nanmean(testErrorsNonStimBin)-baselinePerfDist)/baselinePerfDist);   
+    stimBaselineChangeDist(r) = 100*((nanmean(testErrorsStimBin)-baselinePerfDist)/baselinePerfDist);    
+        
+end
+res.deltaRR = deltaRR;
+res.deltaRR_binary = deltaRR_binary;
+res.nonStimBaselineChange =nonStimBaselineChange;
+res.stimBaselineChange = stimBaselineChange;
+res.nonStimBaselineChangeDist = nonStimBaselineChangeDist;
+res.stimBaselineChangeDist = stimBaselineChangeDist;
+
+
 
 function powerData = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse,params)
 
@@ -246,7 +259,7 @@ for e = 1:nElecs
     sessions = unique([events.session]);
     subjPow  = [];
     for s = 1:length(sessions)
-        fname = fullfile(subjPath,'RAM_YC2_events',num2str(sessions(s)),[num2str(elecNum(1)),'-',num2str(elecNum(2)),'_post.mat']);
+        fname = fullfile(subjPath,'RAM_YC2_events',num2str(sessions(s)),[num2str(elecNum(1)),'-',num2str(elecNum(2)),'_pre.mat']);
         sessPow = load(fname);
         subjPow = cat(3,subjPow,sessPow.sessOutput.(powField));
     end

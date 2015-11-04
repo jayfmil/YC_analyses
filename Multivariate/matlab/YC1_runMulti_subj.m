@@ -47,7 +47,7 @@ try
     end
     
     % load power parameters
-    powParams = load(fullfile(params.powerPath,'params.mat'));
+    powParams = load(fullfile(params.powerPath,'params_RAM_YC1.mat'));
     
     % Setting time bins for convenience:
     tEnds     = (powParams.params.pow.timeWin:powParams.params.pow.timeStep:powParams.params.eeg.durationMS)+powParams.params.eeg.offsetMS;
@@ -737,8 +737,8 @@ if params.useCorrectedPower
 end
 for e = 1:nElecs
     elecNum = tal(e).channel;
-    
-    basePath  = '/data10/scratch/jfm2/RAM/biomarker/power/';
+        
+    basePath  = params.powerPath;
     subjPath  = fullfile(basePath,subj);
     sessions = unique([events.session]);
     subjPow  = [];

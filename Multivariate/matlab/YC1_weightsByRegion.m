@@ -480,7 +480,7 @@ lassoData  = load(lassoFile);
 %[~,bestTimeBin] = max(perc);
 
 % get subject electrode info
-tal = lassoData.tal;
+tal                   = lassoData.tal;
 
 nFeatures = length(lassoData.res(1).A{1});
 nFreqs    = size(lassoData.params.freqBins,1);
@@ -502,11 +502,14 @@ if ~isfield(tal,'locTag')
 %     return
 end
 
+
+
 if sum(cellfun('isempty',{tal.locTag})) == length(tal)
 %     fprintf('No loc tag information for %s.\n',subj)
     [tal.locTag] = deal('');   
 end
-    
+missing               = cellfun('isempty',{tal.locTag});    
+[tal(missing).locTag] = deal('');
 
 % get the electrode indices of brain regions
 hipp_elecs    = ~cellfun('isempty',regexpi({tal.locTag},['CA1|CA3|DG|sub']));

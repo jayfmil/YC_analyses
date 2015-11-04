@@ -71,7 +71,7 @@ for s = 1:length(subjs)
     display(sprintf('completed %s',subj));
     
 end
-delete(gcp('nocreate'));
+% delete(gcp('nocreate'));
 
 
 

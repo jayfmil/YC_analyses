@@ -32,7 +32,7 @@ for t = 1:nTimes
     % get the actual predicted values
     yPred     = vertcat(subjData.res(t).yPred{:});
     
-    if isfield(params,'encPeriod') && (strcmpi(params.encPeriod,'combined')  || strcmpi(params.encPeriod,'average') )
+    if isfield(params,'encPeriod') && (strcmpi(params.encPeriod,'combined')  || strcmpi(params.encPeriod,'average') || strcmpi(params.encPeriod,'first') || strcmpi(params.encPeriod,'second')) 
         randOrder = randperm(length(yPred));
     else
         randOrder = randperm(length(yPred)/2);

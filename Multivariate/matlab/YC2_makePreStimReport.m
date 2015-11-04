@@ -65,9 +65,12 @@ deltaRR      = [];
 deltaRR_bin  = [];
 stimBaselineChange  = [];
 nonStimBaselineChange  = [];
+stimBaselineChangeDist  = [];
+nonStimBaselineChangeDist  = [];
 region       = {};
 yc1Score     = [];
 numNZweights  = [];
+aucs          = [];
 
 % hold the permutaiton results
 deltaRR_perm           = [];
@@ -96,6 +99,9 @@ for s = 1:length(subjs)
         deltaRR_bin_perm      = [deltaRR_bin_perm;subjData.res(r).deltaRR_bin_perm];   
         stimBaselineChange      = [stimBaselineChange;subjData.res(r).stimBaselineChange];           
         nonStimBaselineChange      = [nonStimBaselineChange;subjData.res(r).nonStimBaselineChange];                   
+        stimBaselineChangeDist      = [stimBaselineChangeDist;subjData.res(r).stimBaselineChangeDist];           
+        nonStimBaselineChangeDist      = [nonStimBaselineChangeDist;subjData.res(r).nonStimBaselineChangeDist];        
+        aucs      = [aucs;subjData.res(r).AUC];
         
         stimAnat = subjData.res(r).stimAnat;
         if isempty(subjData.res(r).stimAnat)

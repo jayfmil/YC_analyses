@@ -19,7 +19,7 @@ function YC1_makeSubjectReports(subjs,params,overwrite)
 %   - Histogram of the patient's behavioral perfomance
 %
 %
-% For the group report, figures are quartile plots for each time bin,
+% For the group report, figures are Tercile plots for each time bin,
 % accuracy historograms on the subject level for each time bin, and AUC
 % histograms on the subject level for each time bin.
 %
@@ -62,7 +62,7 @@ perf_all   = NaN(length(subjs),size(params.timeBins,1));
 perf_p_all = NaN(length(subjs),size(params.timeBins,1));
 auc_all    = NaN(length(subjs),size(params.timeBins,1));
 auc_p_all  = NaN(length(subjs),size(params.timeBins,1));
-quarts_all = NaN(size(params.timeBins,1),4,length(subjs));
+quarts_all = NaN(size(params.timeBins,1),3,length(subjs));
 best_time  = NaN(length(subjs),1);
 
 % will hold figure paths for latex report
@@ -95,10 +95,10 @@ for s = 1:length(subjs)
     % load lasso and chance lasso data
     chanceData = load(chanceFile);
     lassoData  = load(lassoFile);
-    if length(lassoData.Y) < 48
-        fprintf('Less than half a session of data for %s. Skipping.\n',subj)
-        continue
-    end
+%     if length(lassoData.Y) < 48
+%         fprintf('Less than half a session of data for %s. Skipping.\n',subj)
+%         continue
+%     end
     
     figs_subj.nElecs = length(lassoData.res(1).A{1})/4;
     nTrialsAll(s) = length(lassoData.Y);            
@@ -197,14 +197,14 @@ for s = 1:length(subjs)
         print('-depsc2','-tiff','-loose',fname);
     end
     
-    %% FIGURE 2 - quartile plot for most signficant time period
+    %% FIGURE 2 - Tercile plot for most signficant time period
     fname = fullfile(figDir,[subj '_quart.eps']);
     figs_subj.quarts = fname;
     
     % recalled vs not recalled vector
     rec       = vertcat(lassoData.res(1).yTest{:});
     
-    % compute quartiles
+    % compute Terciles
     bestTime  = find(perf_p == max(perf_p),1,'first');
     best_time(s) = bestTime;
     for t = 1:length(lassoData.res)
@@ -215,10 +215,10 @@ for s = 1:length(subjs)
         recSort = rec(ind);
         
         % now bin the sorted recall vector
-        start = 1:(length(recSort)/4):length(recSort);
+        start = 1:(length(recSort)/3):length(recSort);
         stop = [start(2:end)-1 length(recSort)];
-        quarts_all(t,:,s) = [mean(recSort(start(1):stop(1))) mean(recSort(start(2):stop(2))) ...
-            mean(recSort(start(3):stop(3))) mean(recSort(start(4):stop(4)))];
+        quarts_all(t,:,s) = [mean(recSort(start(1):stop(1))) ...
+            mean(recSort(start(2):stop(2))) mean(recSort(start(3):stop(3)))];
         if t == bestTime
             quarts = quarts_all(t,:,s);
         end
@@ -227,13 +227,13 @@ for s = 1:length(subjs)
     if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
         figure(2)
         clf
-        % plot quartiles based on change from mean
+        % plot Terciles based on change from mean
         h = bar(((quarts -(mean(rec)))/mean(rec))*100,'w','linewidth',2);
-        xlabel('Quartile of Classifier Estimate','fontsize',20)
+        xlabel('Tercile of Classifier Estimate','fontsize',20)
         ylabel('Recall Change (%)','fontsize',20)
         set(gca,'fontsize',20)
         set(gca,'ylim',[-100 100])
-        set(gca,'xlim',[0 5])
+        set(gca,'xlim',[0 4])
         grid on
         set(gca,'gridlinestyle',':');
         hold on
@@ -279,8 +279,8 @@ figs_group.quarts   = {};
 figs_group.acc_hist = {};
 figs_group.auc_hist = {};
 
-% compute average quartile measure for each time bin
-meanRec_subj = repmat(nanmean(quarts_all,2),1,4,1);
+% compute average Tercile measure for each time bin
+meanRec_subj = repmat(nanmean(quarts_all,2),1,3,1);
 nSubj        = sum(~isnan(quarts_all),3);
 figs_group.N = nSubj(:,1);
 quarts_err   = nanstd((quarts_all - meanRec_subj)./meanRec_subj,[],3)./sqrt(nSubj-1);
@@ -293,7 +293,7 @@ if isempty(labels);labels=repmat({''},1,size(quarts_group,1));end
 % plot each time bin separately
 for t = 1:size(quarts_group,1)
     
-    %% QUARTILE PLOT
+    %% Tercile PLOT
     fname = fullfile(figDir,['group_quart_' labels{t} '.eps']);
     figs_group.quarts{t} = fname;
     
@@ -302,13 +302,13 @@ for t = 1:size(quarts_group,1)
         clf
         bar(quarts_group(t,:)*100,'w','linewidth',2);
         hold on
-        errorbar(1:4,quarts_group(t,:)*100,quarts_err(t,:)*196,'k','linewidth',2,'linestyle','none')
+        errorbar(1:3,quarts_group(t,:)*100,quarts_err(t,:)*196,'k','linewidth',2,'linestyle','none')
         
-        xlabel('Quartile of Classifier Estimate','fontsize',20)
+        xlabel('Tercile of Classifier Estimate','fontsize',20)
         ylabel('Recall Change (%)','fontsize',20)
         set(gca,'fontsize',20)
         set(gca,'ylim',[-100 100])
-        set(gca,'xlim',[0 5])
+        set(gca,'xlim',[0 4])
         set(gca,'ylim',[-25 25])
         grid on
         set(gca,'gridlinestyle',':');
@@ -578,7 +578,7 @@ fprintf(fid,'\\centering\n');
 for f = 1:size(figs.N,1)       
     fprintf(fid,'\\includegraphics[width=0.4\\textwidth]{%s}\n',figs.quarts{f});
 end
-fprintf(fid,'\\caption{%d Subjects: Subject average quartile by time bin.}\n\n',figs.N(1,1));
+fprintf(fid,'\\caption{%d Subjects: Subject average Tercile by time bin.}\n\n',figs.N(1,1));
 fprintf(fid,'\\end{figure}\n\n\n');
 fprintf(fid,'\\clearpage\n\n\n');
 

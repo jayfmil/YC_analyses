@@ -57,7 +57,7 @@ if ~isempty(poolobj)
             YC1_params = subjData.params;
             YC1_params.powerPath = params.powerPath;
             fprintf('Processing %s.\n',subjs{s})
-            YC2_postStimBaselineChange_working(subjs{s},YC1_params,subjData,chanceData,stimToUse,timeToUse,saveDir);            
+            YC2_postStimBaselineChange(subjs{s},YC1_params,subjData,chanceData,stimToUse,timeToUse,saveDir);            
         end
     end
 elseif isempty(poolobj)
@@ -80,7 +80,7 @@ elseif isempty(poolobj)
             YC1_params = subjData.params;
             YC1_params.powerPath = params.powerPath;
             fprintf('Processing %s.\n',subjs{s})
-            res=YC2_postStimBaselineChange_working(subjs{s},YC1_params,subjData,chanceData,stimToUse,timeToUse,saveDir);      
+            res=YC2_postStimBaselineChange(subjs{s},YC1_params,subjData,chanceData,stimToUse,timeToUse,saveDir);      
             
         end
     end
