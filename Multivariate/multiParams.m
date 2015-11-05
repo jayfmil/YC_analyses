@@ -1,5 +1,9 @@
 function params = multiParams()
 
+% Use native matlab functions or use liblinear (hint: liblinear is much
+% faster). 'liblinear' or 'matlab'
+params.library = 'liblinear';
+
 % frequency bins to use
 params.freqBins = [1 3;3 9;40 70;70 200];
 
