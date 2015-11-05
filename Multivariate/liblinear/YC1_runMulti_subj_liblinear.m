@@ -377,11 +377,15 @@ end
 penalty = C(find(auc_pen==max(auc_pen),1,'first'));
 
 function [yProbs,yTest,A,err,lambda,Cs,aucs] = doRegFun(X,Y,folds,iFold,lambda,normType,sessInds)
-%X,Y,folds,iFold,lambda,params.nCV,normType
-% This does the regression.
+% This does the classification.
 % X = # trials x # features
 % Y = # trials vector of responses
-% trainInds = logical vector of training/test
+% folds = described above
+% iFold = current fold number
+% lambda = penalty parameter, if given
+% normtype = L1 or L2
+% sessInds = vector, same number of rows as X, identify the session for the
+% row
 %
 
 % get data for this fold
@@ -436,7 +440,7 @@ xTest = standardize_test(xTest,sessInds(~trainInds),m,s);
 
 % predict
 [pred, acc, yProb] = predict(double(yTest),sparse(xTest),model,'-b 1');
-% same as p = glmval(model.w',xTest,'logit','constant','off')
+% same as p = glmval(model.w',xTest,'logit','constant','off')?
 
 yProbs = yProb(:,1);
 yPreds = pred;
