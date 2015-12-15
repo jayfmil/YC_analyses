@@ -36,12 +36,12 @@ poolobj = gcp('nocreate');
 if ~isempty(poolobj)
     parfor s = 1:length(subjs)
         fprintf('Processing %s.\n',subjs{s})
-        YC1_runMulti_subj_timingCV(subjs{s},params,saveDir);
+        YC1_runMulti_subj_timingAndEncCV(subjs{s},params,saveDir);
     end
 else    
     for s = 1:length(subjs)
         fprintf('Processing %s.\n',subjs{s})
-        YC1_runMulti_subj_timingCV(subjs{s},params,saveDir);
+        YC1_runMulti_subj_timingAndEncCV(subjs{s},params,saveDir);
     end
 end
 

@@ -25,7 +25,7 @@ AUC     = [];
 
 
 % do we overwrite?
-fname = fullfile(saveDir,[subj '_lasso.mat']);
+fname = fullfile(saveDir,[subj '_lasso_phasetest_fullFeatures.mat'])
 if exist(fname,'file') && params.saveOutput && ~params.overwrite
     fprintf('Lasso file already exists for %s.\n',subj)
     return
@@ -83,24 +83,75 @@ try
     saveOutput    = params.saveOutput;
     doPermute     = params.doPermute;
     normType      = params.normType;
+    cvField       = params.cvField;
+    
     
     % load power for all electrodes
-    powDir = fullfile(saveDir,'power');
-    powFile = fullfile(powDir,[subj '_binnedPower.mat']);
-    if ~exist(powDir,'dir')
-        mkdir(powDir)
+%     powDir = fullfile(saveDir,'power');
+%     powFile = fullfile(powDir,[subj '_binnedPower.mat']);
+%     if ~exist(powDir,'dir')
+%         mkdir(powDir)
+%     end
+%     if params.loadPower
+%         powerData = load(powFile);
+%         powerData = powerData.powerData;
+%         timeLabel = powerData.timeLabel;
+%     else
+%         [powerData,sessInds] = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse,params);
+%         powerData = permute(powerData,[3 1 2 4]);
+%         timeLabel = NaN(1,size(powerData,2),size(powerData,3),size(powerData,4));
+%         for t = 1:size(timeLabel,3)
+%             timeLabel(:,:,t,:) = t;
+%         end
+%         if params.savePower
+%             powFile = fullfile(powDir,[subj '_binnedPower.mat']);
+%             save(powFile,'powerData','params','sessInds','timeLabel')
+%         end
+%     end   
+
+    
+    phaseInfo = load('/scratch/jfm2/network/R1059J_1_FullFeatures.mat');
+    tal = phaseInfo.features.elecs;
+%     tal = tal(phaseInfo.featuresfeatures.kept_elec_idx);
+%     bins = 1:100;
+%     powerData = NaN(96,4,length(bins),151);
+%     timeLabel = NaN(1,size(powerData,2),size(powerData,3),size(powerData,4));
+% %     bins =  [[1 21 41 61 81]' [20 40 60 80 100]'];
+%     sessInds = ones(96,1);
+%     for f = 1:4
+%        band = phaseInfo.features.pow.band{f};
+%        band = permute(band,[3 2 1]);
+%        for t = 1:length(bins)
+% %           powerData(:,f,t,:) = nanmean(band(:,bins(t,:),:),2);
+%           powerData(:,f,t,:) = (band(:,bins(t),:));
+%           timeLabel(:,:,t,:) = t;
+%        end
+%     end
+    
+    
+    
+%     bins =  [[1 21 41 61 81]' [20 40 60 80 100]'];
+%     bins = [10 30 50 70 90];
+%     bins = 10:10:100;
+    bins = 1:100
+    powerData = NaN(96,8,length(bins),151);
+    timeLabel = NaN(1,size(powerData,2),size(powerData,3),size(powerData,4));
+    sessInds = ones(96,1);
+    for f = 1:4
+       band = phaseInfo.features.phase.band{f};
+       band = permute(band,[3 2 1]);
+       bandSin = sin(band);
+       bandCos = cos(band);
+       
+       for t = 1:length(bins)
+%           powerData(:,f*2-1,t,:) = nanmean(bandSin(:,bins(t,:),:),2);
+%           powerData(:,f*2,t,:) = nanmean(bandCos(:,bins(t,:),:),2);
+          powerData(:,f*2-1,t,:) = (bandSin(:,bins(t),:));
+          powerData(:,f*2,t,:) = (bandCos(:,bins(t),:));          
+          timeLabel(:,:,t,:) = t;
+       end
     end
-    if params.loadPower
-        powerData = load(powFile);
-        powerData = powerData.powerData;
-    else
-        [powerData,sessInds] = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse,params);
-        powerData = permute(powerData,[3 1 2 4]);
-        if params.savePower
-            powFile = fullfile(powDir,[subj '_binnedPower.mat']);
-            save(powFile,'powerData','params','sessInds')
-        end
-    end    
+    
 
     % if params.encPeriod is 'combined', then reshape the matrix to add an
     % additional dimensions that is encoding trial number (1 or 2). So
@@ -149,7 +200,7 @@ try
     % Note: this is not influenced by params.nCV. params.nCV is the number
     % of cross validation folds to estimate lambda with lassoglm. For the
     % training test iterations, we are always doing leave one object out.    
-    [trials,~,trialInds] = unique([session(eventsToUse)' [events(eventsToUse).blocknum]'],'rows');
+    [trials,~,trialInds] = unique([session(eventsToUse)' [events(eventsToUse).(cvField)]'],'rows');
     if strcmpi(params.encPeriod,'combined') || strcmpi(params.encPeriod,'average')
         trialInds = trialInds(firstIdx);    
         Y = Y(firstIdx);
@@ -177,119 +228,168 @@ try
     % We can model time points seperately, so # features = # freqs x # elecs,
     % or we can model it all together, so # features = # times x # freqs x #
     % elecs.
+    
+    % Unlike previous versions, if modelEachTime is true, this will not
+    % create nTimes number of models. Instead, the model for fold each will
+    % be chosen based on inner fold cross validation of both penalty and
+    % time point.
     res = [];
-    if modelEachTime
-        perf = NaN(1,nTimes);
-        lambdas = NaN(1,nTimes);
-        
-        for t = 1:nTimes
-            
-            % reshape into # trials x # features
-            X = reshape(squeeze(powerData(:,:,t,:,:)),size(powerData,1),nFreqs*nElecs*nItemObs);
-            
-            % see if we are precomputing lambda based on all the data. This
-            % happens if crossValStrictness is not 1. This is technically
-            % not the correct to do things
-            lambda = [];
-            if params.crossValStrictness == 0
-                if ~isempty(params.lambda)
-                    lambda = params.lambda(t);
-                else                    
-                    fprintf('Subject %s: Computing optimal c using %s regularization.\n',subj,normType)
-                    lambda = calcPenalty(X,Y,folds,sessInds,normType);
-                end
-                lambdas(t) = lambda;
-            end
-            
-            % will hold results from each fold
-            % yPred  = predicted class
-            % yTest  = actual class
-            % err    = correct or not
-            % lambda = value of penatly paramater for the fold
-            % Cs     = all possible penalty parameters tried
-            % aucs   = aucs for each penalty param when choosing the best C
-            [res(t).yPred,res(t).yTest,...
-             res(t).A,res(t).err,...
-             res(t).lambda,res(t).Cs,res(t).aucs] = deal(cell(nFolds,1));
-            
-            % run for each fold
-            for iFold = 1:nFolds
-                fprintf('Subject %s: Time %d of %d, Fold %d of %d.\n',subj,t,nTimes,iFold,nFolds)
-                [res(t).yPred{iFold},...
-                    res(t).yTest{iFold},...
-                    res(t).A{iFold},...
-                    res(t).err{iFold},...
-                    res(t).lambda{iFold},...
-                    res(t).Cs{iFold},...
-                    res(t).aucs{iFold}] = doRegFun(X,Y,folds,iFold,lambda,normType,sessInds);                
-            end             
-            
-            % calculate performance metrics
-            % percent correct
-            perf(t) = mean(vertcat(res(t).err{:}));
-            res(t).perf = perf(t);
-            
-            % auc
-            yPred = vertcat(res(t).yPred{:});
-            [~,~,~,res(t).AUC] = perfcurve(Y,yPred,true);
-            AUC(t) = res(t).AUC;            
-            
-            % save out the mean lambda for convenience?
-            lambdas(t) = mean([res(t).lambda{:}]);
-            
+    X   = reshape(squeeze(powerData),size(powerData,1),nFreqs*nTimes*nElecs*nItemObs);
+    T   = reshape(squeeze(timeLabel),size(timeLabel,1),nFreqs*nTimes*nElecs*nItemObs);
+    
+    % see if we are precomputing lambda based on all the data. Again,
+    % we shouldn't really do this
+    lambda = [];
+    if params.crossValStrictness == 0
+        if ~isempty(params.lambda)
+            lambda = params.lambda;
+        else
+            fprintf('Subject %s: Computing optimal c using %s regularization.\n',subj,normType)
+            lambda = calcPenalty(X,Y,T,folds,sessInds,normType);
         end
-        lambda = lambdas;
-        
-        % Finally, create a model based on the full dataset for the patient. If
-        % modelEachTime, do it for the optimal time       
-        bestTime = find(AUC == max(AUC),1,'first');
-        X = reshape(squeeze(powerData(:,:,bestTime,:,:)),size(powerData,1),nFreqs*nElecs*nItemObs);        
-        resFull = doRegFullData(X,Y,folds,normType,sessInds);
-        
-    % if using all time points in one model, current what it is set to do
-    else
-        
-        % reshape into # trials x # features
-        X = reshape(squeeze(powerData),size(powerData,1),nFreqs*nTimes*nElecs*nItemObs);
-        
-        % see if we are precomputing lambda based on all the data. Again,
-        % we shouldn't really do this
-        lambda = [];
-        if params.crossValStrictness == 0
-            if ~isempty(params.lambda)
-                lambda = params.lambda;
-            else
-                fprintf('Subject %s: Computing optimal c using %s regularization.\n',subj,normType)
-                lambda = calcPenalty(X,Y,folds,sessInds,normType);
-            end
-        end        
-        
-        % run for each fold
-        [res.yPred,res.yTest,res.A,res.intercept,res.err,...
-         res.lambda,res.Cs,res.aucs] = deal(cell(nFolds,1));
-        for iFold = 1:nFolds
-            fprintf('Subject %s: Fold %d of %d.\n',subj,iFold,nFolds)
-            [res.yPred{iFold},...
-                res.yTest{iFold},...
-                res.A{iFold},...
-                res.intercept{iFold},...
-                res.err{iFold},...
-                res.lambda{iFold},...
-                res.Cs{iFold},...
-                res.aucs{iFold}] = doRegFun(X,Y,folds,iFold,lambda,normType,sessInds);
-        end
-        
-        % calculate metrics
-        perf = mean(vertcat(res.err{:}));
-        res.perf = perf;        
-        yPred = vertcat(res.yPred{:});
-        [~,~,~,res.AUC] = perfcurve(Y,yPred,true);
-        AUC = res.AUC;
-        lambda = mean([res.lambda{:}]);    
-        
-        % create model using full dataset
-        resFull = doRegFullData(X,Y,folds,normType,sessInds);
     end
+    
+    % run for each fold
+    [res.yPred,res.yTest,res.A,res.intercept,res.err,...
+        res.lambda,res.tBest,res.Cs,res.Ts,res.aucs] = deal(cell(nFolds,1));
+    for iFold = 1:nFolds
+        fprintf('Subject %s: Fold %d of %d.\n',subj,iFold,nFolds)
+        [res.yPred{iFold},...
+            res.yTest{iFold},...
+            res.A{iFold},...
+            res.err{iFold},...
+            res.lambda{iFold},...
+            res.tBest{iFold},...
+            res.Cs{iFold},...
+            res.Ts{iFold},...
+            res.aucs{iFold}] = doRegFun(X,Y,T,folds,iFold,lambda,normType,sessInds,modelEachTime);
+    end
+    
+    yPred = vertcat(res.yPred{:});
+    [~,~,~,res.AUC] = perfcurve(Y,yPred,true);
+    AUC = res.AUC;
+    
+    % Finally, create a model based on the full dataset for the patient. If
+    % modelEachTime, do it for the optimal time
+%     bestTime = find(AUC == max(AUC),1,'first');
+%     X = reshape(squeeze(powerData(:,:,bestTime,:,:)),size(powerData,1),nFreqs*nElecs*nItemObs);
+    resFull = doRegFullData(X,Y,T,folds,normType,sessInds);
+    
+    
+%     if modelEachTime
+%         perf = NaN(1,nTimes);
+%         lambdas = NaN(1,nTimes);
+%         
+% 
+%         
+%         for t = 1:nTimes
+%             
+%             % reshape into # trials x # features
+%             X = reshape(squeeze(powerData(:,:,t,:,:)),size(powerData,1),nFreqs*nElecs*nItemObs);
+%             
+%             % see if we are precomputing lambda based on all the data. This
+%             % happens if crossValStrictness is not 1. This is technically
+%             % not the correct to do things
+%             lambda = [];
+%             if params.crossValStrictness == 0
+%                 if ~isempty(params.lambda)
+%                     lambda = params.lambda(t);
+%                 else                    
+%                     fprintf('Subject %s: Computing optimal c using %s regularization.\n',subj,normType)
+%                     lambda = calcPenalty(X,Y,T,folds,sessInds,normType);
+%                 end
+%                 lambdas(t) = lambda;
+%             end
+%             
+%             % will hold results from each fold
+%             % yPred  = predicted class
+%             % yTest  = actual class
+%             % err    = correct or not
+%             % lambda = value of penatly paramater for the fold
+%             % Cs     = all possible penalty parameters tried
+%             % aucs   = aucs for each penalty param when choosing the best C
+%             [res(t).yPred,res(t).yTest,...
+%              res(t).A,res(t).err,...
+%              res(t).lambda,res(t).Cs,res(t).aucs] = deal(cell(nFolds,1));
+%             
+%             % run for each fold
+%             for iFold = 1:nFolds
+%                 fprintf('Subject %s: Time %d of %d, Fold %d of %d.\n',subj,t,nTimes,iFold,nFolds)
+%                 [res(t).yPred{iFold},...
+%                     res(t).yTest{iFold},...
+%                     res(t).A{iFold},...
+%                     res(t).err{iFold},...
+%                     res(t).lambda{iFold},...
+%                     res(t).Cs{iFold},...
+%                     res(t).aucs{iFold}] = doRegFun(X,Y,folds,iFold,lambda,normType,sessInds);                
+%             end             
+%             
+%             % calculate performance metrics
+%             % percent correct
+%             perf(t) = mean(vertcat(res(t).err{:}));
+%             res(t).perf = perf(t);
+%             
+%             % auc
+%             yPred = vertcat(res(t).yPred{:});
+%             [~,~,~,res(t).AUC] = perfcurve(Y,yPred,true);
+%             AUC(t) = res(t).AUC;            
+%             
+%             % save out the mean lambda for convenience?
+%             lambdas(t) = mean([res(t).lambda{:}]);
+%             
+%         end
+%         lambda = lambdas;
+%         
+%         % Finally, create a model based on the full dataset for the patient. If
+%         % modelEachTime, do it for the optimal time       
+%         bestTime = find(AUC == max(AUC),1,'first');
+%         X = reshape(squeeze(powerData(:,:,bestTime,:,:)),size(powerData,1),nFreqs*nElecs*nItemObs);        
+%         resFull = doRegFullData(X,Y,folds,normType,sessInds);
+%         
+%     % if using all time points in one model, current what it is set to do
+%     else
+%         
+%         % reshape into # trials x # features
+%         X = reshape(squeeze(powerData),size(powerData,1),nFreqs*nTimes*nElecs*nItemObs);
+%         
+%         % see if we are precomputing lambda based on all the data. Again,
+%         % we shouldn't really do this
+%         lambda = [];
+%         if params.crossValStrictness == 0
+%             if ~isempty(params.lambda)
+%                 lambda = params.lambda;
+%             else
+%                 fprintf('Subject %s: Computing optimal c using %s regularization.\n',subj,normType)
+%                 lambda = calcPenalty(X,Y,folds,sessInds,normType);
+%             end
+%         end        
+%         
+%         % run for each fold
+%         [res.yPred,res.yTest,res.A,res.intercept,res.err,...
+%          res.lambda,res.Cs,res.aucs] = deal(cell(nFolds,1));
+%         for iFold = 1:nFolds
+%             fprintf('Subject %s: Fold %d of %d.\n',subj,iFold,nFolds)
+%             [res.yPred{iFold},...
+%                 res.yTest{iFold},...
+%                 res.A{iFold},...
+%                 res.intercept{iFold},...
+%                 res.err{iFold},...
+%                 res.lambda{iFold},...
+%                 res.Cs{iFold},...
+%                 res.aucs{iFold}] = doRegFun(X,Y,folds,iFold,lambda,normType,sessInds);
+%         end
+%         
+%         % calculate metrics
+%         perf = mean(vertcat(res.err{:}));
+%         res.perf = perf;        
+%         yPred = vertcat(res.yPred{:});
+%         [~,~,~,res.AUC] = perfcurve(Y,yPred,true);
+%         AUC = res.AUC;
+%         lambda = mean([res.lambda{:}]);    
+%         
+%         % create model using full dataset
+%         resFull = doRegFullData(X,Y,folds,normType,sessInds);
+%     end
     
     subject       = subj;
     params.lambda = lambda;
@@ -302,7 +402,7 @@ catch e
     save(fname,'e')
 end
 
-function [penalty,C,auc_pen] = calcPenalty(X,Y,folds,sessInds,normType)
+function [cBest,tBest,Cs,Ts,auc_pen] = calcPenalty(X,Y,T,folds,sessInds,normType,modelEachTime)
 % Calculate the optimal penalty parameter.
 %
 % Returns: penalty (the optimal C)
@@ -311,16 +411,14 @@ function [penalty,C,auc_pen] = calcPenalty(X,Y,folds,sessInds,normType)
 
 Y = double(Y);
 Y(Y==0) = -1;
-C       = logspace(log10(1e-2),log10(1e4),22);
+Cs      = logspace(log10(1e-2),log10(1e4),22);
+Ts      = 1:length(unique(T));
 nCV     = size(folds,1);
-auc_pen = NaN(length(C),1);
+auc_pen = NaN(length(Cs),length(Ts));
 
-for pVal = 1:length(C)
-    thisPen = C(pVal);    
-
-    % hold test output
-    dec_values = [];
-    labels = [];
+for thisC = 1:length(Cs)
+    thisC
+    thisPen = Cs(thisC);
     
     % set parameters for either L1 or L2 with the current c
     if strcmpi(normType,'L1')
@@ -329,53 +427,71 @@ for pVal = 1:length(C)
         liblin_param = ['-c ' sprintf('%f',thisPen) ' -s 0 -q'];
     end
     
-    for cv = 1:nCV
-        inds = folds(cv,:);
-        
-        % train data for this cv
-        xTrain = X(inds,:);
-%         xTrain = [ones(sum(inds),1) xTrain];
-        yTrain = Y(inds);        
-        [xTrain,m,s] = standardize(xTrain,sessInds(inds));
-        
-        % test data for this cv
-        xTest =  X(~inds,:);
-%         xTest = [ones(sum(~inds),1) X(~inds,:)];
-        yTest = Y(~inds);
-        xTest = standardize_test(xTest,sessInds(~inds),m,s);
-        
-        % weight by percentage of positive and negative classes. I don't
-        % totally get this but I am following Jim's code
-        pos = mean(yTrain==1);
-        neg = mean(yTrain==-1);
-        mean_tmp = mean([pos neg]);
-        pos = sprintf('%f',pos/mean_tmp);
-        neg = sprintf('%f',neg/mean_tmp);
-        param = [liblin_param ' -w1 ' num2str(pos) ' -w-1 ' num2str(neg)];
-                 
-        % train on this data with this cv                     
-        model = train(double(yTrain),sparse(xTrain),param);
-        
-        % predict with model 
-        [pred, acc, dec] = predict(double(yTest),sparse(xTest),model,'-q');
-         
-        % keep of track of output over all folds
-        if model.Label(1) < 0;
-            dec = dec * -1;
-        end
-        dec_values = vertcat(dec_values, dec);
-        labels = vertcat(labels, yTest);
-        
-    end    
     
-    % find AUC for this value of C
-    [~,~,~,auc_pen(pVal)] = perfcurve(labels,dec_values,1);    
+    for thisT = 1:length(Ts)       
+        tInds = T==Ts(thisT);
+        
+        % hold test output
+        dec_values = [];
+        labels = [];
+        
+        for cv = 1:nCV
+            inds = folds(cv,:);
+            
+            % train data for this cv
+            xTrain = X(inds,tInds);
+            %         xTrain = [ones(sum(inds),1) xTrain];
+            yTrain = Y(inds);
+            [xTrain,m,s] = standardize(xTrain,sessInds(inds));
+            
+            % test data for this cv
+            xTest =  X(~inds,tInds);
+            %         xTest = [ones(sum(~inds),1) X(~inds,:)];
+            yTest = Y(~inds);
+            xTest = standardize_test(xTest,sessInds(~inds),m,s);
+            
+            % weight by percentage of positive and negative classes. I don't
+            % totally get this but I am following Jim's code
+            pos = mean(yTrain==1);
+            neg = mean(yTrain==-1);
+            mean_tmp = mean([pos neg]);
+            pos = sprintf('%f',pos/mean_tmp);
+            neg = sprintf('%f',neg/mean_tmp);
+            param = [liblin_param ' -w1 ' num2str(pos) ' -w-1 ' num2str(neg)];
+            
+            % train on this data with this cv
+            model = train(double(yTrain),sparse(xTrain),param);
+            
+            % predict with model
+            [pred, acc, dec] = predict(double(yTest),sparse(xTest),model,'-q');
+            
+            % keep of track of output over all folds
+            if model.Label(1) < 0;
+                dec = dec * -1;
+            end
+            dec_values = vertcat(dec_values, dec);
+            labels = vertcat(labels, yTest);
+        end
+        
+        % find AUC for this value of C
+        [~,~,~,auc_pen(thisC,thisT)] = perfcurve(labels,dec_values,1);        
+        
+    end
+    
+ 
+    
 end
+keyboard
+% return C and T with highest AUC
+% [cBest,tBest] = find(auc_pen==max(auc_pen(:)),1,'first');
 
-% return C with highest AUC
-penalty = C(find(auc_pen==max(auc_pen),1,'first'));
 
-function [yProbs,yTest,A,err,lambda,Cs,aucs] = doRegFun(X,Y,folds,iFold,lambda,normType,sessInds)
+thresh = prctile(auc_pen(:),auc_prctileThresh);
+ind=find(auc_pen>=thresh,1,'first');
+[cBest,tBest]=ind2sub(size(auc_pen),ind);
+cBest = Cs(cBest);
+
+function [yProbs,yTest,A,err,lambda,tBest,Cs,Ts,aucs] = doRegFun(X,Y,T,folds,iFold,lambda,normType,sessInds,modelEachTime)
 % This does the classification.
 % X = # trials x # features
 % Y = # trials vector of responses
@@ -396,11 +512,11 @@ xTrain     = X(trainInds,:);
 
 % if no lambda given, calculate lambda for this fold.
 if isempty(lambda)    
-    [lambda,Cs,aucs] = calcPenalty(xTrain,yTrainBool,subFolds,sessions,normType);         
+    [lambda,tBest,Cs,Ts,aucs] = calcPenalty(xTrain,yTrainBool,T,subFolds,sessions,normType,modelEachTime);         
 end
 
 % training set x
-xTrain = X(trainInds,:);
+xTrain = X(trainInds,T==tBest);
 
 % training set y
 yTrain = double(yTrainBool);
@@ -429,7 +545,7 @@ param = [liblin_param ' -w1 ' num2str(pos) ' -w-1 ' num2str(neg)];
 model = train(double(yTrain),sparse(xTrain),param);
 
 % testing set
-xTest = X(~trainInds,:);
+xTest = X(~trainInds,T==tBest);
 yTest = double(Y(~trainInds));
 yTest(yTest==0) = -1;
 
@@ -447,17 +563,20 @@ A      = model.w;
 err    = yPreds == yTest;
 
 
-function res = doRegFullData(X,Y,folds,normType,sessInds)
+function res = doRegFullData(X,Y,T,folds,normType,sessInds)
 % train on all data. No test
 
 % find lambda
 res = [];
-[lambda,Cs,aucs] = calcPenalty(X,Y,folds,sessInds,normType); 
-res.lambda = lambda;
+[lambda,bestT,Cs,Ts,aucs] = calcPenalty(X,Y,T,folds,sessInds,normType); 
+res.C = lambda;
+res.T = bestT;
 res.Cs = Cs;
+res.Ts = Ts;
 res.aucs = aucs;
 
 % standardize 
+X = X(:,T==bestT);
 [X,m,s] = standardize(X,sessInds);
 
 % set parameters for either L1 or L2
@@ -544,6 +663,7 @@ for e = 1:nElecs
     sessions = unique([events.session]);
     subjPow  = [];
     sessInds = [];
+    
     for s = 1:length(sessions)
         fname = fullfile(subjPath,'RAM_YC1_events',num2str(sessions(s)),[num2str(elecNum(1)),'-',num2str(elecNum(2)),'.mat']);
         sessPow = load(fname);

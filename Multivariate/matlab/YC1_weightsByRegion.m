@@ -35,6 +35,7 @@ if ~exist('params','var') || isempty(params)
     params = multiParams();
 end
 
+
 % overwrite exisiting figures?
 if ~exist('overwrite','var') || isempty(overwrite)
     overwrite = true;
@@ -64,17 +65,16 @@ end
 if ~exist('subjs','var') || isempty(subjs)
     subjs = get_subs('RAM_YC1');
 end
-subjs = subjs(~strcmp(subjs,'R1061T'))
+% subjs = subjs(~strcmp(subjs,'R1061T'))
 
 nTimes = size(params.timeBins,1);
 nFreqs = size(params.freqBins,1);
-spectTimeFreq        = NaN(size(params.freqBins,1),size(params.timeBins,1),length(subjs));
-regionDataAll        = NaN(8,length(subjs),size(params.timeBins,1));
-regionDataNonZeroAll = NaN(8,length(subjs),size(params.timeBins,1));
-movementClass        = {};
+spectTimeFreq             = NaN(nFreqs,nTimes,length(subjs));
+spectTimeFreqNonAbs       = NaN(nFreqs,nTimes,length(subjs));
+
 
 figs = [];
-for s = 1:length(subjs)    
+for s = 1:length(subjs)
     subj = subjs{s};
     fprintf('Processing %s.\n',subjs{s})
     
@@ -83,10 +83,19 @@ for s = 1:length(subjs)
     
     % load the weights for this subject
     out = loadWeightsByRegion(subjs{s},dataDir);
-    if ~isempty(out)        
+    if ~isempty(out)
+        
+        if ~exist('regionDataAll','var')
+            nRegions                   = length(out.regionsAll);
+            regionDataAll              = NaN(nRegions,length(subjs),nTimes);
+            regionDataNonZeroAll       = NaN(nRegions,length(subjs),nTimes);
+            regionDataAllFreqsTimes    = NaN(nRegions,length(subjs),nTimes,nFreqs);
+            regionDataAllFreqsBestTime = NaN(nRegions,length(subjs),nFreqs);
+        end
+        
+        
         figs_subj.subj = subj;
-        figs_subj.Region_Bar = {};
-%         movementClass{s} = out.movementClass;
+        figs_subj.Region_Bar = {};        
         
         % for each subject, we will plot:
         %    elec x freq spectrogram
@@ -108,7 +117,7 @@ for s = 1:length(subjs)
             clf
             imagesc(squeeze(mean(abs(out.meanWeightsPerTimeSort),3)))
             colormap('jet')
-            colorbar            
+            colorbar
             set(gca,'ytick',1:nFreqs)
             set(gca,'yticklabel',yBinsStrF)
             set(gca,'xtick',[])
@@ -119,7 +128,7 @@ for s = 1:length(subjs)
             set(gca,'XTickLabelRotation',270)
             xlabel('Electrodes','fontsize',20)
             ylabel('Frequency','fontsize',20)
-            print('-dpng','-loose',fname);            
+            print('-dpng','-loose',fname);
         end
         
         
@@ -139,7 +148,7 @@ for s = 1:length(subjs)
             clf
             imagesc(squeeze(mean(abs(out.meanWeightsPerTimeSort),1))');
             colormap('jet')
-            colorbar            
+            colorbar
             set(gca,'ytick',1:nTimes)
             set(gca,'yticklabel',yBinsStrT)
             set(gca,'xtick',[])
@@ -158,7 +167,8 @@ for s = 1:length(subjs)
         %% FIGURE 3 - time x freq (averaged across elecs)
         fname = fullfile(figDir,[subj 'Spect_TxF.png']);
         figs_subj.Spect_TxF = fname;
-        spectTimeFreq(:,:,s) = squeeze(mean(abs(out.meanWeightsPerTimeSort),2));
+        spectTimeFreq(:,:,s)       = squeeze(mean(abs(out.meanWeightsPerTime),2));
+        spectTimeFreqNonAbs(:,:,s) = squeeze(mean((out.meanWeightsPerTime),2));
         if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
             figure(3)
             clf
@@ -172,52 +182,54 @@ for s = 1:length(subjs)
             set(gca,'yticklabel',yBinsStrF)
             xlabel('Time Bin','fontsize',20)
             ylabel('Frequency','fontsize',20)
-            set(gca,'fontsize',20)           
-            print('-dpng','-loose',fname);            
+            set(gca,'fontsize',20)
+            print('-dpng','-loose',fname);
         end
         
-        %% FIGURE 4 - mean absolute weights by region for each time        
+        %% FIGURE 4 - mean absolute weights by region for each time
         labels = params.timeBinLabels;
-        if isempty(labels);labels=repmat({''},1,size(params.timeBins,1));end      
-        regions     = {'H','EC','MTL','CA1','CA3','DG','SUB','PHC','PRC','TC','FC','OC','PC','X'};
-        fieldsToUse = {'meanWeightsPerTimeHipp','meanWeightsPerTimeEC',...
-            'meanWeightsPerTimeMTL','meanWeightsPerTimeCA1',...
-            'meanWeightsPerTimeCA3','meanWeightsPerTimeDG',...
-            'meanWeightsPerTimeSub','meanWeightsPerTimePHC',...
-            'meanWeightsPerTimePRC','meanWeightsPerTimeTC',...                        
-            'meanWeightsPerTimeFC','meanWeightsPerTimeOC',...
-            'meanWeightsPerTimePC','meanWeightsPerTimeOth'};
+        if isempty(labels);labels=repmat({''},1,size(params.timeBins,1));end
+        regions     = out.regionsAll;
+%         regions = out.regionsAll;
+%         regions = {'meanWeightsPerTimeHipp','meanWeightsPerTimeEC',...
+%             'meanWeightsPerTimeMTL','meanWeightsPerTimeCA1',...
+%             'meanWeightsPerTimeCA3','meanWeightsPerTimeDG',...
+%             'meanWeightsPerTimeSub','meanWeightsPerTimePHC',...
+%             'meanWeightsPerTimePRC','meanWeightsPerTimeTC',...
+%             'meanWeightsPerTimeFC','meanWeightsPerTimeOC',...
+%             'meanWeightsPerTimePC','meanWeightsPerTimeOth'};
         
         % this is stupid. I'm basically doing this twice so that I can find
         % out what the axis ranges will be and set them all the same
         ylims = [0 0];
         for t = 1:size(params.timeBins,1)
-            regionData        = NaN(1,length(fieldsToUse));
-            regionDataNonZero = NaN(1,length(fieldsToUse));            
-            for r = 1:length(fieldsToUse)
-                weights       = out.(fieldsToUse{r})(:,:,t);
+            regionData        = NaN(1,length(regions));
+            regionDataNonZero = NaN(1,length(regions));
+            for r = 1:length(regions)
+                weights       = out.(regions{r})(:,:,t);
                 isZero        = weights == 0;
                 regionData(r)        = mean(nanmean(abs(weights),2));
                 regionDataAll(r,s,t) = regionData(r);
+                regionDataAllFreqsTimes(r,s,t,:) = nanmean(weights,2);                                
                 
                 regionDataNonZero(r)        = nanmean(abs(weights(~isZero)));
                 regionDataNonZeroAll(r,s,t) = regionDataNonZero(r);
-            end            
+            end
             ylims(1) = max([ylims(1) max(regionData)]);
-            ylims(2) = max([ylims(2) max(regionDataNonZero)]);            
+            ylims(2) = max([ylims(2) max(regionDataNonZero)]);
         end
-        ylims = ceil(ylims * 100)/100;    
+        ylims = ceil(ylims * 100)/100;
         ylims(ylims==0) = .001;
         
         % loop over each time bin
-        for t = 1:size(params.timeBins,1)                        
+        for t = 1:size(params.timeBins,1)
             
             % average weights within region, both including and excluding
             % zero weights
-            regionData        = NaN(1,length(fieldsToUse));
-            regionDataNonZero = NaN(1,length(fieldsToUse));
-            for r = 1:length(fieldsToUse)
-                weights       = out.(fieldsToUse{r})(:,:,t);
+            regionData        = NaN(1,length(regions));
+            regionDataNonZero = NaN(1,length(regions));
+            for r = 1:length(regions)
+                weights       = out.(regions{r})(:,:,t);
                 isZero        = weights == 0;
                 regionData(r)        = mean(nanmean(abs(weights),2));
                 regionDataNonZero(r) = nanmean(abs(weights(~isZero)));
@@ -231,7 +243,7 @@ for s = 1:length(subjs)
                 fname = fullfile(figDir,[subj '_bar_region_' labels{t} '_' strrep(ylabels{panel},' ','_') '.eps']);
                 figs_subj.Region_Bar{t,panel} = fname;
                 
-                if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))                    
+                if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
                     figure(4)
                     clf
                     
@@ -254,7 +266,13 @@ for s = 1:length(subjs)
                 
             end
         end
-               
+        
+        % also keep track of the weights from ther best time bin
+        for r = 1:length(regions)
+            weights = out.(regions{r})(:,:,out.bestTime);
+            regionDataAllFreqsBestTime(r,s,:) = nanmean((weights),2);
+        end
+        
     end
     figs = [figs;figs_subj];
 end
@@ -290,7 +308,7 @@ end
 %% FIGURE - mean absolute weights for frequencies avg acros times
 fname = fullfile(figDir,['group_freq_bar.eps']);
 figs_group.group_freq_bar = fname;
-keyboard
+
 % figs_group.N = sum(~isnan(spectTimeFreq(1,1,:)),3);
 if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
     figure(3)
@@ -326,7 +344,7 @@ if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
     hold on
     errorbar(1:size(plotData,1),nanmean(plotData,2),err,'k','linewidth',2,'linestyle','none')
     
-    set(gca,'xtick',1:nTimes)    
+    set(gca,'xtick',1:nTimes)
     set(gca,'xticklabel',yBinsStrT)
     ylabel('Mean Abs Weights','fontsize',20)
     xlabel('Time Bin','fontsize',20)
@@ -359,8 +377,8 @@ if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
     %             set(gca,'ylim',[0 ylims(panel)])
     grid on
     set(gca,'gridlinestyle',':');
-
-    print('-depsc2','-loose',fname);    
+    
+    print('-depsc2','-loose',fname);
 end
 
 %% FIGURE - mean absolute weights for times avg acros freqs
@@ -385,7 +403,7 @@ if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
     %             set(gca,'ylim',[0 ylims(panel)])
     grid on
     set(gca,'gridlinestyle',':');
-    print('-depsc2','-loose',fname);    
+    print('-depsc2','-loose',fname);
 end
 
 %% FIGURE - mean absolute weights by region for each time
@@ -405,7 +423,7 @@ for t = 1:size(params.timeBins,1)
         
         if (exist(fname,'file') && overwrite) || (~exist(fname,'file'))
             figure(4)
-            clf                
+            clf
             h=bar(plotDataY{panel},'linewidth',2,'facecolor',[.6 .6 .6]);
             hold on
             errorbar(1:length(regions),plotDataY{panel},errDataY{panel},'k','linewidth',2,'linestyle','none')
@@ -423,8 +441,127 @@ for t = 1:size(params.timeBins,1)
             set(h,'fontweight','normal');
             print('-depsc2','-loose',fname);
         end
-    end    
+    end
 end
+keyboard
+%% FIGURE - mean (non-abs) weights by region for best time for each freq
+mWeights = squeeze(nanmean(regionDataAllFreqsBestTime,2));
+sWeights = squeeze(nanstd(regionDataAllFreqsBestTime,[],2));
+eWeights = sWeights./sqrt(squeeze(sum(~isnan(regionDataAllFreqsBestTime),2))-1);
+[h,p,c,s] = ttest(permute(regionDataAllFreqsBestTime,[2 1 3]));
+h=squeeze(h);p=squeeze(p);t=squeeze(s.tstat);
+
+for f = 1:size(mWeights,2)
+
+    figure(5)
+    clf
+    hold on
+    for r = 1:size(mWeights,1)
+        c = [.7 .7 .7];
+        if ~isnan(h(r,f)) && h(r,f)
+            c = [.2 .2 .7];
+            if t(r,f) > 0
+                c = [.7 .2 .2];
+            end
+        end                
+        bar(r,mWeights(r,f),'linewidth',2,'FaceColor',c)
+    end
+    errorbar(1:r,mWeights(:,f),eWeights(:,f),'k','linewidth',2,'linestyle','none')
+    set(gca,'xtick',1:length(regions));
+    set(gca,'xticklabel',regions)
+    set(gca,'XTickLabelRotation',45)
+    xlabel('Region','fontsize',16)
+    ylabel('Average Classifier Weight','fontsize',16)
+    set(gca,'fontsize',16)
+    set(gca,'xlim',[0 length(regions)+1]);
+    grid on
+    set(gca,'gridlinestyle',':')
+    
+    fname = fullfile(figDir,['group_bar_region_freq_' num2str(f) '.eps']);
+    print('-depsc2','-loose',fname); 
+end
+
+%% FIGURE - mean (non-abs) weights by region for best time for binned freqs
+%%% HARD CODED STUFF FIX IT
+lf = 1:4;
+hf = 8:11;
+regionDataLFHF = NaN(9,64,2);
+regionDataLFHF(:,:,1) = nanmean(regionDataAllFreqsBestTime(1:9,:,lf),3);
+regionDataLFHF(:,:,2) = nanmean(regionDataAllFreqsBestTime(1:9,:,hf),3);
+mWeights = squeeze(nanmean(regionDataLFHF,2));            
+sWeights = squeeze(nanstd(regionDataLFHF,[],2));            
+eWeights = sWeights./sqrt(squeeze(sum(~isnan(regionDataLFHF),2))-1);            
+[h,p,c,s] = ttest(permute(regionDataLFHF,[2 1 3]));            
+h=squeeze(h);p=squeeze(p);t=squeeze(s.tstat);
+
+
+
+for f = 1:size(mWeights,2)
+
+    figure(5)
+    clf
+    hold on
+    for r = 1:size(mWeights,1)
+        c = [.7 .7 .7];
+        if ~isnan(h(r,f)) && h(r,f)
+            c = [.2 .2 .7];
+            if t(r,f) > 0
+                c = [.7 .2 .2];
+            end
+        end                
+        bar(r,mWeights(r,f),'linewidth',2,'FaceColor',c)
+    end
+    errorbar(1:r,mWeights(:,f),eWeights(:,f),'k','linewidth',2,'linestyle','none')
+    set(gca,'xtick',1:length(regions)-1);
+%     set(gca,'xticklabel',regions(1:end-1))
+    set(gca,'XTickLabelRotation',45)
+%     xlabel('Region','fontsize',16)
+    ylabel('Average Classifier Weight','fontsize',16)
+    set(gca,'fontsize',16)
+    set(gca,'xlim',[0 length(regions)]);
+    grid on
+    set(gca,'gridlinestyle',':')
+    
+    fname = fullfile(figDir,['group_bar_region_freqBin_' num2str(f) '.eps']);
+    print('-depsc2','-loose',fname); 
+end
+
+%% FIGURE - mean (non-abs) weights time by freq spectrogram
+figure(6)
+clf
+
+% make x labels
+xBins    = round((params.timeBins) / 10) / 100;
+f = @(x) [num2str(x(1)), '-', num2str(x(2))];
+xlabels = cellfun(f,num2cell(xBins,2),'uniformoutput',false);
+
+%%%% GET THIS FROM PARAMS
+% make y labels
+freqs = logspace(log10(3),log10(120),12);
+f = @(x) sprintf('%.1f',x);
+ylabels = cellfun(f,num2cell(freqs),'uniformoutput',false);
+
+% plot it
+mTF = flipud(nanmean(spectTimeFreqNonAbs,3));
+imagesc(mTF);
+set(gca,'xtick',1:10:size(mTF,2));
+set(gca,'xticklabel',xlabels(1:10:size(mTF,2)))
+clim = get(gca,'clim');
+set(gca,'clim',[-abs(max(clim)) abs(max(clim))])
+colorbar
+
+% set labels
+xlabel('Time (s)','fontsize',20)
+ylabel('Frequency','fontsize',20)
+set(gca,'ytick',1:length(freqs))
+set(gca,'yticklabel',fliplr(ylabels))
+set(gca,'fontsize',20)
+set(gca,'xticklabelrotation',45)
+colormap default
+
+fname = fullfile(figDir,['TF_nonAbs.png']);
+print('-dpng','-loose',fname);
+
 %%%%%%%%%%%%%%%%%
 
 
@@ -463,28 +600,28 @@ keyboard
 function out = loadWeightsByRegion(subj,saveDir)
 out = [];
 
-chanceFile = fullfile(saveDir,[subj '_chance_perf_dist.mat']);
 lassoFile  = fullfile(saveDir,[subj '_lasso.mat']);
-if ~exist(lassoFile,'file') %|| ~exist(chanceFile,'file')
-    fprintf('No lasso/chance file for %s.\n',subj)
+if ~exist(lassoFile,'file')
+    fprintf('No lasso for %s.\n',subj)
     out = [];
     return
 end
 
 % load classification model
 lassoData  = load(lassoFile);
-%chanceData = load(chanceFile);
-
-% get the significant (percetile) at each time point
-%perc = mean(repmat(lassoData.perf,size(chanceData.perf_all,1),1) > chanceData.perf_all);
-%[~,bestTimeBin] = max(perc);
 
 % get subject electrode info
 tal                   = lassoData.tal;
 
+% number of features
 nFeatures = length(lassoData.res(1).A{1});
 nFreqs    = size(lassoData.params.freqBins,1);
 nTimes    = size(lassoData.params.timeBins,1);
+
+% bestTime      = find(lassoData.AUC == max(lassoData.AUC),1,'first');
+bestTime = 9;
+out.bestTime  = bestTime;
+
 if lassoData.params.modelEachTime
     nElecs = nFeatures/nFreqs;
 else
@@ -496,111 +633,98 @@ if nElecs ~= length(tal)
     return
 end
 
+% make sure loctag isn't missing
 if ~isfield(tal,'locTag')
-%     fprintf('No loc tag information for %s.\n',subj)
     [tal.locTag] = deal('');
-%     return
 end
-
-
-
 if sum(cellfun('isempty',{tal.locTag})) == length(tal)
-%     fprintf('No loc tag information for %s.\n',subj)
-    [tal.locTag] = deal('');   
+    [tal.locTag] = deal('');
 end
-missing               = cellfun('isempty',{tal.locTag});    
+missing               = cellfun('isempty',{tal.locTag});
 [tal(missing).locTag] = deal('');
 
+
 % get the electrode indices of brain regions
-hipp_elecs    = ~cellfun('isempty',regexpi({tal.locTag},['CA1|CA3|DG|sub']));
-ec_elecs      = ~cellfun('isempty',regexpi({tal.locTag},['ec|erc']));
-mtl_elecs     = ~cellfun('isempty',regexpi({tal.locTag},['HC|ec|hipp|CA1|CA3|DG|sub|amy|phc|prc|BA36|erc']));
-ca1_elecs     = ~cellfun('isempty',regexpi({tal.locTag},['ca1']));
-ca3_elecs     = ~cellfun('isempty',regexpi({tal.locTag},['ca3']));
-dg_elecs      = ~cellfun('isempty',regexpi({tal.locTag},['dg']));
-sub_elecs     = ~cellfun('isempty',regexpi({tal.locTag},['sub']));
-phc_elecs     = ~cellfun('isempty',regexpi({tal.locTag},['phc']));
-prc_elecs     = ~cellfun('isempty',regexpi({tal.locTag},['prc']));
-frontal_elecs = strcmp({tal.Loc2},'Frontal Lobe');
-occ_elecs     = strcmp({tal.Loc2},'Occipital Lobe');
-par_elecs     = strcmp({tal.Loc2},'Parietal Lobe');
-temp_elecs    = strcmp({tal.Loc2},'Temporal Lobe') & ~mtl_elecs;
-other_elecs   = ~(hipp_elecs | ec_elecs | mtl_elecs | frontal_elecs | occ_elecs | par_elecs | temp_elecs);
+% locTag based
+elecs = [];
+elecs.H       = ~cellfun('isempty',regexpi({tal.locTag},['CA1|CA2|CA3|DG|sub']));
+elecs.ec      = ~cellfun('isempty',regexpi({tal.locTag},['ec|erc']));
+elecs.MTL     = ~cellfun('isempty',regexpi({tal.locTag},['HC|ec|hipp|CA1|CA2|CA3|DG|sub|amy|phc|prc|BA36|erc']));
+elecs.MTL     = ~cellfun('isempty',regexpi({tal.locTag},['ec|amy|phc|prc|BA36|erc']));
+elecs.ca1     = ~cellfun('isempty',regexpi({tal.locTag},['ca1']));
+elecs.ca3     = ~cellfun('isempty',regexpi({tal.locTag},['ca3']));
+elecs.dg      = ~cellfun('isempty',regexpi({tal.locTag},['dg']));
+elecs.sub     = ~cellfun('isempty',regexpi({tal.locTag},['sub']));
+elecs.phc     = ~cellfun('isempty',regexpi({tal.locTag},['phc']));
+elecs.prc     = ~cellfun('isempty',regexpi({tal.locTag},['prc']));
 
-% pval of different time bins
-%p = 1-perc;
-%thresh = p < .05;
-%sigTimes = p < thresh;
-%out.sigTimes = sigTimes;
+% lobe based
+elecs.frontal = strcmp({tal.Loc2},'Frontal Lobe');
+elecs.occ     = strcmp({tal.Loc2},'Occipital Lobe');
+elecs.par     = strcmp({tal.Loc2},'Parietal Lobe');
+elecs.temp    = strcmp({tal.Loc2},'Temporal Lobe') & ~elecs.MTL & ~elecs.H;
 
-% % make this part of the params in the future
-% params.timeIsMovement = [false true true true true false false false];
-% 
-% if any(sigTimes(1:end-1)) && ~any(params.timeIsMovement(sigTimes(1:end-1))==0) && sum(sigTimes(1:end-1))>=2
-%     out.movementClass = 'mover';
-% elseif any(sigTimes(1:end-1)) && ~any(params.timeIsMovement(sigTimes(1:end-1))) && sum(sigTimes(1:end-1))>=2
-%     out.movementClass = 'nonMover';
-% elseif any(sigTimes(1:end-1)) && sum(sigTimes(1:end-1)) > 3
-%     out.movementClass = 'both';
-% else
-%     out.movementClass = 'neither';
-% end
+% new version based on brodmann areas
+ba = {tal.Loc5};
+%%%% THE SPACE BEFORE THE NUMBER IS IMPORTANT %%%
+elecs.aPFC = ~cellfun('isempty',regexpi(ba,[' 10| 11'])) & ~elecs.MTL & ~elecs.H;
+elecs.mPFC = ~cellfun('isempty',regexpi(ba,[' 24| 25| 32| 33'])) & ~elecs.MTL & ~elecs.H;
+elecs.PFC  = ~cellfun('isempty',regexpi(ba,[' 45| 47| 9| 46'])) & ~elecs.MTL & ~elecs.H;
+elecs.TC   = ~cellfun('isempty',regexpi(ba,[' 20| 21| 37'])) & ~elecs.MTL & ~elecs.H;
+elecs.PPC  = ~cellfun('isempty',regexpi(ba,[' 7| 40| 39'])) & ~elecs.MTL & ~elecs.H;
+elecs.mPC  = ~cellfun('isempty',regexpi(ba,[' 23| 29| 30| 31'])) & ~elecs.MTL & ~elecs.H;
+elecs.OC   = ~cellfun('isempty',regexpi(ba,[' 17| 18| 19'])) & ~elecs.MTL & ~elecs.H;
 
-
-% out.meanAccNonmove = mean(lassoData.perf(params.timeIsMovement));
-% out.meanAccMove = mean(lassoData.perf(~params.timeIsMovement));
-
-% average across all folds and reshape into freq x elec x time
+% average across all folds and reshape into freq x elec x time.
 meanWeightsPerTime = NaN(nFreqs,nElecs,nTimes);
 if lassoData.params.modelEachTime
-  for t = 1:length(lassoData.res)
-    meanTmp = mean(horzcat(lassoData.res(t).A{:}),2);
-    meanTmp = reshape(meanTmp,nFreqs,nElecs);
-    meanWeightsPerTime(:,:,t) = meanTmp;
-  end
+    for t = 1:length(lassoData.res)
+        for fold = 1:length(lassoData.res(t).A)
+            if isrow(lassoData.res(t).A{fold})
+                lassoData.res(t).A{fold} = lassoData.res(t).A{fold}';
+            end
+        end
+        meanTmp = mean(horzcat(lassoData.res(t).A{:}),2);
+        meanTmp = reshape(meanTmp,nFreqs,nElecs);
+        meanWeightsPerTime(:,:,t) = meanTmp;
+    end
 else
-  meanTmp = mean(horzcat(lassoData.res.A{:}),2);
-  meanWeightsPerTime = reshape(meanTmp,nFreqs,nElecs,[]);
+    for fold = 1:length(lassoData.res.A)
+        if isrow(lassoData.res.A{fold})
+            lassoData.res.A{fold} = lassoData.res.A{fold}';
+        end
+    end
+    meanTmp = mean(horzcat(lassoData.res.A{:}),2);
+    meanWeightsPerTime = reshape(meanTmp,nFreqs,nElecs,[]);
 end
 
 % filter by regions
+regions = {'aPFC','mPFC','PFC','MTL','H','TC','PPC','mPC','OC'};
+
+% all elecs
 out.meanWeightsPerTime     = meanWeightsPerTime;
-out.meanWeightsPerTimeHipp = meanWeightsPerTime(:,hipp_elecs,:);
-out.meanWeightsPerTimeEC   = meanWeightsPerTime(:,ec_elecs,:);
-out.meanWeightsPerTimeMTL  = meanWeightsPerTime(:,mtl_elecs,:);
 
-out.meanWeightsPerTimeCA1  = meanWeightsPerTime(:,ca1_elecs,:);
-out.meanWeightsPerTimeCA3  = meanWeightsPerTime(:,ca3_elecs,:);
-out.meanWeightsPerTimeDG   = meanWeightsPerTime(:,dg_elecs,:);
-out.meanWeightsPerTimeSub  = meanWeightsPerTime(:,sub_elecs,:);
-out.meanWeightsPerTimePHC  = meanWeightsPerTime(:,phc_elecs,:);
-out.meanWeightsPerTimePRC  = meanWeightsPerTime(:,prc_elecs,:);
+% elecs by region
+elecs.Other = true(1,length(tal));
+elec_order = [];
+regionCount = zeros(1,length(regions)+1);
+for r = 1:length(regions)
+    out.(regions{r}) = meanWeightsPerTime(:,elecs.(regions{r}),:);  
+    elec_order = [elec_order find(elecs.(regions{r}))];
+    elecs.Other = elecs.Other & ~elecs.(regions{r});
+    regionCount(r) = sum(elecs.(regions{r}));
+end
+out.Other = meanWeightsPerTime(:,elecs.Other,:); 
+elec_order = [elec_order find(elecs.Other)];
+regions{end+1} = 'Other';
+regionCount(end) = sum(elecs.Other);
 
-
-out.meanWeightsPerTimeFC   = meanWeightsPerTime(:,frontal_elecs,:);
-out.meanWeightsPerTimeOC   = meanWeightsPerTime(:,occ_elecs,:);
-out.meanWeightsPerTimePC   = meanWeightsPerTime(:,par_elecs,:);
-out.meanWeightsPerTimeTC   = meanWeightsPerTime(:,temp_elecs,:);
-out.meanWeightsPerTimeOth  = meanWeightsPerTime(:,other_elecs,:);
-
-elec_order = [find(hipp_elecs) find(ec_elecs) find(mtl_elecs) ...
-              find(temp_elecs) find(frontal_elecs) find(occ_elecs) ...
-              find(par_elecs) find(other_elecs)];
+% created a sorted by region version
 out.meanWeightsPerTimeSort = meanWeightsPerTime(:,elec_order,:);
-
-regions     = {'H','EC','MTL','CA1','CA3','DG','SUB','PHC','PRC','TC','FC','OC','PC','X'};
-regionCount = sum([hipp_elecs' ec_elecs' ...
-    mtl_elecs' ca1_elecs' ca3_elecs' ...
-    dg_elecs' sub_elecs' phc_elecs' prc_elecs' ...
-    temp_elecs' frontal_elecs'...
-    occ_elecs' par_elecs' other_elecs']);
-noElecs     = regionCount == 0;
-
-
+noElecs = regionCount == 0;
 out.regionCutoffs = cumsum(regionCount(~noElecs));
 out.regions       = regions(~noElecs);
-
-
+out.regionsAll    = regions;
 
 
 
@@ -657,29 +781,29 @@ fprintf(fid,'\\begin{document}\n\n\n');
 for s = 1:length(figs)
     
     fprintf(fid,'\\begin{figure}[!h]\n');
-    fprintf(fid,'\\centering\n');    
+    fprintf(fid,'\\centering\n');
     fprintf(fid,'\\includegraphics[width=0.6\\textwidth]{%s}\n',figs(s).Spect_Freq);
     fprintf(fid,'\\includegraphics[width=0.6\\textwidth]{%s}\n',figs(s).Spect_Time);
     fprintf(fid,'\\includegraphics[width=0.6\\textwidth]{%s}\n',figs(s).Spect_TxF);
     fprintf(fid,'\\caption{%s. Absolute classifier weights (including zeros).}\n\n',strrep(figs(s).subj,'_',' '));
     fprintf(fid,'\\end{figure}\n\n\n');
     
-    fprintf(fid,'\\begin{figure}[!h]\n');    
-    fprintf(fid,'\\centering\n');        
-    for r = 1:size(figs(s).Region_Bar,1)        
+    fprintf(fid,'\\begin{figure}[!h]\n');
+    fprintf(fid,'\\centering\n');
+    for r = 1:size(figs(s).Region_Bar,1)
         fprintf(fid,'\\includegraphics[width=0.3\\textwidth]{%s}\n',figs(s).Region_Bar{r,1});
-    end     
+    end
     fprintf(fid,'\\caption{Average weights across electrodes by brain region, including zeros, for each time bin.}\n\n');
-    fprintf(fid,'\\end{figure}\n\n\n');   
+    fprintf(fid,'\\end{figure}\n\n\n');
     
     fprintf(fid,'\\begin{figure}[!h]\n');
-    fprintf(fid,'\\centering\n');        
+    fprintf(fid,'\\centering\n');
     for r = 1:size(figs(s).Region_Bar,1)
         fprintf(fid,'\\includegraphics[width=0.3\\textwidth]{%s}\n',figs(s).Region_Bar{r,2});
-    end     
+    end
     fprintf(fid,'\\caption{Average weights across electrodes by brain region, excluding zeros, for each time bin.}\n\n');
     fprintf(fid,'\\end{figure}\n\n\n');
-
+    
     fprintf(fid,'\\clearpage\n\n\n');
     
 end
@@ -750,7 +874,7 @@ fprintf(fid,'\\begin{document}\n\n\n');
 for s = 1:length(figs)
     
     fprintf(fid,'\\begin{figure}[!h]\n');
-    fprintf(fid,'\\centering\n');    
+    fprintf(fid,'\\centering\n');
     fprintf(fid,'\\includegraphics[width=0.6\\textwidth]{%s}\n',figs(s).group_Spect_TxF);
     fprintf(fid,'\\includegraphics[width=0.4\\textwidth]{%s}\n',figs(s).group_freq_bar);
     fprintf(fid,'\\includegraphics[width=0.4\\textwidth]{%s}\n',figs(s).group_time_bar);
@@ -758,26 +882,26 @@ for s = 1:length(figs)
     fprintf(fid,'\\end{figure}\n\n\n');
     
     fprintf(fid,'\\begin{figure}[!h]\n');
-    fprintf(fid,'\\centering\n'); 
+    fprintf(fid,'\\centering\n');
     fprintf(fid,'\\includegraphics[width=0.4\\textwidth]{%s}\n',figs(s).group_region_bar);
-    fprintf(fid,'\\includegraphics[width=0.4\\textwidth]{%s}\n',figs(s).group_regionNonZero_bar);        
+    fprintf(fid,'\\includegraphics[width=0.4\\textwidth]{%s}\n',figs(s).group_regionNonZero_bar);
     fprintf(fid,'\\caption{%d subjects. Average weights across subjects by brain region. Left: Including zero weights. Right: Exlcuding zero weights.}\n\n',figs.N);
     fprintf(fid,'\\end{figure}\n\n\n');
     fprintf(fid,'\\clearpage\n\n\n');
     
     fprintf(fid,'\\begin{figure}[!h]\n');
-    fprintf(fid,'\\centering\n');        
-    for r = 1:size(figs(s).Region_Bar,1)        
+    fprintf(fid,'\\centering\n');
+    for r = 1:size(figs(s).Region_Bar,1)
         fprintf(fid,'\\includegraphics[width=0.28\\textwidth]{%s}\n',figs(s).Region_Bar{r,1});
-    end     
+    end
     fprintf(fid,'\\caption{Average weights across subjects by brain region, including zeros, for each time bin.}\n\n');
-    fprintf(fid,'\\end{figure}\n\n\n');   
+    fprintf(fid,'\\end{figure}\n\n\n');
     
     fprintf(fid,'\\begin{figure}[!h]\n');
-    fprintf(fid,'\\centering\n');        
+    fprintf(fid,'\\centering\n');
     for r = 1:size(figs(s).Region_Bar,1)
         fprintf(fid,'\\includegraphics[width=0.28\\textwidth]{%s}\n',figs(s).Region_Bar{r,2});
-    end     
+    end
     fprintf(fid,'\\caption{Average weights across subjects by brain region, excluding zeros, for each time bin.}\n\n');
     fprintf(fid,'\\end{figure}\n\n\n');
     

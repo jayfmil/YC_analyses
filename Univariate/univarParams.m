@@ -44,8 +44,9 @@ params.overwrite = 0;
 % exclude epileptic electrodes?
 params.excludeEpiElecs = 0;
 
-% permute the Y, usually in the process of creating a chance distribution
-params.doPermute = 0;
+% average electrodes with a subject/region
+params.averageRegion = 0;
+
 
 function eventMask = allEncodingEvents(events)
 eventMask = (strcmp({events.type},'NAV_LEARN') | strcmp({events.type},'NAV_LEARN_HARD'));

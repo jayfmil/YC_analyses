@@ -1,4 +1,4 @@
-function YC1_runMulti_liblinear(subjs,params)
+function YC1_runMulti_combinedFeatures(subjs,params)
 % function YC1_runMulti(subjs,params)
 % Inputs:
 %
@@ -34,14 +34,14 @@ end
 % of subjects. Otherwise, will loop over subjects one by one.
 poolobj = gcp('nocreate');
 if ~isempty(poolobj)
-    parfor s = 1:length(subjs)
+    for s = 1:length(subjs)
         fprintf('Processing %s.\n',subjs{s})
-        YC1_runMulti_subj_timingCV(subjs{s},params,saveDir);
+        YC1_runMulti_subj_combinedFeatures(subjs{s},params,saveDir);
     end
 else    
     for s = 1:length(subjs)
         fprintf('Processing %s.\n',subjs{s})
-        YC1_runMulti_subj_timingCV(subjs{s},params,saveDir);
+        YC1_runMulti_subj_combinedFeatures(subjs{s},params,saveDir);
     end
 end
 

@@ -1,4 +1,4 @@
-function [AUC,AUC_enc,perf,perfEnc,AUC_best,AUC_bestEnc] = YC2_applyWeights(subj,params,yc1Data,yc1ChanceData,saveDir)
+function res = YC2_applyWeights(subj,params,yc1Data,saveDir)
 % function [] = YC2_applyWeights(subj,params,saveDir)
 %
 % Inputs:
@@ -17,11 +17,12 @@ perf        = [];
 perfEnc     = [];
 AUC_best    = [];
 AUC_bestEnc = [];
-try
+res = [];
+% try
     
     % load subject electrode locations and filter to specific regions if
     % desired.
-    tal = getBipolarSubjElecs(subj,1,1,1);
+    tal = getBipolarSubjElecs(subj,1,1,params.excludeEpiElecs);
     tal = filterTalByRegion(tal,params.region);
     if isempty(tal)
         fprintf('No %s electrode for %s.\n',params.region,subj)
@@ -30,7 +31,7 @@ try
     
     % load power parameters    
     % WE ARE PROBABLY GOING TO NEED SEPERATE YC1 AND YC2 params
-    powParams = load(fullfile(params.powerPath,'params.mat'));
+    powParams = load(fullfile(params.powerPath,'params_RAM_YC2.mat'));
     
     % Setting time bins for convenience:
     tEnds     = (powParams.params.pow.timeWin:powParams.params.pow.timeStep:powParams.params.eeg.durationMS)+powParams.params.eeg.offsetMS;
@@ -75,12 +76,12 @@ try
         powerData = powerData.powerData;        
     else        
         powerData       = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse,params);
-        powerDataEncAvg = loadAllPower(tal,subj,events,freqBins,[1 5000],powParams,eventsToUse,params);
+        powerDataPre = loadAllPower(tal,subj,events,freqBins,[-999 0],powParams,eventsToUse,params);
         powerData       = permute(powerData,[3 1 2 4]);
-        powerDataEncAvg = permute(powerDataEncAvg,[3 1 2 4]);
+        powerDataPre = permute(powerDataPre,[3 1 2 4]);
         if params.savePower
             powFile = fullfile(powDir,[subj '_binnedPower.mat']);
-            save(powFile,'powerData','powerDataEncAvg','params')
+            save(powFile,'powerData','powerDataPre','params')
         end
     end
     
@@ -94,6 +95,9 @@ try
     % OR the median of the YC1 data?
     Y = [events(eventsToUse).testError]';
 
+    if length(Y) < 15
+        return
+    end
     if doBinary
         Y  = Y < yc1thresh;
     end
@@ -108,12 +112,28 @@ try
     objLocs = vertcat(events(eventsToUse).objLocs);
     
     % What was the best YC1 time point?
-    p = mean(repmat(yc1Data.AUC,[size(yc1ChanceData.auc_all,1), 1]) > yc1ChanceData.auc_all);
-    maxP = max(p);
-    yc1AUC = yc1Data.AUC;
-    yc1AUC(p~=maxP) = NaN;
-    [~,bestTime] = max(yc1AUC);
+    [bestTime] = find(yc1Data.AUC == max(yc1Data.AUC),1,'first');
     
+    if modelEachTime
+       
+        
+        
+        % predict using data from the best time period in YC1 decoding
+        % using the model creating without cross validation
+        X = reshape(squeeze(powerData(:,:,bestTime,:)),size(powerData,1),nFreqs*nElecs);
+        p = glmval(yc1Data.resFull.A',X,'logit','constant','off');
+        res.fullModelProbs = p;
+        [~,~,~,res.fullModelAUC] = perfcurve(Y,p,true);
+        
+        % predict using data from the best time period in YC1 decoding
+        % using the model creating WITH cross validation      
+        A=nanmean(vertcat(yc1Data.res(bestTime).A{:}),1);
+        p = glmval(A',X,'logit','constant','off');
+        res.cvModelProbs = p;
+        [~,~,~,res.cvModelAUC] = perfcurve(Y,p,true);        
+        return
+        
+    end
     
     % We can model time points seperately, so # features = # freqs x # elecs,
     % or we can model it all together, so # features = # times x # freqs x #
@@ -219,10 +239,10 @@ try
         fname = fullfile(saveDir,[subj '_YC2_lasso.mat']);
         save(fname,'res','Y','objLocs','params','perf','tal','AUC','AUC_enc','perfEnc','resBest','AUC_best','AUC_bestEnc');
     end
-catch e
-    fname = fullfile(saveDir,[subj '_YC2_lasso_error.mat']);
-    save(fname,'e')
-end
+% catch e
+%     fname = fullfile(saveDir,[subj '_YC2_lasso_error.mat']);
+%     save(fname,'e')
+% end
 
 function powerData = loadAllPower(tal,subj,events,freqBins,timeBins,powParams,eventsToUse,params)
 
@@ -241,7 +261,7 @@ end
 for e = 1:nElecs
     elecNum = tal(e).channel;
       
-    basePath  = '/data10/scratch/jfm2/RAM/biomarker/power/';
+    basePath  = params.powerPath;
     subjPath  = fullfile(basePath,subj);
     sessions = unique([events.session]);
     subjPow  = [];

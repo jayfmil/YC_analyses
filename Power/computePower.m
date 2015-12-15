@@ -17,7 +17,7 @@ for s = 1:length(subjs)
         cd(params.savedir);
                 
         % first check if we need to compute power for a subj/session
-        doPow = 0;             
+        doPow = 1;             
         for sess = 1:length(sessions)
             sessDir = fullfile(params.savedir,subj,[task '_events'],num2str(sessions(sess)));
             if ~exist(sessDir,'dir')

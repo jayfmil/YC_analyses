@@ -23,9 +23,10 @@ end
 % save directory
 f = @(x,y) y{double(x)+1};
 y = {'OrigPower','CorrectedPower'};
+y2 = {'','average'};
 region = params.region;
 if isempty(region);region = 'all';end
-saveDir = fullfile(params.basePath,f(params.useCorrectedPower,y),region);
+saveDir = fullfile(params.basePath,f(params.useCorrectedPower,y),region,f(params.averageRegion,y2));
 if ~exist(saveDir,'dir')
     mkdir(saveDir);
 end
@@ -69,7 +70,7 @@ try
     end
     
     % load power parameters
-    powParams = load(fullfile(params.powerPath,'params.mat'));
+    powParams = load(fullfile(params.powerPath,'params_RAM_YC1.mat'));
     
     % Setting time bins for convenience:
     tEnds     = (powParams.params.pow.timeWin:powParams.params.pow.timeStep:powParams.params.eeg.durationMS)+powParams.params.eeg.offsetMS;
@@ -89,6 +90,8 @@ try
     er = [events(eventsToUse).testError];
     
     % also bin response error by region of evironment
+    respLocs = vertcat(events(eventsToUse).respLocs);
+    startLocs = vertcat(events(eventsToUse).startLocs);
     objLocs = vertcat(events(eventsToUse).objLocs);
     edgesX=linspace(0,28.4,params.numXBins+1);
     edgesY=linspace(0,14,params.numYBins+1);
@@ -122,6 +125,9 @@ try
     fprintf('Calculating average power for %d %s elecs.\n',length(tal),region)
     powerData = loadAllPower(tal,subj,events,params.freqBins,params.timeBins,powParams,eventsToUse,params);
     powerData = permute(powerData,[3 4 1 2]);
+    if params.averageRegion
+        powerData = nanmean(powerData,2);
+    end
     nElecs = size(powerData,2);
     
     % initial structure to hold results
@@ -206,7 +212,8 @@ try
     
     % save it to file
     fname = fullfile(saveDir,[subj '.mat']);
-    save(fname,'res','tal')
+    locTags = {tal.locTag};
+    save(fname,'res','tal','powerData','objLocs','respLocs','startLocs','er','locTags')
 catch
     fprintf('Error processing %s.\n',subj)
     return
@@ -230,7 +237,8 @@ end
 for e = 1:nElecs
     elecNum = tal(e).channel;
     
-    basePath  = '/data10/scratch/jfm2/RAM/biomarker/power/';
+%     basePath  = '/data10/scratch/jfm2/RAM/biomarker/power/';
+    basePath = params.powerPath;
     subjPath  = fullfile(basePath,subj);
     sessions = unique([events.session]);
     subjPow  = [];

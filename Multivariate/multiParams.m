@@ -62,9 +62,18 @@ params.encPeriod = 'both';
 %       This takes a lot longer.
 params.crossValStrictness = 0;
 
-% number of cross validation folds to compute lambda. If empty, will use
-% number of trials/2 folds.
-params.nCV = 10;
+% number of cross validation folds
+params.useKfold = false;
+params.percentCV = 4/48;
+
+% cross validation field ('blocknum' is really individiual item, 'block' is
+% two consecutive items).
+params.cvField = 'blocknum';
+
+% nested cross validation field
+params.nestedCvField = 'blocknum';
+
+params.auc_prctileThresh = 100;
 
 % ADD MULTIPLE ROUNDS OF SUB SAMPLING
 % params.subSampNum = 10
@@ -95,7 +104,7 @@ params.overwrite = 0;
 params.loadPower = 0;
 
 % exclude epileptic electrodes?
-params.excludeEpiElecs = 1;
+params.excludeEpiElecs = 0;
 
 % permute the Y, usually in the process of creating a chance distribution
 params.doPermute = 0;
