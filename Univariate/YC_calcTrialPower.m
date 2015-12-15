@@ -96,7 +96,8 @@ try
         end
         
         % zscore by session
-        zPowAll = zscore_local(powAll,[events.session]);
+        sessions = [events.session];
+        zPowAll = zscore_local(powAll,sessions);
         
         
         % save it to file
@@ -106,7 +107,7 @@ try
           fname = [num2str(chan) '.mat'];
         end      
         fname = fullfile(saveDir,fname);
-        save(fname,'powAll','zPowAll','objLocs','respLocs','startLocs','respErrs')
+        save(fname,'powAll','zPowAll','objLocs','respLocs','startLocs','respErrs','sessions')
     end
 catch e
   keyboard

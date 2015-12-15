@@ -17,14 +17,15 @@ function [perf,AUC,subject,params] = YC1_watrous_phase(subj,params,saveDir)
 %      AUC: area under the ROC curve
 %     perf: percent classifier accuracy
 %  subject: current subject
-%
+%   params: params used
 
+% initialize outputs
 perf    = [];
 subject = [];
 AUC     = [];
 
 
-% do we overwrite?
+% do we overwrite results file if it exists?
 fname = fullfile(saveDir,[subj '_lasso_pow.mat']);
 if params.usePhase==1
     fname = fullfile(saveDir,[subj '_lasso_phase.mat']);
@@ -36,15 +37,16 @@ if exist(fname,'file') && params.saveOutput && ~params.overwrite
     return
 end
 
+% Using Andrew's power and phase values.
 featureDir = fullfile('/home2/andrew.watrous/Results/YC1_Features',subj,'Features_4bands_all_elecs_11_16_2015');
 if ~exist(featureDir,'dir')
     fprintf('no data for %s.\n',subj)
     return
 end
 
+% 
 try
-    
-         
+        
     % load events
     events = get_sub_events('RAM_YC1',subj);
     
@@ -57,10 +59,10 @@ try
     if sum(eventsToUse) < 10
         fprintf('Not enough events for %s.\n',subj)
         return
-    end    
-    encPeriod = [events(eventsToUse).withinItemCount];                
-        
-    % load power
+    end
+    encPeriod = [events(eventsToUse).withinItemCount];
+    
+    % load power or phase
     [powerData,sessInds,~,tal] = loadWatrousFeatures(subj,params);
     if isempty(tal)
         fprintf('no mtl elecs for %s.\n',subj)
@@ -70,7 +72,7 @@ try
     % make sure the power values correspond to the events I expect
     if sum(eventsToUse) ~= size(powerData,1)
         fprintf('EVENTS MISMATCH FOR %s.\n',subj)
-        return        
+        return
     end
     
     % matrix to keep track of encoding trial 1 or 2 feature
@@ -87,22 +89,22 @@ try
     for t = 1:size(timeLabel,3)
         timeLabel(:,:,t,:) = t;
     end
-        
-    % get parameters            
+    
+    % get parameters
     doBinary      = params.doBinary;
     saveOutput    = params.saveOutput;
     doPermute     = params.doPermute;
     normType      = params.normType;
     useKfold      = params.useKfold;
-    cvField       = params.cvField;   
-    nestedCvField = params.nestedCvField; 
-    prctileThresh = params.auc_prctileThresh;     
-        
+    cvField       = params.cvField;
+    nestedCvField = params.nestedCvField;
+    prctileThresh = params.auc_prctileThresh;
+    
     % size of feature matrix
     nElecs = size(powerData,4);
     nTimes = size(powerData,3);
-    nFreqs = size(powerData,2);    
-    nItemObs = size(powerData,5);        
+    nFreqs = size(powerData,2);
+    nItemObs = size(powerData,5);
     
     % response data
     sessInds = sessInds(encPeriod==1);
@@ -110,7 +112,7 @@ try
     Y = Y(encPeriod==1);
     if doBinary
         Y  = Y < median(Y);
-    end    
+    end
     
     % determine the cross validation folds.
     session = session(eventsToUse);
@@ -125,24 +127,18 @@ try
     
     % permute the responses if desired
     if doPermute
-        randOrder = randperm(size(trials,1));        
+        randOrder = randperm(size(trials,1));
         if ~isfield(params,'encPeriod') || strcmpi(params.encPeriod,'both')
             randOrder = [randOrder;randOrder];
             randOrder = randOrder(:);
             Y = Y(randOrder);
         else
             Y = Y(randOrder);
-        end        
-    end        
-          
-    % We can model time points seperately, so # features = # freqs x # elecs,
-    % or we can model it all together, so # features = # times x # freqs x #
-    % elecs.
+        end
+    end
     
-    % Unlike previous versions, if modelEachTime is true, this will not
-    % create nTimes number of models. Instead, the model for fold each will
-    % be chosen based on inner fold cross validation of both penalty and
-    % time point.
+   
+    % reshape into obs x features
     res = [];
     X         = reshape(squeeze(powerData),size(powerData,1),nFreqs*nTimes*nElecs*nItemObs);
     T         = reshape(squeeze(timeLabel),size(timeLabel,1),nFreqs*nTimes*nElecs*nItemObs);
@@ -190,12 +186,12 @@ try
     % modelEachTime, do it for the optimal time
     %     bestTime = find(AUC == max(AUC),1,'first');
     %     X = reshape(squeeze(powerData(:,:,bestTime,:,:)),size(powerData,1),nFreqs*nElecs*nItemObs);
-%     resFull = doRegFullData(X,Y,T,folds,normType,sessInds);
+    %     resFull = doRegFullData(X,Y,T,folds,normType,sessInds);
     
     subject       = subj;
     params.lambda = lambda;
     if saveOutput
-        objLocs = vertcat(events(eventsToUse).objLocs); 
+        objLocs = vertcat(events(eventsToUse).objLocs);
         save(fname,'res','Y','objLocs','params','perf','tal','AUC');
     end
 catch e
@@ -262,7 +258,7 @@ parfor ind = 1:maxInd
     else
         encInds = trialType==types(thisEnc);
     end
-     
+    
     
     % hold test output
     dec_values = [];%NaN(nCV,1);
@@ -303,57 +299,57 @@ parfor ind = 1:maxInd
         [pred, acc, dec] = predict(double(yTest),sparse(xTest),model,'-b 1 -q');
         
         % keep of track of output over all folds
-%         if model.Label(1) < 0;
-%             dec = dec * -1;
-%         end
+        %         if model.Label(1) < 0;
+        %             dec = dec * -1;
+        %         end
         dec_values = [dec_values; dec(:,1)];
         labels = [labels;yTest];
         preds = [preds;pred];
-%         dec_values(cv) = dec(:,1);
-%         labels(cv) = yTest;   
-%         preds(cv) = pred;
-                        
+        %         dec_values(cv) = dec(:,1);
+        %         labels(cv) = yTest;
+        %         preds(cv) = pred;
+        
     end
     
     [~,~,~,auc_pen(ind)] = perfcurve(labels,dec_values,1);
     pcorr(ind) = mean(preds == labels);
     
-%     r = corr(models');
-%     r(r==1) = NaN;
-%     modelR(ind) = nanmean(r(:));
-%     
-%     xTrain = X(:,tInds&encInds);
-%     [xTrain,m,s] = standardize(xTrain,sessInds);
-%     
-%     pos = mean(Y==1);
-%     neg = mean(Y==-1);
-%     mean_tmp = mean([pos neg]);
-%     pos = sprintf('%f',pos/mean_tmp);
-%     neg = sprintf('%f',neg/mean_tmp);
-%     param = [liblin_param ' -w1 ' num2str(pos) ' -w-1 ' num2str(neg)];
-%     
-%     % train on this data with this cv
-%     model = train(double(Y),sparse(xTrain),param);
-%               
-%     xTest = xTest_oos(:,tInds&encInds);
-%     xTest=standardize_test(xTest,1,m,s);
-%     % predict with model
-%     yTest = double(yTest_oos);
-%     yTest(yTest==0)= -1;       
-%     [pred, acc, dec] = predict(double(yTest),sparse(xTest),model,'-b 1 -q');   
-%  
-%     act(ind) = pred == yTest;
-%     probs(ind) = dec(:,1);
-%     
-%     [pred, acc, dec] = predict(double(Y),sparse(xTrain),model,'-b 1 -q');
-%     train_err(ind) = acc(1);
-%     if thisC == 15 & thisT == 14 & thisEnc == 2
-%         save('~/wtf.mat')
-%     end
+    %     r = corr(models');
+    %     r(r==1) = NaN;
+    %     modelR(ind) = nanmean(r(:));
+    %
+    %     xTrain = X(:,tInds&encInds);
+    %     [xTrain,m,s] = standardize(xTrain,sessInds);
+    %
+    %     pos = mean(Y==1);
+    %     neg = mean(Y==-1);
+    %     mean_tmp = mean([pos neg]);
+    %     pos = sprintf('%f',pos/mean_tmp);
+    %     neg = sprintf('%f',neg/mean_tmp);
+    %     param = [liblin_param ' -w1 ' num2str(pos) ' -w-1 ' num2str(neg)];
+    %
+    %     % train on this data with this cv
+    %     model = train(double(Y),sparse(xTrain),param);
+    %
+    %     xTest = xTest_oos(:,tInds&encInds);
+    %     xTest=standardize_test(xTest,1,m,s);
+    %     % predict with model
+    %     yTest = double(yTest_oos);
+    %     yTest(yTest==0)= -1;
+    %     [pred, acc, dec] = predict(double(yTest),sparse(xTest),model,'-b 1 -q');
+    %
+    %     act(ind) = pred == yTest;
+    %     probs(ind) = dec(:,1);
+    %
+    %     [pred, acc, dec] = predict(double(Y),sparse(xTrain),model,'-b 1 -q');
+    %     train_err(ind) = acc(1);
+    %     if thisC == 15 & thisT == 14 & thisEnc == 2
+    %         save('~/wtf.mat')
+    %     end
     
     
 end
-% 
+%
 % for z = 1:size(auc_pen,3)
 %     auc_pen(:,:,z) = ndnanfilter(auc_pen(:,:,z),'rectwin',3);
 % end
@@ -389,7 +385,7 @@ function [yProbs,yPreds,yTest,A,err,lambda,tBest,encBest,Cs,Ts,aucs] = doRegFun(
 
 % get train data for this fold
 trainInds  = folds(iFold,:);
-% if doPermute               
+% if doPermute
 %     randOrder = randperm(sum(trainInds));
 %     yTmp = Y(trainInds);
 %     yTmp = yTmp(randOrder);
@@ -404,13 +400,13 @@ xTrain     = X(trainInds,:);
 xTest = X(~trainInds,:);
 yTest = Y(~trainInds);
 % if no lambda given, calculate lambda for this fold.
-if isempty(lambda)        
+if isempty(lambda)
     if ~useKfold
         [~,subFolds] = createFolds(sessInds(trainInds)',nestedCvGroup(trainInds));
     else
         [~,subFolds] = createKfolds(sum(trainInds),percentCV);
     end
-    [lambda,tBest,encBest,Cs,Ts,aucs] = calcPenalty(xTrain,yTrainBool,T,subFolds,sessions,trialType,normType,prctileThresh,xTest,yTest,nestedCvGroup(trainInds));         
+    [lambda,tBest,encBest,Cs,Ts,aucs] = calcPenalty(xTrain,yTrainBool,T,subFolds,sessions,trialType,normType,prctileThresh,xTest,yTest,nestedCvGroup(trainInds));
 end
 if encBest == 3
     trialType(:) = 3;
@@ -445,7 +441,7 @@ for nSamp = 1:maxSamp
         toRemove = randsample(find(yTrainBool==1),abs(numToRemove));
     elseif numToRemove < 0
         toRemove = randsample(find(yTrainBool~=1),abs(numToRemove));
-    end    
+    end
     trainIndsSamp = setdiff(find(trainInds),toRemove);
     
     % remove from training set
@@ -470,7 +466,7 @@ for nSamp = 1:maxSamp
     % train model
     model = train(double(yTrain),sparse(xTrain),param);
     if nSamp == 1
-       Ws = NaN(maxSamp,size(model.w,2)); 
+        Ws = NaN(maxSamp,size(model.w,2));
     end
     Ws(nSamp,:) = model.w;
     
@@ -488,7 +484,7 @@ for nSamp = 1:maxSamp
     
     preds(:,nSamp) = predSamp;
     probs(:,nSamp) = probSamp(:,1);
-           
+    
 end
 
 yProbs = mean(probs,2);
@@ -502,9 +498,9 @@ if percentCV > .5
 end
 ind = crossvalind('kfold',n,round(n/(n*percentCV)));
 nFolds = length(unique(ind));
-folds = true(nFolds,n); 
+folds = true(nFolds,n);
 for iFold = 1:nFolds
-   folds(iFold,ind==iFold) = false; 
+    folds(iFold,ind==iFold) = false;
 end
 
 
@@ -523,14 +519,14 @@ function res = doRegFullData(X,Y,T,folds,normType,sessInds)
 
 % find lambda
 res = [];
-[lambda,bestT,Cs,Ts,aucs] = calcPenalty(X,Y,T,folds,sessInds,normType); 
+[lambda,bestT,Cs,Ts,aucs] = calcPenalty(X,Y,T,folds,sessInds,normType);
 res.C = lambda;
 res.T = bestT;
 res.Cs = Cs;
 res.Ts = Ts;
 res.aucs = aucs;
 
-% standardize 
+% standardize
 X = X(:,T==bestT);
 [X,m,s] = standardize(X,sessInds);
 
@@ -563,7 +559,7 @@ sessions = unique(sessInds);
 m    = NaN(length(sessions),size(X,2));
 s    = NaN(length(sessions),size(X,2));
 for sess = 1:length(sessions)
-   
+    
     m(sess,:) = nanmean(X(sessInds==sessions(sess),:));
     s(sess,:) = nanstd(X(sessInds==sessions(sess),:));
     
@@ -571,7 +567,7 @@ for sess = 1:length(sessions)
         m(sess,:));
     
     X(sessInds==sessions(sess),:) = bsxfun(@rdivide, X(sessInds==sessions(sess),:),...
-        s(sess,:));        
+        s(sess,:));
 end
 % X(:,1) = 1;
 
@@ -586,7 +582,7 @@ for sess = 1:length(sessions)
         m(sess,:));
     
     X(sessInds==sessions(sess),:) = bsxfun(@rdivide, X(sessInds==sessions(sess),:),...
-        s(sess,:));        
+        s(sess,:));
 end
 % X(:,1) = 1;
 
@@ -599,15 +595,15 @@ sessions   = dir(fullfile(featureDir,['Session_*']));
 subjDataPow   = cell(1,4);
 subjDataPhase = cell(1,4);
 sessInds = [];
-for s = 1:length(sessions)       
+for s = 1:length(sessions)
     fname = fullfile(featureDir,sessions(s).name,'Subject_features.mat');
-    sessData = load(fname);      
+    sessData = load(fname);
     [tal,elecs] = filterTalByRegion(sessData.features.elecs,params.region);
-    sessInds = cat(1,sessInds,ones(size(sessData.features.pow.band{1},3),1)*s);    
-    for band = 1:4               
-        subjDataPow{band} = cat(3,subjDataPow{band},sessData.features.pow.band{band}(elecs,params.timeBins,:));        
-        subjDataPhase{band} = cat(3,subjDataPhase{band},sessData.features.phase.band{band}(elecs,params.timeBins,:));        
-    end    
+    sessInds = cat(1,sessInds,ones(size(sessData.features.pow.band{1},3),1)*s);
+    for band = 1:4
+        subjDataPow{band} = cat(3,subjDataPow{band},sessData.features.pow.band{band}(elecs,params.timeBins,:));
+        subjDataPhase{band} = cat(3,subjDataPhase{band},sessData.features.phase.band{band}(elecs,params.timeBins,:));
+    end
 end
 
 
@@ -625,10 +621,10 @@ for f = 1:4
     bandSin = sin(bandPhase);
     bandCos = cos(bandPhase);
     
-    for t = 1:size(bandPow,2)         
+    for t = 1:size(bandPow,2)
         dataPhase(:,f*2-1,t,:) = (bandSin(:,t,:));
-        dataPhase(:,f*2,t,:) = (bandCos(:,t,:));        
-        dataPow(:,f,t,:) = (bandPow(:,t,:));        
+        dataPhase(:,f*2,t,:) = (bandCos(:,t,:));
+        dataPow(:,f,t,:) = (bandPow(:,t,:));
         timeLabelPow(:,:,t,:) = t;
         timeLabelPhase(:,:,t,:) = t;
     end
@@ -644,7 +640,7 @@ elseif params.usePhase == 2
     powerData = cat(2,dataPow,dataPhase);
     timeLabel = cat(2,timeLabelPow,timeLabelPhase);
 end
-    
+
 
 % tal = sessData.features.elecs(elecs);
 
