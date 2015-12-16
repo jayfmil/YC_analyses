@@ -58,14 +58,16 @@ try
     
     % load events
     events    = get_sub_events('RAM_YC1',subj);
+    events    = addExtraYCFields(events);
     testInds = strcmp({events.type},'NAV_TEST') | strcmp({events.type},'NAV_PRACTICE_TEST');
     
 
     % want to save out some event specific info
     % 'objLocs','respLocs','startLocs','respErrs'
-    objLocs  = vertcat(events.objLocs);
-    respLocs = vertcat(events.respLocs);
+    objLocs   = vertcat(events.objLocs);
+    respLocs  = vertcat(events.respLocs);
     startLocs = vertcat(events.startLocs);
+    respErrs  = [events.testError]';
 
     duration = NaN(1,length(events));
     duration(~testInds) = params.duration;
