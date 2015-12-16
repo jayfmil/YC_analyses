@@ -71,7 +71,8 @@ try
 
     duration = NaN(1,length(events));
     duration(~testInds) = params.duration;
-    for e = 1:length(tal)
+    for e = 1:length(tal)        
+        fprintf('%s: electrode %d of %d.\n',subj,e,length(tal));
         
         % holds events x freqs for this elec
         powAll = NaN(length(events),length(params.freqs));
