@@ -119,6 +119,18 @@ try
     cvGroup = [events(eventsToUse).(cvField)];
     nestedCvGroup = [events(eventsToUse).(nestedCvField)];
     nestedCvGroup = nestedCvGroup(encPeriod==1);
+    if strcmpi(nestedCvField,'session')
+        if length(unique(session)) <= 2
+            fprintf('Not enough sessions for session nested crossval for %s.\n',subj)
+            return
+        end
+    end
+    if strcmpi(cvField,'session')
+        if length(unique(session)) < 2
+            fprintf('Not enough sessions for session outer crossval for %s.\n',subj)
+            return
+        end
+    end    
     if ~useKfold
         [nFolds,folds,trials] = createFolds(session(encPeriod==1),cvGroup(encPeriod==1));
     else
@@ -611,6 +623,7 @@ dataPow = NaN(length(sessInds),4,size(subjDataPow{1},2),size(subjDataPow{1},1));
 dataPhase = NaN(length(sessInds),4*2,size(subjDataPhase{1},2),size(subjDataPhase{1},1));
 timeLabelPow = NaN(1,size(dataPow,2),size(dataPow,3),size(dataPow,4));
 timeLabelPhase = NaN(1,size(dataPhase,2),size(dataPhase,3),size(dataPhase,4));
+keyboard
 
 for f = 1:4
     bandPow = subjDataPow{f};
