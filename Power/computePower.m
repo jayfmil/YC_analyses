@@ -48,10 +48,10 @@ for s = 1:length(subjs)
             % compute power
             if doPow    
                 
-                 if isempty(gcp('nocreate'))
-                     num_nodes = 30;mem = '12G';
-                     open_rhino2_pool(num_nodes,mem);
-                 end
+%                  if isempty(gcp('nocreate'))
+%                      num_nodes = 30;mem = '12G';
+%                      open_rhino2_pool(num_nodes,mem);
+%                  end
 
                 sess_events = events([events.session]==sessions(sess));
                 parfor iElec = 1:length(tal)
@@ -79,20 +79,31 @@ end
 % ComputePow_local: parallel power over electrodes
 function [] = ComputePow_local(Elec,events,sessDir,params,task,fileExt)
 
-[EEG] = ComputeEEG(Elec.channel,events,params);
-[PowMat,~] = ComputePow(EEG,params);
-% fname = sprintf('%d-%d_raw.mat',Elec.channel(1),Elec.channel(2));
-cd_mkdir(sessDir);
-%save(fname,'PowMat');
 
-if strcmp(params.pow.type,'wavelet')
-    [binPowMat] = BinPow(PowMat,params.pow.timeWin,params.pow.timeStep,...
-        params.eeg.sampFreq,params.pow.freqs,params.pow.freqBins);
-elseif strcmp(params.pow.type,'fft_slep')
-    binPowMat = mean(PowMat,2);
+if ~params.useGetPhasePow
+    phase = [];
+    [EEG] = ComputeEEG(Elec.channel,events,params);
+    [PowMat,~] = ComputePow(EEG,params);
+    
+    % fname = sprintf('%d-%d_raw.mat',Elec.channel(1),Elec.channel(2));
+    cd_mkdir(sessDir);
+    %save(fname,'PowMat');
+    
+    if strcmp(params.pow.type,'wavelet')
+        [binPowMat] = BinPow(PowMat,params.pow.timeWin,params.pow.timeStep,...
+            params.eeg.sampFreq,params.pow.freqs,params.pow.freqBins);
+    elseif strcmp(params.pow.type,'fft_slep')
+        binPowMat = mean(PowMat,2);
+    end
+    clear PowMat;
+else
+    dsamp = round(1000/params.pow.timeStep);
+    [phase,binPowMat] = getphasepow_bipol(Elec.channel,events,params.eeg.durationMS,params.eeg.offsetMS,params.eeg.bufferMS,'freqs',params.pow.freqs,'width',params.pow.wavenum,'filtfreq',params.eeg.filtfreq,'filttype',params.eeg.filttype,'filtorder',params.eeg.filtorder,'downsample',dsamp);
+    binPowMat = permute(binPowMat,[2 3 1]);
+    binPowMat = log10(binPowMat);
+    phase     = permute(phase,[2 3 1]);
 end
 
-clear PowMat;
 
 % use mean/sd across word events to zscore
 if strcmp(task,'RAM_YC1')
@@ -110,6 +121,7 @@ zPowMat     = zScorePow(binPowMat,PowMean,PowSTD);
 sessOutput.pow = zPowMat;
 sessOutput.meanBasePow = PowMean;
 sessOutput.stdBasePow = PowSTD;
+sessOutput.phase = phase;
 
 if params.regressTrialNumber
     binPowRegress = NaN(size(binPowMat));

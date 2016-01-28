@@ -1,4 +1,4 @@
-function YC1_makeCorrPlots(subjs,params)
+function figs = YC1_makeCorrPlots(subjs,params)
 % function YC1_makeUnivarSubjectReports(subjs,params)
 %
 % Inputs:
@@ -21,9 +21,10 @@ end
 % save directory
 f = @(x,y) y{double(x)+1};
 y = {'OrigPower','CorrectedPower'};
+y2 = {'','average'};
 region = params.region;
 if isempty(region);region = 'all';end
-dataDir = fullfile(params.basePath,f(params.useCorrectedPower,y),region);
+dataDir = fullfile(params.basePath,f(params.useCorrectedPower,y),region,f(params.averageRegion,y2));
 saveDir = fullfile(dataDir,'reports');
 if ~exist(saveDir,'dir')
     mkdir(saveDir);
@@ -40,13 +41,16 @@ if ~exist('figDir','dir')
     mkdir(figDir)
 end
 
+% structre to hold figure paths
+figs = [];
+
 % This loop loads the data from each subject and concatenates all subjects
 % in to one large structure
 subjDataAll =  [];
 for s = 1:length(subjs)                
     
     subj = subjs{s};
-    subjFile = fullfile(dataDir,[subj '.mat']);
+    subjFile = fullfile(dataDir,[subj '.mat']);    
     if ~exist(subjFile,'file')
         fprintf('Subject data not found for %s.\n',subj)
         continue
@@ -75,7 +79,7 @@ for s = 1:length(subjs)
 end
 
 % now that all the data is loaded, plot stuff..
-% bar plot with corr coeff for each freq range
+% bar plot with  corr coeff for each freq range
 meanR = NaN(1,length(fields));
 semR  = NaN(1,length(fields));
 pR    = NaN(1,length(fields));
@@ -87,6 +91,10 @@ meanRouter = NaN(1,length(fields));
 semRouter  = NaN(1,length(fields));
 
 for f = 1:length(fields)
+    if f == 1
+        figs.numElecs = length(subjDataAll.HFA.r);
+    end
+    
     % note: I'm flipping the sign so that positive correlations indicate
     % better performance
     meanR(f)  = nanmean(-subjDataAll.(fields{f}).r);
@@ -123,6 +131,7 @@ set(gca,'xlim',[0 length(meanR)+1])
 % set(gca,'xticklabel',{'1-3','3-9','40-70','70-200'})
 set(gca,'xticklabel',freqStr)
 fname = fullfile(figDir,'corrByFreq.eps');
+figs.corrByFreq = fname;
 print('-depsc2','-loose',fname)
 
 % Figure 2: average correlation for each freq band for center trials
@@ -140,6 +149,7 @@ ylabel('Mean Pearson Coef.','fontsize',26);
 set(gca,'fontsize',26)
 set(gca,'xlim',[0 length(meanR)+1])
 fname = fullfile(figDir,'corrByFreqInner.eps');
+figs.corrByFreqInner = fname;
 print('-depsc2','-loose',fname)
 
 % Figure 3: average correlation for each freq band for outer trials
@@ -157,8 +167,8 @@ ylabel('Mean Pearson Coef.','fontsize',26);
 set(gca,'fontsize',26)
 set(gca,'xlim',[0 length(meanR)+1])
 fname = fullfile(figDir,'corrByFreqOuter.eps');
+figs.corrByFreqOuter = fname;
 print('-depsc2','-loose',fname)
-keyboard
 
 function sout = mergestruct(struct1,struct2)
 

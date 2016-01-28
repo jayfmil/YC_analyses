@@ -1,11 +1,17 @@
 function events = addExtraYCFields(events)
-% add testError field
-% add inner field (1 = inner region, 0 = outer region)
+% function events = addExtraYCFields(events)
+% 
+% adds some fields to the YC events stucture for convenience
+%
+%       testError - adds the performance score from the test events to the
+%                   associated learn events
+%     recalledNew - good or bad performance, based on median split
+% withinItemCount - 1: encoding period 1. 2: encoding period 2: 3: test
 
 testInd = strcmp({events.type},'NAV_TEST');
 recEvents = events(testInd);
 [events.testError] = deal(NaN);
-[events.recalled] = deal(NaN);
+[events.recalledNew] = deal(NaN);
 [events.inner] = deal(NaN);
 [events.sessionHalf] = deal(0);
 [events.withinItemCount] = deal(0);
@@ -32,15 +38,17 @@ for sess = 1:length(uniqSess)
 end
 [events(sessPerc>.5).sessionHalf] = deal(1);
 
-
+thresh = median([recEvents.respPerformanceFactor]);
 for rec = 1:length(recEvents);
     session = recEvents(rec).session;
     trial = recEvents(rec).blocknum;
     err = recEvents(rec).respPerformanceFactor;
     ind = sessVec == session & trialVec == trial;
+    [events(ind).recalledNew] = deal(err<thresh);
     [events(ind).testError] = deal(err);
     [events(ind).inner] = deal(abs(recEvents(rec).objLocs(1)) < 568/30 && abs(recEvents(rec).objLocs(2)) < 7);
 end
+
 
 
 

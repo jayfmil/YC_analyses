@@ -57,6 +57,8 @@ params.pow.timeWin      = 20;
 params.pow.timeStep     = 20;
 params.pow.freqBins     = logspace(log10(1),log10(200),50);
 
+params.useGetPhasePow   = 1;
+
 % for fft slep power
 params.pow.bandwidth    = 2;
 params.pow.winSize      = .4;
@@ -70,7 +72,7 @@ params.eventsYC1        = @(events)strcmp({events.type},'NAV_LEARN') | strcmp({e
 
 % If YC2, use all non-stim learning trials to zscore
 params.eventsYC2        = @(events)[events.isStim]==0&(strcmp({events.type},'NAV_LEARN') | strcmp({events.type},'NAV_LEARN_HARD'));
-params.savedir          = '/data10/scratch/jfm2/power';
+params.savedir          = '/data10/scratch/jfm2/power50freqs';
 cd_mkdir(params.savedir); save(['params_',task,'.mat'],'params');
 
 % compute powers
@@ -78,36 +80,36 @@ fileExt = '';
 computePower(task,subjs,params,fileExt)
 
 %%%%% create YC2 power using wavelets
-task = 'RAM_YC2';
-subjs = get_subs(task);
-
-% compute powers
-fileExt = '';
-computePower(task,subjs,params,fileExt)
-cd_mkdir(params.savedir); save(['params_',task,'.mat'],'params');
-
-%%%% create YC2 post stim power with fft_slep method
-params.pow.type         = 'fft_slep';
-params.eeg.offsetMS     = 5100;
-params.eeg.durationMS   = 1900;
-params.eeg.wavenum = NaN;
-params.eeg.timeWin = NaN;
-params.eeg.timeStep = NaN;
-
-cd_mkdir(params.savedir); save(['params_post_',task,'.mat'],'params');
-
-% compute powers
-fileExt = '_post';
-computePower(task,subjs,params,fileExt)
-
-%%%% create YC2 pre stim power with fft_slep method
-params.pow.type         = 'fft_slep';
-params.eeg.offsetMS     = -2000;
-params.eeg.durationMS   = 1900;
-
-
-cd_mkdir(params.savedir); save(['params_pre_',task,'.mat'],'params');
-
-% compute powers
-fileExt = '_pre';
-computePower(task,subjs,params,fileExt)
+% task = 'RAM_YC2';
+% subjs = get_subs(task);
+% 
+% % compute powers
+% fileExt = '';
+% computePower(task,subjs,params,fileExt)
+% cd_mkdir(params.savedir); save(['params_',task,'.mat'],'params');
+% 
+% %%%% create YC2 post stim power with fft_slep method
+% params.pow.type         = 'fft_slep';
+% params.eeg.offsetMS     = 5100;
+% params.eeg.durationMS   = 1900;
+% params.eeg.wavenum = NaN;
+% params.eeg.timeWin = NaN;
+% params.eeg.timeStep = NaN;
+% 
+% cd_mkdir(params.savedir); save(['params_post_',task,'.mat'],'params');
+% 
+% % compute powers
+% fileExt = '_post';
+% computePower(task,subjs,params,fileExt)
+% 
+% %%%% create YC2 pre stim power with fft_slep method
+% params.pow.type         = 'fft_slep';
+% params.eeg.offsetMS     = -2000;
+% params.eeg.durationMS   = 1900;
+% 
+% 
+% cd_mkdir(params.savedir); save(['params_pre_',task,'.mat'],'params');
+% 
+% % compute powers
+% fileExt = '_pre';
+% computePower(task,subjs,params,fileExt)

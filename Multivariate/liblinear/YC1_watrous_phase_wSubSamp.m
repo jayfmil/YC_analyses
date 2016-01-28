@@ -1,4 +1,4 @@
-function [perf,AUC,subject,params] = YC1_watrous_phase(subj,params,saveDir)
+function [perf,AUC,subject,params] = YC1_watrous_phase_wSubSamp(subj,params,saveDir)
 % function [perf,AUC,subject,params] = YC1_runMulti_subj_ROC(subj,params,saveDir)
 %
 % Inputs:
@@ -181,17 +181,16 @@ try
     end
     
     % permute the responses if desired
-    
-%     if doPermute
-%         randOrder = randperm(size(trials,1));
-%         if ~isfield(params,'encPeriod') || strcmpi(params.encPeriod,'both')
-%             randOrder = [randOrder;randOrder];
-%             randOrder = randOrder(:);
-%             Y = Y(randOrder);
-%         else
-%             Y = Y(randOrder);
-%         end
-%     end
+    if doPermute
+        randOrder = randperm(size(trials,1));
+        if ~isfield(params,'encPeriod') || strcmpi(params.encPeriod,'both')
+            randOrder = [randOrder;randOrder];
+            randOrder = randOrder(:);
+            Y = Y(randOrder);
+        else
+            Y = Y(randOrder);
+        end
+    end
     
     
     % reshape into obs x features
@@ -199,19 +198,7 @@ try
     X         = reshape(squeeze(powerData),size(powerData,1),nFreqs*nTimes*nElecs*nItemObs);
     T         = reshape(squeeze(timeLabel),size(timeLabel,1),nFreqs*nTimes*nElecs*nItemObs);
     trialType = reshape(squeeze(encLabel),size(encLabel,1),nFreqs*nTimes*nElecs*nItemObs);
-%     if params.randX
-%         X = randn(size(X));
-%     end
     
-    fakeX = NaN(size(X));
-    for row = 1:size(X,1)
-        for c = 1:size(X,2)
-            
-            r = randi(size(X,1));
-            fakeX(row,c) = X(r,c);
-        end
-    end
-    X = fakeX;
  
     % run for each fold
     [res.yProb,res.yPred,res.yTest,res.A,res.intercept,res.err,...
@@ -228,7 +215,7 @@ try
             res.encBest{iFold},...
             res.Cs{iFold},...
             res.Ts{iFold},...
-            res.aucs{iFold}] = doRegFun(X,Y,T,folds,iFold,lambda,normType,sessInds,trialType,prctileThresh,nestedCvGroup,params.percentCV,useKfold,Cs,tBest,encBest,doCalcPenalty,doPermute);
+            res.aucs{iFold}] = doRegFun(X,Y,T,folds,iFold,lambda,normType,sessInds,trialType,prctileThresh,nestedCvGroup,params.percentCV,useKfold,Cs,tBest,encBest,doCalcPenalty);
         fprintf('Subject %s: Fold %d of %d, %.3f running percent correct.\n',subj,iFold,nFolds,mean(vertcat(res.err{:})))
         
     end
@@ -309,33 +296,18 @@ parfor ind = 1:maxInd
     % hold test output
     dec_values = [];%NaN(nCV,1);
     labels = [];%NaN(nCV,1);
-    preds = [];%NaN(nCV,1); 
+    preds = [];%NaN(nCV,1);
     
 %     models = [];
     for cv = 1:nCV
         
         inds = folds(cv,:);
         
-        % make sure the classes are balanced by doing a number of subsampling
-        % rounds. First see how many observations to remove to balance them
-%         keyboard
-        yTrainBool = Y(inds);
-        numToRemove = sum(yTrainBool==1) - sum(yTrainBool==-1);
-        toRemove = [];
-%         if numToRemove~=0;keyboard
-%         end
-        if numToRemove > 0
-            toRemove = randsample(unique([find(~inds) find(Y==1)']),abs(numToRemove));
-        elseif numToRemove < 0
-            toRemove = randsample(unique([find(~inds) find(Y~=1)']),abs(numToRemove));
-        end
-        trainIndsSamp = setdiff(find(inds),toRemove);
-        
         % train data for this cv
-        xTrain = X(trainIndsSamp,tInds&encInds);
+        xTrain = X(inds,tInds&encInds);
         %         xTrain = [ones(sum(inds),1) xTrain];
-        yTrain = Y(trainIndsSamp);
-        [xTrain,m,s] = standardize(xTrain,sessInds(trainIndsSamp));        
+        yTrain = Y(inds);
+        [xTrain,m,s] = standardize(xTrain,sessInds(inds));
         
         % test data for this cv
         xTest =  X(~inds,tInds&encInds);
@@ -395,7 +367,7 @@ encBest = types(encBest);
 
 
 
-function [yProbs,yPreds,yTest,A,err,lambda,tBest,encBest,Cs,Ts,aucs] = doRegFun(X,Y,T,folds,iFold,lambda,normType,sessInds,trialType,prctileThresh,nestedCvGroup,percentCV,useKfold,Cs,tBest,encBest,doCalcPenalty,doPermute)
+function [yProbs,yPreds,yTest,A,err,lambda,tBest,encBest,Cs,Ts,aucs] = doRegFun(X,Y,T,folds,iFold,lambda,normType,sessInds,trialType,prctileThresh,nestedCvGroup,percentCV,useKfold,Cs,tBest,encBest,doCalcPenalty)
 % This does the classification.
 % X = # trials x # features
 % Y = # trials vector of responses
@@ -410,19 +382,18 @@ function [yProbs,yPreds,yTest,A,err,lambda,tBest,encBest,Cs,Ts,aucs] = doRegFun(
 
 % get train data for this fold
 trainInds  = folds(iFold,:);
-if doPermute
-    randOrder = randperm(sum(trainInds));
-    yTmp = Y(trainInds);
-    yTmp = yTmp(randOrder);
-    Y(trainInds) = yTmp;
-end
+% if doPermute
+%     randOrder = randperm(sum(trainInds));
+%     yTmp = Y(trainInds);
+%     yTmp = yTmp(randOrder);
+%     Y(trainInds) = yTmp;
+% end
 
 sessions   = sessInds(trainInds);
 % encType    = trialType(trainInds);
 yTrainBool = Y(trainInds);
 xTrain     = X(trainInds,:);
 
-    
 % if no lambda given, calculate lambda for this fold.
 if doCalcPenalty
     if ~useKfold
@@ -450,43 +421,36 @@ end
 
 % make sure the classes are balanced by doing a number of subsampling
 % rounds. First see how many observations to remove to balance them
-numToRemove = sum(yTrainBool) - sum(~yTrainBool);
-maxSamp = 1;
+numToRemove = sum(yTrainBool) - sum(~yTrainBool)
+maxSamp = 100;
 % numToRemove = 0;
-% if numToRemove == 0
-%     maxSamp = 1;
-% end
+if numToRemove == 0
+    maxSamp = 1;
+end
 
 % will store output from each round
 preds = NaN(sum(~trainInds),maxSamp);
 probs = NaN(sum(~trainInds),maxSamp);
-preds = NaN(1,maxSamp);
-probs = NaN(1,maxSamp);
- 
+
 for nSamp = 1:maxSamp
     
     % pick obs to remove
     toRemove = [];
     if numToRemove > 0
-%         toRemove = randsample(find(yTrainBool==1),abs(numToRemove));
-%         toRemove = randsample(find(Y(trainInds)==1),abs(numToRemove));
-        toRemove = randsample(unique([find(~trainInds) find(Y==1)']),abs(numToRemove));
+        toRemove = randsample(find(yTrainBool==1),abs(numToRemove));
     elseif numToRemove < 0
-%         toRemove = randsample(find(yTrainBool~=1),abs(numToRemove));
-%         toRemove = randsample(find(Y(trainInds)~=1),abs(numToRemove));
-        toRemove = randsample(unique([find(~trainInds) find(Y~=1)']),abs(numToRemove));
-    end    
+        toRemove = randsample(find(yTrainBool~=1),abs(numToRemove));
+    end
     trainIndsSamp = setdiff(find(trainInds),toRemove);
-     
+    
     % remove from training set
     % training set x
     xTrain = X(trainIndsSamp,T==tBest & trialType==encBest);
-     
+    
     % training set y
     yTrain = double(Y(trainIndsSamp));
     yTrain(yTrain==0) = -1;
     
-     
     % standardize training data
     [xTrain,m,s] = standardize(xTrain,sessInds(trainIndsSamp));
     
@@ -506,7 +470,6 @@ for nSamp = 1:maxSamp
     Ws(nSamp,:) = model.w;
     
     % testing set
-%     trainInds(toRemove) = 1;
     xTest = X(~trainInds,T==tBest & trialType==encBest);
     yTest = double(Y(~trainInds));
     yTest(yTest==0) = -1;
@@ -514,55 +477,13 @@ for nSamp = 1:maxSamp
     % standardize testing data
     xTest = standardize_test(xTest,sessInds(~trainInds),m,s);
     
-    
-%     probs = [];
-%     fakeX = NaN(1,size(xTrain,2));
-%     for i = 1:100
-%     for c = 1:size(xTrain,2)
-%        
-%         r = randi(size(xTrain,1));
-%         fakeX(c) = xTrain(r,c);
-%         
-%     end
-%     [predSamp, acc, probSamp] = predict(double(yTest),sparse(fakeX),model,'-b 1 -q')
-%     probs(i) = probSamp(1);
-%     end
-% %     % predict
-% %     fakeX = randn(size(xTest));
-% %     
-% % %     fakeX = ones(size(xTest));
-% % 	r = randi(length(trainIndsSamp))
-% %     
-%     ps = [];
-%     accs = [];
-%     prob = [];
-%     for r = 1:size(xTrain,1)
-%         fakeX = xTrain(r,:);
-%         fakeY = yTrain(r);
-% %         fakeX = X(trainIndsSamp(r),T==tBest & trialType==encBest);
-% %         fakeX = standardize_test(fakeX,sessInds(~trainInds),m,s);        
-%         [predSamp, acc, probSamp] = predict(double(yTest),sparse(fakeX),model,'-b 1 -q');
-%         [predSamp, acc, probSamp] = predict(double(fakeY),sparse(fakeX),model,'-b 1 -q');
-%         ps = [ps;predSamp];
-%         accs = [accs;acc(1)];
-%         prob = [prob;probSamp(1)];
-% end
-%     
-%     [predSamp, acc, probSamp] = predict(double(yTest),sparse(xTest),model,'-b 1 -q');
-%     
-%     y = Y(toRemove);
-%     y = double(y);
-%     y(y==0) = -1;
-%     x = X(toRemove,T==tBest & trialType==encBest);
-%     x = standardize_test(x,sessInds(~trainInds),m,s); 
-%      [predSamp, acc, probSamp] = predict(y,sparse(x),model,'-b 1 -q');
+    % predict
+    [predSamp, acc, probSamp] = predict(double(yTest),sparse(xTest),model,'-b 1 -q');
     % same as p = glmval(model.w',xTest,'logit','constant','off')?
     
-    [predSamp, acc, probSamp] = predict(double(yTest),sparse(xTest),model,'-b 1 -q');
     preds(:,nSamp) = predSamp;
     probs(:,nSamp) = probSamp(:,1);
     
-       
 end
 
 yProbs = mean(probs,2);
@@ -740,8 +661,6 @@ nTimes = size(timeBins,1);
 nEvents = sum(eventsToUse);
 nElecs = length(tal);
 
-powerParams = load(fullfile(params.powerPath,'params_RAM_YC1.mat'));
-freqs       = powerParams.params.pow.freqs;
 
 % when loading power, use either original power or power with effect of
 % trial number removed.
@@ -768,12 +687,7 @@ for e = 1:nElecs
         sessPow = load(fname);
         
         if e == 1;
-            if isempty(params.freqBins)
-                nFreqs = size(sessPow.sessOutput.pow,1);
-            else
-                nFreqs = size(params.freqBins,1);
-            end
-            nFreqsPhase = size(sessPow.sessOutput.pow,1);
+            nFreqs = size(sessPow.sessOutput.pow,1);
             powerData = NaN(nFreqs,nTimes,nEvents,nElecs);
             phaseData = NaN(nFreqs*2,nTimes,nEvents,nElecs);
         end
@@ -784,21 +698,9 @@ for e = 1:nElecs
         nE = size(sessPow.sessOutput.(powField),3);
         pow = zPow .* repmat(sessPow.sessOutput.(stdField),[1 nT nE]) + repmat(sessPow.sessOutput.(meanField),[1 nT nE]);
         %         pow = zPow;
-        
-        if nFreqs > 0
-            powTmp = NaN(nFreqs,size(pow,2),size(pow,3));
-            for f = 1:nFreqs
-                fInds = freqs >= params.freqBins(f,1) & freqs <= params.freqBins(f,2);
-                powTmp(f,:,:) = nanmean(pow(fInds,:,:),1);                
-            end
-            pow = powTmp;
-        end        
-        
         subjPow = cat(3,subjPow,pow);
         subjPhase = cat(3,subjPhase,sessPow.sessOutput.phase);
         sessInds = cat(1,sessInds,ones(nE,1)*s);
-        
-        
     end
     
     if length(eventsToUse) ~= size(subjPow,3)
@@ -809,7 +711,7 @@ for e = 1:nElecs
     subjPhase  = subjPhase(:,:,eventsToUse);
     sessInds   = sessInds(eventsToUse);
     
-    % average times 
+    % average times
     for t = 1:nTimes
         tStart = params.timeBins(t,1);
         tEnd = params.timeBins(t,2);
@@ -818,7 +720,7 @@ for e = 1:nElecs
                 
         % can't specific a dimenstion in circmean, so have to loop?
         for ev = 1:size(phaseData,3);
-            for f = 1:nFreqsPhase
+            for f = 1:nFreqs
                 theta = circmean(subjPhase(f,tInds,ev));
                 phaseData(f*2-1,t,ev,e) = sin(theta);
                 phaseData(f*2,t,ev,e) = cos(theta);

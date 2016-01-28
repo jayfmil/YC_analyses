@@ -32,6 +32,7 @@ params.useCorrectedPower = 0;
 
 % path to power data
 params.powerPath = '/data10/scratch/jfm2/power';
+params.preAveragePowerPath = '/scratch/jfm2/YC1/averageTrialPower';
 
 % save the output to a file? Might not want to in some casesm for example
 % creating a chance distribution
