@@ -30,8 +30,12 @@ for s = 1:length(subjs)
                 % session
                 
                 for iElec = 1:length(tal)
-                    if strcmp(params.pow.type,'wavelet')
-                        fname = sprintf('%d-%d%s.mat',tal(iElec).channel(1),tal(iElec).channel(2),fileExt);
+                    if strcmp(params.pow.type,'wavelet') || strcmp(params.pow.type,'hilbert')
+                        if params.doBipol
+                            fname = sprintf('%d-%d%s.mat',tal(iElec).channel(1),tal(iElec).channel(2),fileExt);
+                        else
+                            fname = sprintf('%d%s.mat',tal(iElec).channel(1),fileExt);
+                        end
                     elseif strcmp(params.pow.type,'fft_slep')
                         fname = sprintf('%d-%d%s.mat',tal(iElec).channel(1),tal(iElec).channel(2),fileExt);                        
                     else
@@ -79,8 +83,43 @@ end
 % ComputePow_local: parallel power over electrodes
 function [] = ComputePow_local(Elec,events,sessDir,params,task,fileExt)
 
+if params.doBipol
+    for k=1:length(events)
+        events(k).eegfile=regexprep(events(k).eegfile,'eeg.reref','eeg.noreref');
+    end    
+end
 
-if ~params.useGetPhasePow
+if strcmp(params.pow.type,'hilbert')
+    [phase,amp,eeg] = gethilbertphase_bipol(Elec.channel,events,params.eeg.durationMS,params.eeg.offsetMS,params.eeg.bufferMS,params.pow.freqs,60);
+
+    pow = amp.^2;
+    pow(pow<=0) = eps;
+    pow = log10(pow);    
+   
+    resampledrate = GetRateAndFormat(events(2));
+    dsamp = round(1000/params.pow.timeStep);
+    dmate = round(resampledrate/dsamp);
+    
+%     dsDur = ceil(size(pow,3)/params.pow.timeStep);    
+    dsDur = ceil((size(phase,3) / (resampledrate/1000))/params.pow.timeStep);
+    
+    dpow = zeros(size(pow,1),size(pow,2),dsDur);   
+    dphase = zeros(size(phase,1),size(phase,2),dsDur);
+    
+    for e = 1:size(amp,1)
+        fprintf('%d ',e);
+        for f = 1:size(amp,2)
+            powTmp = decimate(double(pow(e,f,:)),dmate);
+            dpow(e,f,1:length(powTmp)) = powTmp;
+            phaseTmp = mod(decimate(double(unwrap(phase(e,f,:))),dmate)+pi,2*pi)-pi;            
+            dphase(e,f,1:length(phaseTmp)) = phaseTmp;
+        end
+    end
+    
+    phase = permute(dphase,[2 3 1]);
+    binPowMat = permute(dpow,[2 3 1]);
+
+elseif ~params.useGetPhasePow
     phase = [];
     [EEG] = ComputeEEG(Elec.channel,events,params);
     [PowMat,~] = ComputePow(EEG,params);
@@ -145,7 +184,11 @@ if params.regressTrialNumber
     sessOutput.stdBasePowCorr  = PowSTD;
 end
 
-fname = sprintf('%d-%d%s.mat',Elec.channel(1),Elec.channel(2),fileExt);
+if params.doBipol
+    fname = sprintf('%d-%d%s.mat',Elec.channel(1),Elec.channel(2),fileExt);
+else
+    fname = sprintf('%d%s.mat',Elec.channel(1),fileExt);
+end
 cd_mkdir(sessDir);
 save(fname,'sessOutput');
 

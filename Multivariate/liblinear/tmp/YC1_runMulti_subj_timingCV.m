@@ -435,7 +435,7 @@ end
 
 % return C and T with first auc above threshold
 % [cBest,tBest] = find(auc_pen==max(auc_pen(:)),1,'first');
-
+keyboard
 thresh = prctile(auc_pen(:),prctileThresh);
 ind=find(auc_pen>=thresh,1,'first');
 [cBest,tBest]=ind2sub(size(auc_pen),ind);

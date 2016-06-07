@@ -7,21 +7,15 @@ params.library = 'liblinear';
 % frequency bins to use
 params.freqBins = [1 3;3 9;40 70;70 200];
 
-% time bins to use (this depends on the RAM auto computed power time window)
-% params.timeBins = [-999 0;1 1000;1001 4000;4001 5000];
-timeStep = 1000;
-% params.timeBins = [[-999:timeStep:6000]' [(-999+timeStep-1):timeStep:6000]'];
-%params.timeBins = [1 1000;1001 4000;4001 5000];
-% params.timeBins = [1 1000;1001 2000;2001 5000;5001 6000;6001 7000];
-% params.timeBins = [-999 0;1 1000;1001 4000;4001 5000;5001 6000];
-% params.timeBins = [-999 0;1 1000;1001 4000;4001 5000;5001 6000;1 5000];
-params.timeBins = [[-999:timeStep:6000]' [(-999+timeStep-1):timeStep:6000]';1 5000];
+timeBins = {[1 1000;1001 2000;2001 3000;3001 4000;4001 5000]};
+fun = @(x) ceil((x+1000)/20);
+params.timeBins = cellfun(fun,timeBins,'uniformoutput',false);
 
 % for the reporting functions (makeSubjectReports and weightsByRegion),
 % timeBinLabels is used to make label specific timepoints. If you don't
 % want the labels, make it ''. If not empty, must be the same size as
 % params.timeBins.
-params.timeBinLabels = {'Pre','Spin','Drive1','Drive2','Drive3','Wait','Post','Enc'};
+params.timeBinLabels = {'Pre','Spin','Drive1','Drive2','Drive3','Wait'};
 
 % regions. If empty, use all electrodes. Choices right now are:
 %          'mtl', 'hipp', 'ec', 'all', 'ca1','ca3','dg','sub','phc','prc',
@@ -33,7 +27,7 @@ params.modelEachTime = 1;
 
 % filter to events of interest
 params.eventFilter = @(events)allEncodingEvents(events);
-params.basePath    = '/data10/scratch/jfm2/YC1/multi/lassoReg_allEncoding_binary_1sPlusEnc_bins_all_elecs_10CV';
+params.basePath    = '/data10/scratch/jfm2/YC1/multi';
 
 % save out binned power to mat file?
 params.savePower = 1;
@@ -45,13 +39,13 @@ params.doBinary = 1;
 params.useCorrectedPower = 0;
 
 % path to power data
-params.powerPath = '/data10/scratch/jfm2/power';
+params.powerPath = '/data10/scratch/jfm2/power50freqs';
 
 % In YC1/2, each item has two encoding periods. When selecting features, do
 % we use just the first period ('first'), just the second period
 % ('second'), use both but keep them as seperate observations ('both'), or
 % use both but combine them ('combine'), or use the average ('average')
-params.encPeriod = 'both';
+params.encPeriod = 'second';
 
 % cross validation strictness.
 %   0 = use all the data to calculate optimal lambda, and apply the model
@@ -60,7 +54,7 @@ params.encPeriod = 'both';
 %       more correct because then the test data is totall removed from the
 %       train data (i.e., no peaking when calculating optimal penalty).
 %       This takes a lot longer.
-params.crossValStrictness = 0;
+params.crossValStrictness = 1;
 
 % number of cross validation folds
 params.useKfold = false;
@@ -105,6 +99,11 @@ params.loadPower = 0;
 
 % exclude epileptic electrodes?
 params.excludeEpiElecs = 0;
+
+params.Cs = [];
+params.Gs = [];
+params.usePhase = 0;
+params.useWatrous = 0;
 
 % permute the Y, usually in the process of creating a chance distribution
 params.doPermute = 0;

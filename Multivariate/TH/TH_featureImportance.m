@@ -1,0 +1,296 @@
+function TH_featureImportance(subjs,params,overwrite,just_loso)
+
+
+% overwrite exisiting figures?
+if ~exist('overwrite','var') || isempty(overwrite)
+    overwrite = false;
+end
+
+if ~exist('just_loso','var') || isempty(just_loso)
+    just_loso = false;
+end
+
+
+% get list of TH subjects
+if ~exist('subjs','var') || isempty(subjs)
+    subjs = get_subs('RAM_TH1');
+end
+
+% rois to use
+regions = {'mtl','hipp','ec','frontal','parietal','temporal','occipital'};
+regions = {'IFG','MFG','SFG','MTL','Hipp','TC','IPC','SPC','OC'};
+
+neg = [linspace(0,1,32)' linspace(0,1,32)' ones(32,1)];
+pos = [ones(32,1) linspace(1,0,32)' linspace(1,0,32)'];
+cmap = [neg;pos(2:end,:)]; colormap(cmap);
+
+dataDir = params.basePath;
+powDir  = fullfile(params.basePath,'power');
+figDir  = fullfile(dataDir,'reports');
+if ~exist(figDir,'dir');mkdir(figDir);end
+figs = [];
+for s = 1:length(subjs)
+    try
+        subj = subjs{s};
+        fprintf('Calculating feature importance %s.\n',subj);
+        
+        % will hold subject specific figure paths
+        figs_subj = struct('subj',[],'nElecs',[],'fowardModel',[]);
+        if isempty(params.region)
+            params.region = 'all';
+        end
+        figs_subj.subj   = subj;
+        
+        % see if files exist for subject. if not, continue
+        classFile = fullfile(dataDir,[subj '_class_pow.mat']);
+        powFile   = fullfile(powDir,[subj '_power.mat']);
+        if params.usePhase==1
+            classFile = fullfile(dataDir,[subj '_class_phase.mat']);
+            powFile   = fullfile(powDir,[subj '_phase.mat']);
+        elseif params.usePhase==2
+            classFile = fullfile(dataDir,[subj '_class_phaseAndPow.mat']);
+            powFile   = fullfile(powDir,[subj '_phaseAndPow.mat']);
+        end
+        if ~exist(classFile,'file')
+            fprintf('File not found for %s.\n',subj)
+            continue
+        end
+        
+        % load subject data
+        classData  = load(classFile);
+        if just_loso
+            if ~strcmp(classData.params.cvField,'session')
+                continue
+            end
+        end
+        
+        % load the features
+        if exist(powFile,'file')
+            features = load(powFile);
+        else
+            fprintf('Feature data not saved. Creating.\n')
+            subjParams = classData.params;
+            subjParams.saveOutput = 0;
+            subjParams.savePower = 1;
+            TH1_refactor_phase(subj,subjParams,dataDir)
+        end
+        features = load(powFile);
+        
+        % normalize features (zscore by session)
+        normPower = normPow(features.powMat,features.sessions,[],[],[]);
+        
+        % compute "forward model"
+        probs = vertcat(classData.res.yProbs{:});
+        probs = log(probs./(1-probs));
+        covx  = cov(normPower);
+        covs  = cov(probs);
+        W     = classData.res.fullModel.model.w;
+        A     = covx * W' / covs;
+        
+        % reshape to elecs x freqs
+        featMat = reshape(A,length(features.tal),[]);
+        
+        % average within ROIs?
+        freqs=features.powParams.params.pow.freqs;
+        if ~exist('weightsByRegion','var')
+            weightsByRegion = NaN(length(regions),length(freqs),length(subjs));
+        end
+        
+        anat = surface_DK_ROI(features.tal,subj);
+        for r = 1:length(regions)
+            %[talRegion,inds] = filterTalByRegion(features.tal,regions{r});
+            if any(anat.ROI.(regions{r}));
+                weightsByRegion(r,:,s) = nanmean(featMat(anat.ROI.(regions{r})==1,:),1);
+                %if ~isempty(talRegion)
+                %   weightsByRegion(r,:,s) = nanmean(featMat(inds,:),1);
+            end
+        end
+        
+        weightsTmp = weightsByRegion(:,:,s);
+        weightsTmp = weightsTmp(:);
+        weightsByRegion(:,:,s) = (weightsByRegion(:,:,s) - nanmean(weightsTmp))./nanstd(weightsTmp);
+        % store informatiopn about subject
+        figs_subj.nElecs   = length(classData.tal);
+        
+        %--------------------------------------------------------------------------
+        % Figure 1 - forward model weights by region
+        
+        fname = fullfile(figDir,[subj '_weightsByRegion.eps']);
+        if ~exist(fname,'file') || overwrite
+            
+            % plot it
+            figure(1)
+            clf
+            sanePColor(weightsByRegion(:,:,s)');
+            set(gca,'xticklabel',regions)
+            set(gca,'xtick',1:length(regions));
+            set(gca,'xticklabelrotation',45)
+            ylabel('Frequency','fontsize',20)
+            yticks = 0:10:length(freqs);
+            yticks(1) = 1;
+            yticks(end) = length(freqs);
+            set(gca,'ytick',yticks);
+            set(gca,'yticklabel',round(freqs(yticks)))
+            set(gca,'fontsize',20)
+            clim = get(gca,'clim');
+            clim = [-max(abs(clim)) max(abs(clim))];
+            set(gca,'clim',clim);
+            colormap jet
+            colormap(cmap);
+            colorbar
+            print('-depsc2','-tiff','-loose',fname);
+            figs_subj.fowardModel = fname;
+        end
+        
+        
+        figs = [figs;figs_subj];
+    end
+end
+
+figs_all = struct('subj','all','nElecs',NaN,'fowardModel',[]);
+fname = fullfile(figDir,['all_weightsByRegion.eps']);
+if ~exist(fname,'file') || overwrite
+    
+    % plot it
+    figure(2)
+    clf
+    sanePColor(nanmean(weightsByRegion,3)');
+    set(gca,'xticklabel',regions)
+    set(gca,'xtick',1:length(regions));
+    set(gca,'xticklabelrotation',45)
+    ylabel('Frequency','fontsize',20)
+    yticks = 0:10:length(freqs);
+    yticks(1) = 1;
+    yticks(end) = length(freqs);
+    set(gca,'ytick',yticks);
+    set(gca,'yticklabel',round(freqs(yticks)))
+    set(gca,'fontsize',20)
+    clim = get(gca,'clim');
+    clim = [-max(abs(clim)) max(abs(clim))];
+    set(gca,'clim',clim);
+    colormap jet
+    colormap(cmap);
+    colorbar
+    print('-depsc2','-tiff','-loose',fname);
+    figs_all.fowardModel = fname;
+end
+figs = [figs;figs_all];
+
+
+texName = 'weightReport.tex';
+if just_loso
+    texName = 'weightReport_loso.tex';
+end
+write_texfile(figDir,texName,figs)
+
+
+curr_dir = pwd;
+cd(figDir);
+fprintf('Compiling pdf...\n');
+unix(['pdflatex -shell-escape ' fullfile(figDir, texName)]);
+unix(['rm ' texName(1:end-3) 'aux']);
+unix(['rm ' texName(1:end-3) 'log']);
+fprintf('Done!\n');
+cd(curr_dir);
+
+
+
+% Start making the tex file
+function write_texfile(saveDir,texName, figs)
+
+% Write the document. If you do not have write permission, this will crash.
+fid = fopen(fullfile(saveDir,texName),'w');
+
+if fid==-1;
+    error(sprintf('cannot open %s',texName))
+end
+
+% Write out the preamble to the tex doc. This is standard stuff and doesn't
+% need to be changed
+fprintf(fid,'\\documentclass[a4paper]{article} \n');
+fprintf(fid,'\\usepackage[usenames,dvipsnames,svgnames,table]{xcolor}\n');
+fprintf(fid,'\\usepackage{graphicx,multirow} \n');
+fprintf(fid,'\\usepackage{epstopdf} \n');
+fprintf(fid,'\\usepackage[small,bf,it]{caption}\n');
+fprintf(fid,'\\usepackage{subfig,amsmath} \n');
+fprintf(fid,'\\usepackage{wrapfig} \n');
+fprintf(fid,'\\usepackage{longtable} \n');
+fprintf(fid,'\\usepackage{pdfpages}\n');
+fprintf(fid,'\\usepackage{mathtools}\n');
+fprintf(fid,'\\usepackage{array}\n');
+fprintf(fid,'\\usepackage{enumitem}\n');
+fprintf(fid,'\\usepackage{sidecap} \\usepackage{soul}\n');
+
+% fprintf(fid,'\\setlength\\belowcaptionskip{5pt}\n');
+fprintf(fid,'\n');
+fprintf(fid,'\\addtolength{\\oddsidemargin}{-.875in} \n');
+fprintf(fid,'\\addtolength{\\evensidemargin}{-.875in} \n');
+fprintf(fid,'\\addtolength{\\textwidth}{1.75in} \n');
+fprintf(fid,'\\addtolength{\\topmargin}{-.75in} \n');
+fprintf(fid,'\\addtolength{\\textheight}{1.75in} \n');
+fprintf(fid,'\n');
+fprintf(fid,'\\newcolumntype{C}[1]{>{\\centering\\let\\newline\\\\\\arraybackslash\\hspace{0pt}}m{#1}} \n');
+
+fprintf(fid,'\\usepackage{fancyhdr}\n');
+fprintf(fid,'\\pagestyle{fancy}\n');
+fprintf(fid,'\\fancyhf{}\n');
+% fprintf(fid,'\\lhead{Report: %s }\n',strrep(subj,'_','\_'));
+fprintf(fid,'\\rhead{Date created: %s}\n',date);
+
+fprintf(fid,'\\usepackage{hyperref}\n');
+
+% Start the document
+fprintf(fid,'\\begin{document}\n\n\n');
+
+% fprintf(fid,'\\hypertarget{%s}{}\n',region{1});
+
+% This section writes the figures
+for s = 1:length(figs)
+    
+    fprintf(fid,'\\begin{figure}[!h]\n');
+    fprintf(fid,'\\centering\n');
+    fprintf(fid,'\\includegraphics[width=0.8\\textwidth]{%s}\n',figs(s).fowardModel);
+    fprintf(fid,'\\caption{%s: %d electrodes}\n\n',strrep(figs(s).subj,'_',' '),figs(s).nElecs);
+    fprintf(fid,'\\end{figure}\n\n\n');
+    if mod(s,2) == 0
+        fprintf(fid,'\\clearpage\n\n\n');
+    end
+end
+
+fprintf(fid,'\\end{document}\n\n\n');
+fclose(fid)
+
+function [powerNorm,m,sigma,sessMap] = normPow(powerData,sessions,m,sigma,sessMap)
+
+[nEvents,nElecs,nEncs,nTimes,nFreqBins] = size(powerData);
+powerNorm = NaN(nEvents,nElecs,nEncs,nTimes,nFreqBins);
+
+
+uniqSess     = unique(sessions);
+if isempty(m) || isempty(sigma)
+    m       = NaN(length(uniqSess),size(powerData,2));
+    sigma   = NaN(length(uniqSess),size(powerData,2));
+    sessMap = NaN(length(uniqSess),1);
+end
+
+for s = 1:length(uniqSess)
+    sessInds = sessions==uniqSess(s);
+    if all(isnan(m(s,:)))
+        [powerNorm(sessInds,:),m(s,:),sigma(s,:)] = zscore(powerData(sessInds,:));
+        sessMap(s) = uniqSess(s);
+    else
+        sessMapInd = sessMap == uniqSess(s);
+        powerNorm(sessInds,:) = bsxfun(@rdivide, bsxfun(@minus, powerData(sessInds,:), m(sessMapInd,:)), sigma(sessMapInd,:));
+    end
+end
+
+
+
+
+
+
+
+
+
+
+

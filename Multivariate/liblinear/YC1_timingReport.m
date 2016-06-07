@@ -172,7 +172,7 @@ for s = 1:length(subjs)
         xlabel('Tercile of Classifier Estimate','fontsize',20)
         ylabel('Recall Change (%)','fontsize',20)
         set(gca,'fontsize',20)
-        set(gca,'ylim',[-100 100])
+        set(gca,'ylim',[-40 40])
         set(gca,'xlim',[0 4])
         grid on
         set(gca,'gridlinestyle',':');

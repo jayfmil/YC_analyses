@@ -126,7 +126,7 @@ if isempty(width)
 end
 if isempty(resampledrate)
     % resample all events to the sampling rate of the first event
-    resampledrate = GetRateAndFormat(events(1));
+    resampledrate = GetRateAndFormat(events(2));
 end
 resampledrate = round(resampledrate);
 

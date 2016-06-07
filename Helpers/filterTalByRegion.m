@@ -19,13 +19,15 @@ end
 
 % filter tal structure to just electrodes in a region of interest.
 if ~isfield(tal,'locTag') || isempty([tal.locTag])
+    [tal.locTag] = deal('');
     fprintf('No loc tag information for %s.\n',tal(1).subject)
     if ~isempty(region)
         fprintf('Regional analysis requested by no localizations found, skipping %s.\n',tal(1).subject)
-        tal = [];
-        return
+        %tal = [];
+        %return
     end
-else
+end
+%else
     locTags          = {tal.locTag};
     missing          = cellfun('isempty',locTags);
     locTags          = strcat(locTags,'_mtl');
@@ -213,4 +215,4 @@ else
             return
         end
     end
-end
+%end

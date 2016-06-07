@@ -1,4 +1,4 @@
-function [allErrors,allObjectLocs,allEucErrors,subjVec] = YC1_loadAllSubjErrors(recalcError)
+function [allErrors,allObjectLocs,allEucErrors,subjVec] = YC1_loadAllSubjErrors(recalcError,subjs)
 % function [allErrors,allObjectLocs,allEucErrors,subjVec] = YC1_loadAllSubjErrors(recalcError)
 %
 % This functions loops over all the YC1 subjects in the dataset and returns
@@ -10,7 +10,9 @@ if ~exist('recalcError','var') || isempty(recalcError)
 end
 
 % get list of YC subjects
-subjs = get_subs('RAM_YC1');
+if ~exist('subjs','var') || isempty(subjs)
+    subjs = get_subs('RAM_YC1');
+end
 
 % loop over each subject
 errors = cell(1,length(subjs));

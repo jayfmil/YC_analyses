@@ -263,7 +263,6 @@ auc_pen = NaN(length(Cs),length(Ts),length(types));
 % penalty parameter fold
 for thisC = 1:length(Cs)
     thisPen = Cs(thisC);
-    thisC 
     
     % set parameters for either L1 or L2 with the current c
     if strcmpi(normType,'L1')
@@ -294,10 +293,10 @@ for thisC = 1:length(Cs)
                 [xTrain,m,s] = standardize(xTrain,sessInds(inds));
                 
                 % test data for this cv
-                xTest =  X(~inds & encInds,tInds);
+                xTest =  X(~inds,tInds);
                 %         xTest = [ones(sum(~inds),1) X(~inds,:)];
-                yTest = Y(~inds & encInds);
-                xTest = standardize_test(xTest,sessInds(~inds & encInds),m,s);
+                yTest = Y(~inds);
+                xTest = standardize_test(xTest,sessInds(~inds),m,s);
                 
                 % weight by percentage of positive and negative classes. I don't
                 % totally get this but I am following Jim's code
@@ -328,7 +327,7 @@ for thisC = 1:length(Cs)
         end
     end
 end
-keyboard
+
 % return C and T with highest AUC
 ind = find(auc_pen==max(auc_pen(:)),1,'first');
 [cBest,tBest,encBest]=ind2sub(size(auc_pen),ind);

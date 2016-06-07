@@ -1,4 +1,4 @@
-function [perfs,subjs,nTrials,pfRange,pen,toUse] = aucHists(subjs,params)
+function [perfs,aucs,subjs,nTrials,pfRange,pen,toUse] = aucHists(subjs,params)
 
 % if not given, use default params
 if ~exist('params','var') || isempty(params)
@@ -37,6 +37,7 @@ aucs  = NaN(length(subjs),1);
 pvals = NaN(length(subjs),1);
 pfRange = NaN(length(subjs),1);
 pfMed = NaN(length(subjs),1);
+pfMedDiff = NaN(length(subjs),1);
 nTrials = NaN(length(subjs),1);
 pen = NaN(length(subjs),1);
 ts = NaN(length(subjs),1);
@@ -44,46 +45,73 @@ penMean = NaN(length(subjs),1);
 trainAucMean = NaN(length(subjs),1);
 tMost = NaN(length(subjs),1);
 
-for s = 1:length(subjs)                
-    subj = subjs{s};    
-        
-    % see if files exist for subject. if not, continue  
+testLocSim1 = NaN(length(subjs),1);
+testLocSim2 = NaN(length(subjs),1);
+
+for s = 1:length(subjs)
+    subj = subjs{s};
+    
+    % see if files exist for subject. if not, continue
     if ~isfield(params,'usePhase') || params.usePhase == 1
-        lassoFile  = fullfile(dataDir,[subj '_lasso_phase.mat']);    
+        lassoFile  = fullfile(dataDir,[subj '_lasso_phase.mat']);
     elseif params.usePhase == 0
-        lassoFile  = fullfile(dataDir,[subj '_lasso_pow.mat']);    
+        lassoFile  = fullfile(dataDir,[subj '_lasso_pow.mat']);
     elseif params.usePhase == 2
-        lassoFile  = fullfile(dataDir,[subj '_lasso_powphase.mat']);    
+        lassoFile  = fullfile(dataDir,[subj '_lasso_powphase.mat']);
     end
     if ~exist(lassoFile,'file')
         fprintf('Lasso not found for %s.\n',subj)
         continue
     end
+    subjData = load(lassoFile);
+    if length(subjData.Y) < 48
+        continue
+    end
+    
     events = get_sub_events('RAM_YC1',subj);
     events = addExtraYCFields(events);
     pf = [events(strcmp({events.type},'NAV_TEST')).testError];
     pfRange(s) = std(1-pf);
     pfMed(s) = median(1-pf);
     
-    subjData = load(lassoFile);    
+    pfMedDiff(s) = abs(median(pf(1-pf > median(1-pf))) - median(pf(1-pf < median(1-pf))));
+    
+    
+    
     perfs(s) = mean(vertcat(subjData.res.err{:}));
     aucs(s)  = subjData.AUC;
     pvals(s) = 1-binocdf(sum(vertcat(subjData.res.err{:})),length(vertcat(subjData.res.err{:})),.5);
     nTrials(s) = length(subjData.Y);
-    pen(s) = std(log10([subjData.res.lambda{:}]));
-    penMean(s) = mean(log10([subjData.res.lambda{:}]));
-
+    pen(s) = std(log10([subjData.res.C{:}]));
+    penMean(s) = mean(log10([subjData.res.C{:}]));
+    
     ts(s) = std(([subjData.res.tBest{:}]));
     
     t=[subjData.res.tBest{:}];
     tMost(s) = max(grpstats(t,t,'numel')/length(t));
     
- trainingAucs = cellfun(f,subjData.res.aucs);
- trainAucMean(s) = mean(trainingAucs);
+    trainingAucs = cellfun(f,subjData.res.aucs);
+    trainAucMean(s) = mean(trainingAucs);
     
     
+    testEvents = find(strcmp({events.type},'NAV_TEST'));
+    learnOneTestDist = NaN(1,length(testEvents));
+    learnTwoTestDist = NaN(1,length(testEvents));
+    for i = 1:length(learnTwoTestDist)
+        learnLoc1 = events(testEvents(i)-2).startLocs;
+        learnLoc2 = events(testEvents(i)-1).startLocs;
+        testLoc  = events(testEvents(i)).startLocs;
+        learnOneTestDist(i) = calc_YC_error(learnLoc1,testLoc);
+        learnTwoTestDist(i) = calc_YC_error(learnLoc2,testLoc);
+    end
+    [r,p]=corr(learnOneTestDist',1-pf');
+    testLocSim1(s) = r;
+    
+    [r,p]=corr(learnTwoTestDist',1-pf');
+    res = regstats(1-pf,learnTwoTestDist,'linear',{'rsquare'});
+    testLocSim2(s) = r;
 end
-
+keyboard
 % plot initial hist
 figure
 clf
@@ -103,7 +131,7 @@ grid on
 set(gca,'gridlinestyle',':');
 set(gca,'fontsize',20)
 
-% plot mean 
+% plot mean
 m   = nanmean(perfs);
 med = nanmedian(perfs);
 hold on
@@ -211,6 +239,20 @@ hold on
 print('-depsc2','-loose',fullfile(figDir,'pCorrVsTrainAUC'))
 
 
+% figure
+% clf
+% scatter(testLocSim,perfs*100,30)
+% xlabel('Learn 2 Test Sim','fontsize',20)
+% ylabel('% Correct','fontsize',20);
+% grid on
+% set(gca,'gridlinestyle',':');
+% set(gca,'fontsize',20)
+% hold on
+% % s = regstats(pen,perfs);
+% print('-depsc2','-loose',fullfile(figDir,'pCorrVsTrainAUC'))
+
+
+
 
 figure
 clf
@@ -245,7 +287,7 @@ grid on
 set(gca,'gridlinestyle',':');
 set(gca,'fontsize',20)
 
-% plot mean 
+% plot mean
 m   = nanmean(perfs(toUse));
 med = nanmedian(perfs(toUse));
 hold on
